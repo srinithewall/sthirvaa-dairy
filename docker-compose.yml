@@ -1,0 +1,35 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: dairy-db
+    environment:
+      MYSQL_DATABASE: dairy
+      MYSQL_USER: sthi
+      MYSQL_PASSWORD: Sthirva@26
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build: .
+    container_name: dairy-backend
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/dairy?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=sthi
+      - SPRING_DATASOURCE_PASSWORD=Sthirva@26
+    depends_on:
+      - db
+
+  # frontend:
+  #   image: node:20-alpine
+  #   container_name: dairy-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   # Add your frontend build/run logic here
+
+volumes:
+  mysql_data:

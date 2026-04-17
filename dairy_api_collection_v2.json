@@ -1,0 +1,161 @@
+{
+	"info": {
+		"_postman_id": "dairy-api-collection-v2",
+		"name": "Dairy Management System API v2",
+		"description": "Updated Collection for Dairy Management System with Herds and Finance",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"password123\"\n}",
+							"options": {
+								"raw": { "language": "json" }
+							}
+						},
+						"url": { "raw": "http://localhost:8082/api/auth/login", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "auth", "login"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "Herds",
+			"item": [
+				{
+					"name": "List All Herds",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }],
+						"url": { "raw": "http://localhost:8082/api/herds", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "herds"] }
+					}
+				},
+				{
+					"name": "Get Herds by Type",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }],
+						"url": { "raw": "http://localhost:8082/api/herds/type/COW", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "herds", "type", "COW"] }
+					}
+				},
+				{
+					"name": "Create Herd Entry (A2 Cow)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"tagNumber\": \"COW-A2-101\",\n    \"animalType\": \"COW\",\n    \"breed\": \"Jersey\",\n    \"breedType\": \"A2\",\n    \"birthDate\": \"2023-05-15\",\n    \"healthStatus\": \"Healthy\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": { "raw": "http://localhost:8082/api/herds", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "herds"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "Finance",
+			"item": [
+				{
+					"name": "Get Financial Summary",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }],
+						"url": {
+							"raw": "http://localhost:8082/api/finance/summary?start=2024-04-01&end=2024-04-30",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8082",
+							"path": ["api", "finance", "summary"],
+							"query": [
+								{ "key": "start", "value": "2024-04-01" },
+								{ "key": "end", "value": "2024-04-30" }
+							]
+						}
+					}
+				},
+				{
+					"name": "List Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "http://localhost:8082/api/categories", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "categories"] }
+					}
+				},
+				{
+					"name": "Create Expense",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category\": \"Fuel\",\n    \"amount\": 500.0,\n    \"description\": \"Tractor refueling\",\n    \"date\": \"2024-04-16\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": { "raw": "http://localhost:8082/api/expenses", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "expenses"] }
+					}
+				},
+				{
+					"name": "Create Income (General)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category\": \"Awards\",\n    \"amount\": 5000.0,\n    \"description\": \"Dairy Expo 1st Prize\",\n    \"date\": \"2024-04-16\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": { "raw": "http://localhost:8082/api/income", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "income"] }
+					}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Sales",
+			"item": [
+				{
+					"name": "Create Sale (Milk/Dung/etc)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"customerId\": 1,\n    \"itemName\": \"Fresh Cow Milk\",\n    \"quantity\": 10.0,\n    \"price\": 60.0,\n    \"date\": \"2024-04-16\",\n    \"paymentStatus\": \"PAID\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": { "raw": "http://localhost:8082/api/sales", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "sales"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "Alerts",
+			"item": [
+				{
+					"name": "Get Alerts",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text" }],
+						"url": { "raw": "http://localhost:8082/api/alerts", "protocol": "http", "host": ["localhost"], "port": "8082", "path": ["api", "alerts"] }
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "jwt_token",
+			"value": "your_token_here",
+			"type": "string"
+		}
+	]
+}

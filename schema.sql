@@ -1,0 +1,83 @@
+-- Dairy Management System Schema
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('ADMIN', 'WORKER') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS cows (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tag_number VARCHAR(50) UNIQUE NOT NULL,
+    breed VARCHAR(100),
+    birth_date DATE,
+    health_status VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_tag_number (tag_number)
+);
+
+CREATE TABLE IF NOT EXISTS milk_records (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    cow_id BIGINT NOT NULL,
+    quantity DOUBLE NOT NULL,
+    date DATE NOT NULL,
+    shift VARCHAR(20) NOT NULL,
+    worker_id BIGINT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (cow_id) REFERENCES cows(id),
+    FOREIGN KEY (worker_id) REFERENCES users(id),
+    INDEX idx_date (date)
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sales (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_id BIGINT NOT NULL,
+    quantity DOUBLE NOT NULL,
+    price DOUBLE NOT NULL,
+    total_amount DOUBLE NOT NULL,
+    date DATE NOT NULL,
+    payment_status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    category VARCHAR(100) NOT NULL,
+    amount DOUBLE NOT NULL,
+    description TEXT,
+    date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS staff (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    designation VARCHAR(100),
+    salary DOUBLE,
+    phone VARCHAR(20),
+    join_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS inventory (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    item_name VARCHAR(255) NOT NULL,
+    quantity DOUBLE NOT NULL,
+    unit VARCHAR(20),
+    reorder_level DOUBLE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);

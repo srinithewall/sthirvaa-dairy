@@ -18,6 +18,9 @@ public class Customer {
     
     private String address;
 
+    @Column(name = "default_rate", columnDefinition = "DOUBLE DEFAULT 45.0")
+    private Double defaultRate = 45.0;
+
     private LocalDateTime createdAt;
 
     public Customer() {}
@@ -39,6 +42,9 @@ public class Customer {
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+
+    public Double getDefaultRate() { return defaultRate; }
+    public void setDefaultRate(Double defaultRate) { this.defaultRate = defaultRate; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

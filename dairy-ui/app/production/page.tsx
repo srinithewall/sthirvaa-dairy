@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import LogYieldModal from '@/components/LogYieldModal';
+import DistributeModal from '@/components/DistributeModal';
 import api from '@/lib/api';
-import { Droplets, Plus, TrendingUp, Sun, Moon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Droplets, Plus, TrendingUp, Sun, Moon, ChevronLeft, ChevronRight, Pencil, Truck } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────── */
 interface Herd {
@@ -25,18 +26,26 @@ interface DaySummary {
 }
 
 const todayStr = () => new Date().toISOString().split('T')[0];
+const nextWeekStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().split('T')[0];
+};
+
 const fmt = (n: number) => n % 1 === 0 ? `${n}` : n.toFixed(1);
 
-/* ─── Stat card ───────────────────────────────────────── */
+/* ─── Compact Stat card ───────────────────────────────── */
 function StatCard({ icon, label, value, sub, color }: {
   icon: React.ReactNode; label: string; value: string; sub?: string; color: string;
 }) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-5 flex flex-col gap-1 shadow-lg text-white ${color}`}>
-      <div className="absolute -right-4 -top-4 opacity-10 scale-150">{icon}</div>
-      <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">{label}</span>
-      <span className="text-3xl font-black tracking-tight leading-none">{value}</span>
-      {sub && <span className="text-[10px] opacity-70 font-medium mt-0.5">{sub}</span>}
+    <div className={`relative overflow-hidden rounded-xl p-3 flex flex-col shadow text-white ${color}`}>
+      <div className="absolute -right-2 -top-2 opacity-10 scale-125">{icon}</div>
+      <span className="text-[9px] font-black uppercase tracking-wider opacity-80">{label}</span>
+      <div className="flex items-baseline gap-1 mt-0.5">
+        <span className="text-xl font-black tracking-tight leading-none">{value}</span>
+      </div>
+      {sub && <span className="text-[8px] opacity-70 font-bold mt-1 tracking-tight truncate">{sub}</span>}
     </div>
   );
 }
@@ -46,6 +55,8 @@ export default function MilkProductionPage() {
   const [summary, setSummary] = useState<DaySummary[]>([]);
   const [lactating, setLactating] = useState<Herd[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [distributeTarget, setDistributeTarget] = useState<{ date: string; shift: string; total: number } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ date: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const PER_PAGE = 10;
@@ -148,7 +159,7 @@ export default function MilkProductionPage() {
                 <th className="px-5 py-3 text-indigo-600">Evening (L)</th>
                 <th className="px-5 py-3 text-brand">Total (L)</th>
                 <th className="px-5 py-3">Cows</th>
-                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -182,10 +193,24 @@ export default function MilkProductionPage() {
                     </td>
                     <td className="px-5 py-3.5 text-text3 font-medium">{day.cowCount} cows</td>
                     <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 text-[10px] font-black rounded-full border border-green-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                        Logged
-                      </span>
+                      <div className="flex items-center gap-2 justify-center">
+                        {/* Edit yield */}
+                        <button
+                          onClick={() => { setEditTarget({ date: day.date }); setShowModal(true); }}
+                          title="Edit yield entry"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border-custom text-text3 hover:border-brand hover:text-brand text-[10px] font-black uppercase tracking-wider transition-all"
+                        >
+                          <Pencil size={11} /> Edit
+                        </button>
+                        {/* Distribute */}
+                        <button
+                          onClick={() => setDistributeTarget({ date: day.date, shift: 'MORNING', total: day.morning })}
+                          title="Distribute milk to customers"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-brand/40 text-brand hover:bg-brand hover:text-white text-[10px] font-black uppercase tracking-wider transition-all"
+                        >
+                          <Truck size={11} /> Distribute
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -224,7 +249,18 @@ export default function MilkProductionPage() {
       {showModal && (
         <LogYieldModal
           lactatingCows={lactating}
-          onClose={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setEditTarget(null); }}
+          onSave={fetchAll}
+        />
+      )}
+
+      {/* ── Distribute Modal ── */}
+      {distributeTarget && (
+        <DistributeModal
+          date={distributeTarget.date}
+          shift={distributeTarget.shift}
+          totalProduced={distributeTarget.total}
+          onClose={() => setDistributeTarget(null)}
           onSave={fetchAll}
         />
       )}

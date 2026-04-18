@@ -23,6 +23,12 @@ interface CowEntry {
 }
 
 const todayStr = () => new Date().toISOString().split('T')[0];
+const twoWeeksAgoStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 14);
+  return d.toISOString().split('T')[0];
+};
+
 const fmt = (n: number) => n % 1 === 0 ? `${n}` : n.toFixed(1);
 
 interface LogYieldModalProps {
@@ -138,6 +144,7 @@ export default function LogYieldModal({
             <input
               type="date"
               value={date}
+              min={twoWeeksAgoStr()}
               max={todayStr()}
               onChange={(e) => setDate(e.target.value)}
               className="text-[12px] font-bold text-text bg-transparent focus:outline-none"

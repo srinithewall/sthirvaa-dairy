@@ -23,7 +23,7 @@ interface Transaction {
   type: 'EXPENSE' | 'INCOME';
 }
 
-export default function LedgerPage() {
+function LedgerPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeTab, setActiveTab] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [history, setHistory] = useState<Transaction[]>([]);

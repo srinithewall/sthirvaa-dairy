@@ -7,7 +7,6 @@ import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
 
 const sidebarItems = [
-// ... (omitting for brevity as I'll target the export function start)
   { group: 'Overview', items: [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { name: 'Alerts', icon: Bell, path: '/alerts', badge: 3 }
@@ -102,7 +101,7 @@ export default function Sidebar() {
                 onClick={() => setShowModal(false)}
                 className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
               >
-                <LogOut size={16} className="rotate-180" />
+                <X size={18} />
               </button>
               <div className="w-16 h-16 bg-accent rounded-full mx-auto flex items-center justify-center text-brand-dark text-2xl font-bold mb-3 shadow-lg">
                 {displayName.substring(0,2).toUpperCase()}

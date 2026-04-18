@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Menu, Bell, Home, Settings, LogOut } from 'lucide-react';
+import { Menu, LogOut, Home } from 'lucide-react';
 
 export default function Navbar() {
   const [user, setUser] = React.useState({ username: 'User' });

@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --brand: #2D6A4F;
+  --brand-light: #52B788;
+  --brand-dark: #1B4332;
+  --accent: #F7B731;
+  --accent-dark: #d4920a;
+  --sidebar-w: 230px;
+  --nav-h: 56px;
+  --background: #F0F4F1;
+  --foreground: #1A2E22;
+  --surface: #FFFFFF;
+  --surface2: #F5F9F6;
+  --text: #1A2E22;
+  --text2: #4A6355;
+  --text3: #7A9485;
+  --border: rgba(45,106,79,0.12);
+  --border2: rgba(45,106,79,0.22);
+  --danger: #E05252;
+  --warn: #F7B731;
+  --success: #2D6A4F;
+  --info: #3A7BD5;
+  --radius: 10px;
+  --radius-lg: 14px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-brand: var(--brand);
+  --color-brand-light: var(--brand-light);
+  --color-brand-dark: var(--brand-dark);
+  --color-accent: var(--accent);
+  --color-accent-dark: var(--accent-dark);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-text: var(--text);
+  --color-text2: var(--text2);
+  --color-text3: var(--text3);
+  --color-border-custom: var(--border);
+  --color-border-custom2: var(--border2);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --radius-custom: var(--radius);
+  --radius-custom-lg: var(--radius-lg);
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+}
+
+/* Custom Utilities similar to the HTML sample */
+.card-shadow {
+  box-shadow: 0 4px 12px rgba(45,106,79,0.06);
+}
+
+.modal-shadow {
+  box-shadow: 0 24px 64px rgba(0,0,0,0.22);
 }

@@ -33,22 +33,25 @@ const fmt = (n: number) => n % 1 === 0 ? `${n}` : n.toFixed(1);
 
 interface LogYieldModalProps {
   lactatingCows: Herd[];
+  editDate?: string;   // if set, pre-load this date's existing records
   onClose: () => void;
   onSave: () => void;
 }
 
 export default function LogYieldModal({
   lactatingCows,
+  editDate,
   onClose,
   onSave,
 }: LogYieldModalProps) {
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(editDate || todayStr());
   const [entries, setEntries] = useState<CowEntry[]>([]);
   const [comments, setComments] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // Build base entries from lactatingCows list
   useEffect(() => {
     setEntries(
       lactatingCows.map((h) => ({
@@ -60,6 +63,24 @@ export default function LogYieldModal({
       }))
     );
   }, [lactatingCows]);
+
+  // When date changes, try to pre-fill existing saved records
+  useEffect(() => {
+    if (!date) return;
+    api.get(`/milk-records/by-date?date=${date}`).then(res => {
+      const records: any[] = res.data;
+      if (!records || records.length === 0) return;
+      setEntries(prev => prev.map(e => {
+        const morning = records.find(r => r.herd?.id === e.herdId && r.shift === 'MORNING');
+        const evening = records.find(r => r.herd?.id === e.herdId && r.shift === 'EVENING');
+        return {
+          ...e,
+          morning: morning ? String(morning.quantity) : '',
+          evening: evening ? String(evening.quantity) : '',
+        };
+      }));
+    }).catch(() => {}); // silently ignore — new day will just show blanks
+  }, [date]);
 
   const update = (idx: number, shift: 'morning' | 'evening', val: string) => {
     setEntries((prev) => {

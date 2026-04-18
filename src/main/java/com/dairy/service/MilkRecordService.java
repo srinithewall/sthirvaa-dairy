@@ -30,8 +30,12 @@ public class MilkRecordService {
         return milkRecordRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<MilkRecord> getByDate(LocalDate date) {
-        return milkRecordRepository.findByDate(date);
+        List<MilkRecord> records = milkRecordRepository.findByDate(date);
+        // Touch herd to force-load within transaction
+        records.forEach(r -> { if (r.getHerd() != null) r.getHerd().getId(); });
+        return records;
     }
 
     public List<MilkRecord> getByHerd(Long herdId) {

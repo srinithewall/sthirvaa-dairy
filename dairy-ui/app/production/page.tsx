@@ -249,6 +249,7 @@ export default function MilkProductionPage() {
       {showModal && (
         <LogYieldModal
           lactatingCows={lactating}
+          editDate={editTarget?.date}
           onClose={() => { setShowModal(false); setEditTarget(null); }}
           onSave={fetchAll}
         />

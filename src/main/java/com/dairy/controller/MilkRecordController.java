@@ -32,9 +32,22 @@ public class MilkRecordController {
 
     /** GET /api/milk-records/by-date?date=2024-04-23 */
     @GetMapping("/by-date")
-    public List<MilkRecord> getByDate(
+    public List<Map<String, Object>> getByDate(
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return milkRecordService.getByDate(date);
+        return milkRecordService.getByDate(date).stream().map(r -> {
+            Map<String, Object> dto = new java.util.HashMap<>();
+            dto.put("id", r.getId());
+            dto.put("date", r.getDate());
+            dto.put("shift", r.getShift());
+            dto.put("quantity", r.getQuantity());
+            if (r.getHerd() != null) {
+                Map<String, Object> herd = new java.util.HashMap<>();
+                herd.put("id", r.getHerd().getId());
+                herd.put("tagNumber", r.getHerd().getTagNumber());
+                dto.put("herd", herd);
+            }
+            return dto;
+        }).collect(java.util.stream.Collectors.toList());
     }
 
     /**

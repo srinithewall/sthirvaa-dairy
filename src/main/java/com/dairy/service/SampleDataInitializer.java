@@ -1,17 +1,34 @@
 package com.dairy.service;
 
-import com.dairy.model.*;
-import com.dairy.repo.*;
+import com.dairy.model.Herd;
+import com.dairy.model.Category;
+import com.dairy.model.Customer;
+import com.dairy.model.Staff;
+import com.dairy.model.Role;
+import com.dairy.model.User;
+import com.dairy.model.Inventory;
+import com.dairy.model.Sale;
+import com.dairy.repo.HerdRepository;
+import com.dairy.repo.CategoryRepository;
+import com.dairy.repo.CustomerRepository;
+import com.dairy.repo.MilkRecordRepository;
+import com.dairy.repo.SaleRepository;
+import com.dairy.repo.ExpenseRepository;
+import com.dairy.repo.IncomeRepository;
+import com.dairy.repo.StaffRepository;
+import com.dairy.repo.InventoryRepository;
+import com.dairy.repo.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 
 @Component("sampleDataInitializer")
 public class SampleDataInitializer implements CommandLineRunner {
@@ -28,7 +45,8 @@ public class SampleDataInitializer implements CommandLineRunner {
     @Autowired private StaffRepository staffRepository;
     @Autowired private InventoryRepository inventoryRepository;
     @Autowired private UserRepository userRepository;
-    @Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     @Override
     public void run(String... args) throws Exception {
@@ -42,7 +60,47 @@ public class SampleDataInitializer implements CommandLineRunner {
         seedTransactions(herds, customers);
         seedUsers(staffList, customers);
         
+        updateExistingHerds();
         logger.info("Identity Seeding finished.");
+    }
+
+    private void updateExistingHerds() {
+        // 1. One-time Migration for Status (Migrating old Booleans to new String status)
+        try {
+            jdbcTemplate.execute("UPDATE herds SET animal_status = 'LACTATING' WHERE animal_status IS NULL AND is_lactating = true");
+            jdbcTemplate.execute("UPDATE herds SET animal_status = 'CALF' WHERE animal_status IS NULL AND is_calf = true");
+            jdbcTemplate.execute("UPDATE herds SET animal_status = 'HEIFER' WHERE animal_status IS NULL");
+            
+            // 2. One-time Migration for Milk Type (Migrating old Breed Type)
+            jdbcTemplate.execute("UPDATE herds SET milk_type = 'A2' WHERE milk_type IS NULL AND tag_number LIKE '%A2%'");
+            jdbcTemplate.execute("UPDATE herds SET milk_type = 'A1' WHERE milk_type IS NULL");
+        } catch (Exception e) {
+            logger.warn("Migration notice: Old columns might already be removed or missing. Skipping SQL patch.");
+        }
+
+        List<Herd> existing = herdRepository.findAll();
+        for (Herd h : existing) {
+            boolean updated = false;
+            if (h.getImageUrl() == null || h.getImageUrl().isEmpty()) {
+                if ("COW".equals(h.getAnimalType())) {
+                    h.setImageUrl("/images/herds/gir_cow.png");
+                } else if ("BUFFALO".equals(h.getAnimalType())) {
+                    h.setImageUrl("/images/herds/murrah_buffalo.png");
+                } else if ("GOAT".equals(h.getAnimalType())) {
+                    h.setImageUrl("/images/herds/goat.png");
+                }
+                updated = true;
+            }
+            if (h.getAnimalStatus() == null) {
+                 h.setAnimalStatus(h.getTagNumber().contains("A2") ? "LACTATING" : "HEIFER");
+                 updated = true;
+            }
+            if (h.getMilkType() == null) {
+                 h.setMilkType(h.getTagNumber().contains("A2") ? "A2" : "A1");
+                 updated = true;
+            }
+            if (updated) herdRepository.save(h);
+        }
     }
 
     private void seedUsers(List<Staff> staffList, List<Customer> customerList) {
@@ -100,11 +158,11 @@ public class SampleDataInitializer implements CommandLineRunner {
         if (herdRepository.count() > 0) return herdRepository.findAll();
         LocalDate pDate = LocalDate.of(2026, 10, 14);
         List<Herd> herds = Arrays.asList(
-            createFullHerd("COW-A2-101", "COW", "Gir", "A2", "Lakshmi", "Brought from Rajasthan", "/images/herds/gir_cow_a2.png", true, false, pDate),
-            createFullHerd("COW-A2-102", "COW", "Jersey", "A2", "Meenakshi", "Karnal Farm", "/images/herds/gir_cow_a2.png", true, false, pDate),
-            createFullHerd("COW-101", "COW", "Gir", "A1", "Nanda", "Direct Farm Birth", "/images/herds/gir_cow_a2.png", false, true, pDate),
+            createFullHerd("COW-A2-101", "COW", "Gir", "A2", "Lakshmi", "Brought from Rajasthan", "/images/herds/gir_cow.png", true, false, pDate),
+            createFullHerd("COW-A2-102", "COW", "Jersey", "A2", "Meenakshi", "Karnal Farm", "/images/herds/gir_cow.png", true, false, pDate),
+            createFullHerd("COW-101", "COW", "Gir", "A1", "Nanda", "Direct Farm Birth", "/images/herds/gir_cow.png", false, true, pDate),
             createFullHerd("BUF-301", "BUFFALO", "Murrah", "A2", "Rajeshwari", "Punjab Dairy", "/images/herds/murrah_buffalo.png", true, false, pDate),
-            createFullHerd("GOAT-501", "GOAT", "Jamnapari", "N/A", "Muni", "Sthirvaa Direct", "/images/herds/jamnapari_goat.png", false, false, pDate)
+            createFullHerd("GOAT-501", "GOAT", "Jamnapari", "N/A", "Muni", "Sthirvaa Direct", "/images/herds/goat.png", false, false, pDate)
         );
         return herdRepository.saveAll(herds);
     }
@@ -114,12 +172,11 @@ public class SampleDataInitializer implements CommandLineRunner {
         h.setTagNumber(tag);
         h.setAnimalType(type);
         h.setBreed(breed);
-        h.setBreedType(bType);
+        h.setMilkType(bType);
         h.setAnimalName(name);
         h.setSource(source);
         h.setImageUrl(imageUrl);
-        h.setLactating(l);
-        h.setCalf(c);
+        h.setAnimalStatus(l ? "LACTATING" : (c ? "CALF" : "HEIFER"));
         h.setProcuredDate(d);
         h.setBirthDate(LocalDate.now().minusYears(3));
         h.setHealthStatus("HEALTHY");

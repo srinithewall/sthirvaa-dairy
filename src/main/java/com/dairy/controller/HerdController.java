@@ -28,9 +28,9 @@ public class HerdController {
         
         java.util.Map<String, Object> counts = new java.util.HashMap<>(animalCounts);
         
-        // Add Specific Counts (Lactation and Calf)
-        counts.put("Lactation", herds.stream().filter(h -> Boolean.TRUE.equals(h.isLactating())).count());
-        counts.put("Calf", herds.stream().filter(h -> Boolean.TRUE.equals(h.isCalf())).count());
+        // Add Specific Counts (Lactation and Calf using unified status)
+        counts.put("Lactation", herds.stream().filter(h -> "LACTATING".equalsIgnoreCase(h.getAnimalStatus())).count());
+        counts.put("Calf", herds.stream().filter(h -> "CALF".equalsIgnoreCase(h.getAnimalStatus())).count());
         
         java.util.Map<String, Object> response = new java.util.HashMap<>();
         response.put("herds", herds);
@@ -53,13 +53,11 @@ public class HerdController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public Herd createHerd(@RequestBody Herd herd) {
         return herdService.saveHerd(herd);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Herd> updateHerd(@PathVariable Long id, @RequestBody Herd herd) {
         return herdService.getHerdById(id)
                 .map(existing -> {
@@ -70,7 +68,6 @@ public class HerdController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteHerd(@PathVariable Long id) {
         herdService.deleteHerd(id);
         return ResponseEntity.noContent().build();

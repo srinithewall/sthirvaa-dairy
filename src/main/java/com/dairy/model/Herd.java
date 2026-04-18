@@ -3,6 +3,7 @@ package com.dairy.model;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 @Entity
 @Table(name = "herds")
@@ -22,20 +23,19 @@ public class Herd {
 
     private String breed;
     
-    @Column(name = "breed_type")
-    private String breedType;
+    @Column(name = "milk_type")
+    private String milkType;
 
     @Column(name = "birth_date")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthDate;
 
     @Column(name = "procured_date")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate procuredDate;
 
-    @Column(name = "is_calf")
-    private Boolean isCalf;
-
-    @Column(name = "is_lactating")
-    private Boolean isLactating;
+    @Column(name = "animal_status")
+    private String animalStatus; // CALF, HEIFER, PREGNANT, LACTATING, DRY
 
     @Column(name = "health_status")
     private String healthStatus;
@@ -44,6 +44,8 @@ public class Herd {
 
     @Column(name = "image_url")
     private String imageUrl;
+
+    private String age;
 
     @Column(nullable = false)
     private String status = "ACTIVE";
@@ -78,11 +80,11 @@ public class Herd {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public Boolean isCalf() { return isCalf; }
-    public void setCalf(Boolean calf) { isCalf = calf; }
+    public String getMilkType() { return milkType; }
+    public void setMilkType(String milkType) { this.milkType = milkType; }
 
-    public Boolean isLactating() { return isLactating; }
-    public void setLactating(Boolean lactating) { isLactating = lactating; }
+    public String getAnimalStatus() { return animalStatus; }
+    public void setAnimalStatus(String animalStatus) { this.animalStatus = animalStatus; }
 
     public String getTagNumber() { return tagNumber; }
     public void setTagNumber(String tagNumber) { this.tagNumber = tagNumber; }
@@ -96,8 +98,6 @@ public class Herd {
     public String getBreed() { return breed; }
     public void setBreed(String breed) { this.breed = breed; }
 
-    public String getBreedType() { return breedType; }
-    public void setBreedType(String breedType) { this.breedType = breedType; }
 
     public LocalDate getBirthDate() { return birthDate; }
     public void setBirthDate(LocalDate birthDate) { this.birthDate = birthDate; }
@@ -129,8 +129,12 @@ public class Herd {
     public String getUpdatedBy() { return updatedBy; }
     public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
 
+    public String getAge() { return age; }
+    public void setAge(String age) { this.age = age; }
+
     @Transient
-    public String getAge() {
+    @com.fasterxml.jackson.annotation.JsonProperty("calculatedAge")
+    public String getCalculatedAge() {
         if (birthDate == null) return "N/A";
         java.time.Period period = java.time.Period.between(birthDate, java.time.LocalDate.now());
         if (period.getYears() > 0) return period.getYears() + "y " + period.getMonths() + "m";

@@ -42,7 +42,15 @@ public class MilkRecord {
     public void setId(Long id) { this.id = id; }
 
     public Herd getHerd() { return herd; }
-    public void setHerd(Herd herd) { this.herd = herd; }
+    public void setHerd(Herd herd) { 
+        this.herd = herd; 
+        if (herd != null) {
+            this.herdId = herd.getId();
+        }
+    }
+
+    public Long getHerdId() { return herdId; }
+    public void setHerdId(Long herdId) { this.herdId = herdId; }
 
     public Double getQuantity() { return quantity; }
     public void setQuantity(Double quantity) { this.quantity = quantity; }

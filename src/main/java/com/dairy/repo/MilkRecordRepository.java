@@ -8,4 +8,5 @@ import java.util.List;
 public interface MilkRecordRepository extends JpaRepository<MilkRecord, Long> {
     List<MilkRecord> findByDate(LocalDate date);
     List<MilkRecord> findByHerdId(Long herdId);
+    List<MilkRecord> findAllByOrderByDateDesc();
 }

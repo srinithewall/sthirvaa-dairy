@@ -1,8 +1,10 @@
 package com.dairy.service;
 
 import com.dairy.model.Herd;
+import com.dairy.model.Income;
 import com.dairy.model.MilkRecord;
 import com.dairy.repo.HerdRepository;
+import com.dairy.repo.IncomeRepository;
 import com.dairy.repo.MilkRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,9 @@ public class MilkRecordService {
 
     @Autowired
     private HerdRepository herdRepository;
+
+    @Autowired
+    private IncomeRepository incomeRepository;
 
     public List<MilkRecord> getAll() {
         return milkRecordRepository.findAll();
@@ -50,7 +55,22 @@ public class MilkRecordService {
             })
             .collect(Collectors.toList());
 
-        return milkRecordRepository.saveAll(records);
+        List<MilkRecord> saved = milkRecordRepository.saveAll(records);
+
+        // Record income automatically
+        if (!saved.isEmpty()) {
+            double totalYield = saved.stream().mapToDouble(MilkRecord::getQuantity).sum();
+            LocalDate date = saved.get(0).getDate();
+
+            Income milkIncome = new Income();
+            milkIncome.setCategory("MILK_PRODUCTION");
+            milkIncome.setAmount(totalYield * 45.0); // Assuming 45 per liter
+            milkIncome.setDate(date);
+            milkIncome.setDescription(String.format("Automatic income from %.1f L of milk produced", totalYield));
+            incomeRepository.save(milkIncome);
+        }
+
+        return saved;
     }
 
     @Transactional(readOnly = true)

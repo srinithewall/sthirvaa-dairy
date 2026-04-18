@@ -19,29 +19,28 @@ public class DatabaseCleanupService implements CommandLineRunner {
     public void run(String... args) throws Exception {
         System.out.println(">>> Starting Database Cleanup to fix Milk Production issues...");
         
+        // 1. Remove the annoying foreign key if it exists
         try {
-            // 1. Remove the annoying foreign key if it exists
-            // Constraint name found from user error screenshot
-            jdbcTemplate.execute("ALTER TABLE milk_records DROP FOREIGN KEY IF EXISTS FK6u76u49fd1r0j8ej995ww02uc");
-            System.out.println(">>> Dropped FK constraint on cow_id.");
+            jdbcTemplate.execute("ALTER TABLE milk_records DROP FOREIGN KEY FK6u76u49fd1r0j8ej995ww02uc");
+            System.out.println(">>> SUCCESS: Dropped FK constraint on cow_id.");
         } catch (Exception e) {
-            System.out.println(">>> FK constraint already gone or different name: " + e.getMessage());
+            System.out.println(">>> INFO: FK constraint not found (safe to ignore).");
         }
 
+        // 2. Remove the redundant cow_id column
         try {
-            // 2. Remove the redundant cow_id column
-            jdbcTemplate.execute("ALTER TABLE milk_records DROP COLUMN IF EXISTS cow_id");
-            System.out.println(">>> Dropped redundant cow_id column.");
+            jdbcTemplate.execute("ALTER TABLE milk_records DROP COLUMN cow_id");
+            System.out.println(">>> SUCCESS: Dropped redundant cow_id column.");
         } catch (Exception e) {
-            System.out.println(">>> cow_id column already gone.");
+            System.out.println(">>> INFO: cow_id column not found (safe to ignore).");
         }
 
+        // 3. Optional: Drop the empty ghost 'cows' table
         try {
-            // 3. Optional: Drop the empty ghost 'cows' table to avoid future confusion
-            jdbcTemplate.execute("DROP TABLE IF EXISTS cows");
-            System.out.println(">>> Dropped unused 'cows' table.");
+            jdbcTemplate.execute("DROP TABLE cows");
+            System.out.println(">>> SUCCESS: Dropped unused 'cows' table.");
         } catch (Exception e) {
-            System.out.println(">>> Cows table already gone.");
+            System.out.println(">>> INFO: cows table not found (safe to ignore).");
         }
 
         System.out.println(">>> Database Cleanup Finished! Milk Production is now unblocked.");

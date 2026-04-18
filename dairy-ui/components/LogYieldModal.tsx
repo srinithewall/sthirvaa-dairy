@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { X, Sun, Moon, Calendar, MessageSquare, Droplets } from 'lucide-react';
+import { X, Sun, Moon, Calendar, MessageSquare, Droplets, Check } from 'lucide-react';
 import api from '@/lib/api';
 
 /* ─── Types ──────────────────────────────────────────── */
@@ -41,6 +41,7 @@ export default function LogYieldModal({
   const [comments, setComments] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     setEntries(
@@ -85,14 +86,34 @@ export default function LogYieldModal({
     setSaving(true);
     try {
       await api.post('/milk-records/batch', batch);
-      onSave();
-      onClose();
+      setSuccess(true);
+      setTimeout(() => {
+        onSave();
+        onClose();
+      }, 2000);
     } catch (err: any) {
       alert(`Failed to save: ${err.response?.data?.message || err.message}`);
     } finally {
       setSaving(false);
     }
   };
+
+  if (success) {
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[2000] flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-10 max-w-sm w-full text-center space-y-4 animate-in zoom-in duration-300 shadow-2xl">
+          <div className="w-20 h-20 bg-brand/10 text-brand rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-brand/20">
+            <Check size={40} strokeWidth={4} />
+          </div>
+          <h2 className="text-2xl font-black text-text tracking-tight uppercase">Yield Logged!</h2>
+          <div className="space-y-1">
+             <p className="text-text3 text-[14px]">Recorded <span className="text-brand font-black">{totalYield.toFixed(1)}L</span> of production.</p>
+             <p className="text-text3 text-[13px] font-medium italic opacity-70">₹{(totalYield * 45).toFixed(0)} added to income ledger.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000] flex items-center justify-center p-2 sm:p-4">

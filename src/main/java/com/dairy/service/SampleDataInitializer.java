@@ -47,6 +47,8 @@ public class SampleDataInitializer implements CommandLineRunner {
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private com.dairy.repo.ProductRepository productRepository;
+    @Autowired private com.dairy.repo.SubscriptionPlanRepository planRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -58,6 +60,7 @@ public class SampleDataInitializer implements CommandLineRunner {
         List<Staff> staffList = seedStaff();
         seedInventory();
         seedProducts();
+        seedSubscriptionPlans();
         seedTransactions(herds, customers);
         seedUsers(staffList, customers);
         
@@ -234,17 +237,114 @@ public class SampleDataInitializer implements CommandLineRunner {
     }
 
     private void seedProducts() {
-        if (jdbcTemplate.queryForObject("SELECT COUNT(*) FROM products", Integer.class) > 0) {
-            try {
-                jdbcTemplate.execute("UPDATE products SET image_url = 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600' WHERE name LIKE '%Milk%' AND image_url IS NULL");
-                jdbcTemplate.execute("UPDATE products SET image_url = 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=600' WHERE name LIKE '%Curd%' AND image_url IS NULL");
-                jdbcTemplate.execute("UPDATE products SET image_url = 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=600' WHERE name LIKE '%Ghee%' AND image_url IS NULL");
-            } catch(Exception e) {}
-            return;
-        }
-        jdbcTemplate.execute("INSERT INTO products (name, category, subcategory, price, unit, description, in_stock, rating, reviews, tags, image_url, created_at) VALUES " +
-            "('Sthirvaa A2 Gir Milk', 'dairy', 'Milk', 90.00, '1 Liter', 'Pure A2 milk from our Gir cows.', true, 4.9, 124, 'A2,Fresh,Gir', 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600', NOW()), " +
-            "('Organic Buffalo Curd', 'dairy', 'Curd', 65.00, '500g', 'Thick, creamy curd made from buffalo milk.', true, 4.8, 85, 'Creamy,Organic', 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=600', NOW()), " +
-            "('Desi Cow Ghee', 'dairy', 'Ghee', 850.00, '500ml', 'Bilona method handmade ghee.', true, 5.0, 42, 'Traditional,Ghee,Healthy', 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=600', NOW())");
+        if (productRepository.count() > 0) return;
+
+        Product milk = new Product();
+        milk.setName("Sthirvaa A2 Gir Milk");
+        milk.setCategory("dairy");
+        milk.setSubcategory("Milk");
+        milk.setPrice(90.0);
+        milk.setUnit("1 Liter");
+        milk.setDescription("Pure A2 milk from our Gir cows.");
+        milk.setTags("A2,Fresh,Gir");
+        milk.setImageUrl("https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600");
+        productRepository.save(milk);
+
+        Product curd = new Product();
+        curd.setName("Organic Buffalo Curd");
+        curd.setCategory("dairy");
+        curd.setSubcategory("Curd");
+        curd.setPrice(65.0);
+        curd.setUnit("500g");
+        curd.setDescription("Thick, creamy curd made from buffalo milk.");
+        curd.setTags("Creamy,Organic");
+        curd.setImageUrl("https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=600");
+        productRepository.save(curd);
+
+        Product ghee = new Product();
+        ghee.setName("Desi Cow Ghee");
+        ghee.setCategory("dairy");
+        ghee.setSubcategory("Ghee");
+        ghee.setPrice(850.0);
+        ghee.setUnit("500ml");
+        ghee.setDescription("Bilona method handmade ghee.");
+        ghee.setTags("Traditional,Ghee,Healthy");
+        ghee.setImageUrl("https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=600");
+        productRepository.save(ghee);
+    }
+
+    private void seedSubscriptionPlans() {
+        if (planRepository.count() > 0) return;
+
+        Product milk = productRepository.findAll().stream().filter(p -> p.getName().contains("Milk")).findFirst().get();
+        Product curd = productRepository.findAll().stream().filter(p -> p.getName().contains("Curd")).findFirst().get();
+
+        // 1. Small Starter
+        SubscriptionPlan starter = new SubscriptionPlan();
+        starter.setName("Small Starter");
+        starter.setTagline("Perfect for individuals");
+        starter.setMonthlyPrice(1299.0);
+        starter.setQuarterlyPrice(3699.0);
+        starter.setYearlyPrice(14499.0);
+        starter.setBadgeText("Popular");
+        starter.setDisplayOrder(1);
+        starter.setImageUrl("https://images.unsplash.com/photo-1528750955925-53f5a1532441?w=600");
+        
+        SubscriptionPlanItem item1 = new SubscriptionPlanItem();
+        item1.setProduct(milk);
+        item1.setQty(0.5);
+        item1.setFrequency(SubscriptionPlanItem.Frequency.DAILY);
+        item1.setMrp(45.0);
+        item1.setSellingPrice(40.0);
+        starter.addItem(item1);
+        planRepository.save(starter);
+
+        // 2. Daily Essential
+        SubscriptionPlan essential = new SubscriptionPlan();
+        essential.setName("Daily Essential");
+        essential.setTagline("Our most popular plan for small families");
+        essential.setMonthlyPrice(2499.0);
+        essential.setQuarterlyPrice(7199.0);
+        essential.setYearlyPrice(27999.0);
+        essential.setBadgeText("Best Value");
+        essential.setDisplayOrder(2);
+        essential.setImageUrl("https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600");
+
+        SubscriptionPlanItem item2 = new SubscriptionPlanItem();
+        item2.setProduct(milk);
+        item2.setQty(1.0);
+        item2.setFrequency(SubscriptionPlanItem.Frequency.DAILY);
+        item2.setMrp(90.0);
+        item2.setSellingPrice(80.0);
+        essential.addItem(item2);
+        planRepository.save(essential);
+
+        // 3. Family Feast
+        SubscriptionPlan feast = new SubscriptionPlan();
+        feast.setName("Family Feast");
+        feast.setTagline("Everything your large family needs");
+        feast.setMonthlyPrice(4899.0);
+        feast.setQuarterlyPrice(13999.0);
+        feast.setYearlyPrice(54999.0);
+        feast.setDisplayOrder(3);
+        feast.setImageUrl("https://images.unsplash.com/photo-1563636619-e910f01859ec?w=600");
+
+        SubscriptionPlanItem item3 = new SubscriptionPlanItem();
+        item3.setProduct(milk);
+        item3.setQty(2.0);
+        item3.setFrequency(SubscriptionPlanItem.Frequency.DAILY);
+        item3.setMrp(180.0);
+        item3.setSellingPrice(150.0);
+        feast.addItem(item3);
+
+        SubscriptionPlanItem item4 = new SubscriptionPlanItem();
+        item4.setProduct(curd);
+        item4.setQty(0.5);
+        item4.setFrequency(SubscriptionPlanItem.Frequency.ALTERNATE_DAYS);
+        item4.setMrp(65.0);
+        item4.setSellingPrice(55.0);
+        feast.addItem(item4);
+        
+        planRepository.save(feast);
     }
 }

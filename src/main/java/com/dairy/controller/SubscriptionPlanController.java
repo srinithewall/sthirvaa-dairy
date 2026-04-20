@@ -18,9 +18,19 @@ public class SubscriptionPlanController {
     @Autowired
     private SubscriptionPlanRepository subscriptionPlanRepository;
 
+    @Autowired
+    private com.dairy.service.SubscriptionService subscriptionService;
+
     @GetMapping
     public List<SubscriptionPlan> getAllPlans() {
-        return subscriptionPlanRepository.findAllByOrderBySortOrderAsc();
+        return subscriptionPlanRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
+    }
+
+    @GetMapping("/{slug}")
+    public ResponseEntity<SubscriptionPlan> getBySlug(@PathVariable String slug) {
+        return subscriptionPlanRepository.findBySlug(slug)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
@@ -37,15 +47,16 @@ public class SubscriptionPlanController {
     public ResponseEntity<SubscriptionPlan> updatePlan(@PathVariable Long id, @RequestBody SubscriptionPlan planUpdates) {
         return subscriptionPlanRepository.findById(id).map(existing -> {
             existing.setName(planUpdates.getName());
+            existing.setSlug(planUpdates.getSlug());
             existing.setTagline(planUpdates.getTagline());
-            existing.setPricePerMonth(planUpdates.getPricePerMonth());
-            existing.setOriginalPrice(planUpdates.getOriginalPrice());
-            existing.setMilkLiters(planUpdates.getMilkLiters());
-            existing.setMilkFrequency(planUpdates.getMilkFrequency());
+            existing.setMonthlyPrice(planUpdates.getMonthlyPrice());
+            existing.setQuarterlyPrice(planUpdates.getQuarterlyPrice());
+            existing.setHalfYearlyPrice(planUpdates.getHalfYearlyPrice());
+            existing.setYearlyPrice(planUpdates.getYearlyPrice());
             existing.setBadgeText(planUpdates.getBadgeText());
-            existing.setIncludedSavings(planUpdates.getIncludedSavings());
             existing.setImageUrl(planUpdates.getImageUrl());
-            existing.setSortOrder(planUpdates.getSortOrder());
+            existing.setDisplayOrder(planUpdates.getDisplayOrder());
+            existing.setIsActive(planUpdates.getIsActive());
 
             // Clear and replace items to ensure orphan removal triggers
             existing.getItems().clear();

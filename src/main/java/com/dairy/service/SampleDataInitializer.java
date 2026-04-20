@@ -8,16 +8,7 @@ import com.dairy.model.Role;
 import com.dairy.model.User;
 import com.dairy.model.Inventory;
 import com.dairy.model.Sale;
-import com.dairy.repo.HerdRepository;
-import com.dairy.repo.CategoryRepository;
-import com.dairy.repo.CustomerRepository;
-import com.dairy.repo.MilkRecordRepository;
-import com.dairy.repo.SaleRepository;
-import com.dairy.repo.ExpenseRepository;
-import com.dairy.repo.IncomeRepository;
-import com.dairy.repo.StaffRepository;
-import com.dairy.repo.InventoryRepository;
-import com.dairy.repo.UserRepository;
+import com.dairy.repo.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,8 +38,8 @@ public class SampleDataInitializer implements CommandLineRunner {
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JdbcTemplate jdbcTemplate;
-    @Autowired private com.dairy.repo.ProductRepository productRepository;
-    @Autowired private com.dairy.repo.SubscriptionPlanRepository planRepository;
+    @Autowired private ProductRepository productRepository;
+    @Autowired private SubscriptionPlanRepository planRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -279,8 +270,14 @@ public class SampleDataInitializer implements CommandLineRunner {
     private void seedSubscriptionPlans() {
         if (planRepository.count() > 0) return;
 
-        Product milk = productRepository.findAll().stream().filter(p -> p.getName().contains("Milk")).findFirst().get();
-        Product curd = productRepository.findAll().stream().filter(p -> p.getName().contains("Curd")).findFirst().get();
+        List<Product> products = productRepository.findAll();
+        Product milk = products.stream().filter(p -> p.getName().contains("Milk")).findFirst().orElse(null);
+        Product curd = products.stream().filter(p -> p.getName().contains("Curd")).findFirst().orElse(null);
+        
+        if (milk == null || curd == null) {
+            logger.warn("Skipping subscription seeding: Milk or Curd product not found.");
+            return;
+        }
 
         // 1. Small Starter
         SubscriptionPlan starter = new SubscriptionPlan();

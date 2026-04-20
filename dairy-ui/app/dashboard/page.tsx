@@ -79,6 +79,7 @@ export default function DashboardPage() {
         <StatCard 
           label="Net Profit" 
           value="-₹3,200" 
+          icon="📈"
           variant="red"
           subValue="Monthly: +₹18,400"
         />

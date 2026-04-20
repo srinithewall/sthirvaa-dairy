@@ -15,7 +15,7 @@
     "dairy-ui": "file:../../../../Projects/Aayush/dairy-ui",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
-    "lightningcss": "^1.32.0",
+    "lightningcss": "1.29.1",
     "lucide-react": "^1.8.0",
     "next": "16.2.4",
     "react": "19.2.4",

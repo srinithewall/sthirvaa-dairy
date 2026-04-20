@@ -69,6 +69,7 @@ export default function LoginPage() {
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text3" size={18} />
                 <input 
                   type="email" 
+                  name="email"
                   required
                   autoComplete="username"
                   value={email}
@@ -85,6 +86,7 @@ export default function LoginPage() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text3" size={18} />
                 <input 
                   type="password" 
+                  name="password"
                   required
                   autoComplete="current-password"
                   value={password}

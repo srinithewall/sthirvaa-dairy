@@ -70,9 +70,10 @@ export default function LoginPage() {
                 <input 
                   type="email" 
                   required
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@gopaldairy.com"
+                  placeholder="admin@sthirvaa.com"
                   className="w-full bg-[#F5F9F6] border-none outline-none focus:ring-2 focus:ring-brand/20 py-4 pl-12 pr-4 rounded-2xl text-text font-medium transition-all"
                 />
               </div>
@@ -85,6 +86,7 @@ export default function LoginPage() {
                 <input 
                   type="password" 
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"

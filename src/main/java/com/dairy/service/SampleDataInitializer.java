@@ -1,18 +1,17 @@
 package com.dairy.service;
 
-import com.dairy.model.Herd;
-import com.dairy.model.Category;
-import com.dairy.model.Customer;
-import com.dairy.model.Staff;
-import com.dairy.model.Role;
-import com.dairy.model.User;
-import com.dairy.model.Inventory;
-import com.dairy.model.Sale;
-import com.dairy.model.Product;
-import com.dairy.model.SubscriptionPlan;
-import com.dairy.model.SubscriptionPlanItem;
+import com.dairy.model.*;
 import com.dairy.repo.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import java.time.LocalDate;
 import java.util.*;
+
 
 @Component("sampleDataInitializer")
 public class SampleDataInitializer implements CommandLineRunner {

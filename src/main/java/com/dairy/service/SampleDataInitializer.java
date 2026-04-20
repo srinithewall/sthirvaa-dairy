@@ -109,7 +109,10 @@ public class SampleDataInitializer implements CommandLineRunner {
 
     private void seedUsers(List<Staff> staffList, List<Customer> customerList) {
         createOrUpdateUser("srini", "srini.thewall@gmail.com", "admin123", Role.ADMIN, findStaffId(staffList, "Srinivas"), null);
-        createOrUpdateUser("admin", "admin@dairy.com", "admin123", Role.ADMIN, null, null);
+        createOrUpdateUser("admin", "admin@sthirvaa.com", "admin123", Role.ADMIN, null, null);
+        // User specific from screenshot
+        createOrUpdateUser("lokesh_hg", "lokesh.hg@farm.com", "pass123", Role.STAFF, findStaffId(staffList, "Lokesh"), null);
+        
         for (Staff s : staffList) {
             String email = s.getName().toLowerCase().replace(" ", ".") + "@farm.com";
             createOrUpdateUser(s.getName().toLowerCase(), email, "pass123", Role.STAFF, s.getId(), null);

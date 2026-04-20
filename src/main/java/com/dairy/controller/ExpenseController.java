@@ -30,13 +30,13 @@ public class ExpenseController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("@ss.can('LEDGER')")
     public Expense createExpense(@RequestBody Expense expense) {
         return expenseService.saveExpense(expense);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@ss.can('LEDGER')")
     public ResponseEntity<Expense> updateExpense(@PathVariable Long id, @RequestBody Expense expense) {
         return expenseService.getExpenseById(id)
                 .map(existing -> {
@@ -47,7 +47,7 @@ public class ExpenseController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@ss.can('LEDGER')")
     public ResponseEntity<Void> deleteExpense(@PathVariable Long id) {
         expenseService.deleteExpense(id);
         return ResponseEntity.noContent().build();

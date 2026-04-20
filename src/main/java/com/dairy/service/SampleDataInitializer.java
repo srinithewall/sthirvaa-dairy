@@ -57,6 +57,7 @@ public class SampleDataInitializer implements CommandLineRunner {
         List<Customer> customers = seedCustomers();
         List<Staff> staffList = seedStaff();
         seedInventory();
+        seedProducts();
         seedTransactions(herds, customers);
         seedUsers(staffList, customers);
         
@@ -230,5 +231,20 @@ public class SampleDataInitializer implements CommandLineRunner {
             sale.setDate(LocalDate.now().minusDays(i)); sale.setPaymentStatus("PAID");
             saleRepository.save(sale);
         }
+    }
+
+    private void seedProducts() {
+        if (jdbcTemplate.queryForObject("SELECT COUNT(*) FROM products", Integer.class) > 0) {
+            try {
+                jdbcTemplate.execute("UPDATE products SET image_url = 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600' WHERE name LIKE '%Milk%' AND image_url IS NULL");
+                jdbcTemplate.execute("UPDATE products SET image_url = 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=600' WHERE name LIKE '%Curd%' AND image_url IS NULL");
+                jdbcTemplate.execute("UPDATE products SET image_url = 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=600' WHERE name LIKE '%Ghee%' AND image_url IS NULL");
+            } catch(Exception e) {}
+            return;
+        }
+        jdbcTemplate.execute("INSERT INTO products (name, category, subcategory, price, unit, description, in_stock, rating, reviews, tags, image_url, created_at) VALUES " +
+            "('Sthirvaa A2 Gir Milk', 'dairy', 'Milk', 90.00, '1 Liter', 'Pure A2 milk from our Gir cows.', true, 4.9, 124, 'A2,Fresh,Gir', 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600', NOW()), " +
+            "('Organic Buffalo Curd', 'dairy', 'Curd', 65.00, '500g', 'Thick, creamy curd made from buffalo milk.', true, 4.8, 85, 'Creamy,Organic', 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=600', NOW()), " +
+            "('Desi Cow Ghee', 'dairy', 'Ghee', 850.00, '500ml', 'Bilona method handmade ghee.', true, 5.0, 42, 'Traditional,Ghee,Healthy', 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=600', NOW())");
     }
 }

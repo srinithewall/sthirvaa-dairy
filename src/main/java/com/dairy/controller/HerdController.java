@@ -47,17 +47,26 @@ public class HerdController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/status/{status}")
+    public List<Herd> getByStatus(@PathVariable String status) {
+        return herdService.getAllHerds().stream()
+                .filter(h -> status.equalsIgnoreCase(h.getAnimalStatus()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     @GetMapping("/type/{animalType}")
     public List<Herd> getHerdsByType(@PathVariable String animalType) {
         return herdService.getHerdsByAnimalType(animalType);
     }
 
     @PostMapping
+    @PreAuthorize("@ss.can('HERDS')")
     public Herd createHerd(@RequestBody Herd herd) {
         return herdService.saveHerd(herd);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@ss.can('HERDS')")
     public ResponseEntity<Herd> updateHerd(@PathVariable Long id, @RequestBody Herd herd) {
         return herdService.getHerdById(id)
                 .map(existing -> {
@@ -68,6 +77,7 @@ public class HerdController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@ss.can('HERDS')")
     public ResponseEntity<Void> deleteHerd(@PathVariable Long id) {
         herdService.deleteHerd(id);
         return ResponseEntity.noContent().build();

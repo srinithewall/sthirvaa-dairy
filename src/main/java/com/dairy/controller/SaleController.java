@@ -30,13 +30,13 @@ public class SaleController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@ss.can('SALES')")
     public Sale createSale(@RequestBody Sale sale) {
         return saleService.saveSale(sale);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@ss.can('SALES')")
     public ResponseEntity<Sale> updateSale(@PathVariable Long id, @RequestBody Sale sale) {
         return saleService.getSaleById(id)
                 .map(existing -> {
@@ -47,7 +47,7 @@ public class SaleController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@ss.can('SALES')")
     public ResponseEntity<Void> deleteSale(@PathVariable Long id) {
         saleService.deleteSale(id);
         return ResponseEntity.noContent().build();

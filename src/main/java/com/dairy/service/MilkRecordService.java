@@ -100,6 +100,7 @@ public class MilkRecordService {
                 .mapToDouble(MilkRecord::getQuantity).sum();
 
             long cowCount = dayRecords.stream()
+                .filter(r -> r.getHerd() != null)
                 .map(r -> r.getHerd().getId())
                 .distinct()
                 .count();

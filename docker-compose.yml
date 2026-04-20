@@ -1,35 +1,15 @@
-services:
-  db:
-    image: mysql:8.0
-    container_name: dairy-db
-    environment:
-      MYSQL_DATABASE: dairy
-      MYSQL_USER: sthi
-      MYSQL_PASSWORD: Sthirva@26
-      MYSQL_ROOT_PASSWORD: root
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
+version: '3.8'
 
-  backend:
-    build: .
+services:
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/dairy-backend:latest
     container_name: dairy-backend
     ports:
       - "8082:8082"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/dairy?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=sthi
-      - SPRING_DATASOURCE_PASSWORD=Sthirva@26
-    depends_on:
-      - db
-
-  # frontend:
-  #   image: node:20-alpine
-  #   container_name: dairy-frontend
-  #   ports:
-  #     - "3000:3000"
-  #   # Add your frontend build/run logic here
-
-volumes:
-  mysql_data:
+      - DB_URL=jdbc:mysql://43.204.221.192:3306/dairy?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+    restart: always
+    network_mode: "host" # Use host networking if the DB is on the same machine and you want to avoid port mapping issues

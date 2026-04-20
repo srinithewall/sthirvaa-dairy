@@ -1,13 +1,12 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Users, BarChart3, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
 
 const sidebarItems = [
-// ... (omitting for brevity as I'll target the export function start)
   { group: 'Overview', items: [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { name: 'Alerts', icon: Bell, path: '/alerts', badge: 3 }
@@ -20,6 +19,11 @@ const sidebarItems = [
     { name: 'Sales', icon: ShoppingCart, path: '/sales' },
     { name: 'Expenses', icon: DollarSign, path: '/ledger?type=EXPENSE' },
     { name: 'Inventory', icon: Package, path: '/inventory' }
+  ]},
+  { group: 'Shop', items: [
+    { name: 'Sthirvaa Shop', icon: ShoppingCart, path: '/shop' },
+    { name: 'My Orders', icon: ClipboardList, path: '/orders' },
+    { name: 'Products Admin', icon: Package2, path: '/admin/products' }
   ]},
   { group: 'Operations', items: [
     { name: 'Staff Management', icon: Users, path: '/staff' },

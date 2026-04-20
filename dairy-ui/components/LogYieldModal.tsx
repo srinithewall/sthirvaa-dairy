@@ -71,8 +71,8 @@ export default function LogYieldModal({
       const records: any[] = res.data;
       if (!records || records.length === 0) return;
       setEntries(prev => prev.map(e => {
-        const morning = records.find(r => r.herd?.id === e.herdId && r.shift === 'MORNING');
-        const evening = records.find(r => r.herd?.id === e.herdId && r.shift === 'EVENING');
+        const morning = records.find(r => (r.herd?.id === e.herdId || r.herdId === e.herdId) && r.shift === 'MORNING');
+        const evening = records.find(r => (r.herd?.id === e.herdId || r.herdId === e.herdId) && r.shift === 'EVENING');
         return {
           ...e,
           morning: morning ? String(morning.quantity) : '',

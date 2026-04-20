@@ -251,7 +251,7 @@ function LedgerPage() {
             ) : history.length === 0 ? (
               <div className="p-20 text-center text-text3 font-bold">NO TRANSACTIONS YET</div>
             ) : history.map((item) => (
-              <div key={item.id} className="p-5 flex items-center justify-between hover:bg-surface transition-all group border-l-4 border-transparent hover:border-brand">
+              <div key={`${item.type}-${item.id}`} className="p-5 flex items-center justify-between hover:bg-surface transition-all group border-l-4 border-transparent hover:border-brand">
                 <div className="flex items-center gap-5">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold shadow-sm ${item.type === 'EXPENSE' ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}`}>
                     {categories.find(c => c.name === item.category)?.iconCode || item.category.charAt(0)}

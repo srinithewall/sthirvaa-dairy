@@ -74,9 +74,8 @@ public class SubscriptionService {
 
         CustomerSubscription sub = new CustomerSubscription();
         sub.setCustomerId(customerId);
-        sub.setPlan(plan);
+        sub.setPlanId(plan.getId());
         sub.setBillingCycle(cycle);
-        sub.setAmount(price);
         sub.setStartDate(LocalDate.now());
         sub.setStatus(CustomerSubscription.Status.ACTIVE);
         

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = '/api/proxy/api';
+const API_BASE_URL = 'https://corsproxy.io/?' + encodeURIComponent('http://43.204.221.192/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,

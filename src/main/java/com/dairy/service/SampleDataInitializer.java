@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 
-@Component("sampleDataInitializer")
+// @Component("sampleDataInitializer")
 public class SampleDataInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(SampleDataInitializer.class);

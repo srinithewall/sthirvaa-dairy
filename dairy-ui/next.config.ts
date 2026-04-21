@@ -12,14 +12,6 @@ const nextConfig: NextConfig = {
     // your project has type errors.
     ignoreBuildErrors: true,
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://43.204.221.192/api/:path*',
-      },
-    ];
-  },
 };
 
 export default nextConfig;

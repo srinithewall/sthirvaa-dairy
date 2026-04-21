@@ -34,11 +34,6 @@ public class SecurityConfig {
     @Autowired
     private AuthEntryPointJwt unauthorizedHandler;
 
-    @PostConstruct
-    public void debugMode() {
-        System.out.println(">>> Dairy SecurityConfig loaded (Aligned with STHI project)");
-    }
-
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
         return new AuthTokenFilter();

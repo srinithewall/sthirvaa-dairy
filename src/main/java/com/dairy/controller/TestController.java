@@ -10,6 +10,11 @@ public class TestController {
 
     @GetMapping("/ping")
     public String ping() {
+        return "SUCCESS - Dairy Backend is Alive";
+    }
+
+    @GetMapping("/test/ping")
+    public String testPing() {
         return "PONG - Security Version 2.0 (Nuclear)";
     }
 }

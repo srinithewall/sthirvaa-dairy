@@ -283,9 +283,11 @@ public class SampleDataInitializer implements CommandLineRunner {
         starter.setImageUrl("https://images.unsplash.com/photo-1528750955925-53f5a1532441?w=600");
         
         SubscriptionPlanItem item1 = new SubscriptionPlanItem();
-        item1.setProduct(milk);
+        item1.setProductId(milk.getId());
+        item1.setDescription(milk.getName());
+        item1.setUnit("Litre");
         item1.setQty(0.5);
-        item1.setFrequency(SubscriptionPlanItem.Frequency.DAILY);
+        item1.setFrequency(SubscriptionPlanItem.DeliveryFrequency.DAILY);
         item1.setMrp(45.0);
         item1.setSellingPrice(40.0);
         starter.addItem(item1);
@@ -303,9 +305,11 @@ public class SampleDataInitializer implements CommandLineRunner {
         essential.setImageUrl("https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600");
 
         SubscriptionPlanItem item2 = new SubscriptionPlanItem();
-        item2.setProduct(milk);
+        item2.setProductId(milk.getId());
+        item2.setDescription(milk.getName());
+        item2.setUnit("Litre");
         item2.setQty(1.0);
-        item2.setFrequency(SubscriptionPlanItem.Frequency.DAILY);
+        item2.setFrequency(SubscriptionPlanItem.DeliveryFrequency.DAILY);
         item2.setMrp(90.0);
         item2.setSellingPrice(80.0);
         essential.addItem(item2);
@@ -322,17 +326,21 @@ public class SampleDataInitializer implements CommandLineRunner {
         feast.setImageUrl("https://images.unsplash.com/photo-1563636619-e910f01859ec?w=600");
 
         SubscriptionPlanItem item3 = new SubscriptionPlanItem();
-        item3.setProduct(milk);
+        item3.setProductId(milk.getId());
+        item3.setDescription(milk.getName());
+        item3.setUnit("Litre");
         item3.setQty(2.0);
-        item3.setFrequency(SubscriptionPlanItem.Frequency.DAILY);
+        item3.setFrequency(SubscriptionPlanItem.DeliveryFrequency.DAILY);
         item3.setMrp(180.0);
         item3.setSellingPrice(150.0);
         feast.addItem(item3);
 
         SubscriptionPlanItem item4 = new SubscriptionPlanItem();
-        item4.setProduct(curd);
+        item4.setProductId(curd.getId());
+        item4.setDescription(curd.getName());
+        item4.setUnit("500g");
         item4.setQty(0.5);
-        item4.setFrequency(SubscriptionPlanItem.Frequency.ALTERNATE_DAYS);
+        item4.setFrequency(SubscriptionPlanItem.DeliveryFrequency.WEEKLY);
         item4.setMrp(65.0);
         item4.setSellingPrice(55.0);
         feast.addItem(item4);

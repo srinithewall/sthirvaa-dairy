@@ -43,10 +43,10 @@ public class SubscriptionService {
         for (SubscriptionPlanItem item : plan.getItems()) {
             // Assume 30 days calculation for monthly context
             int multiplier = 30;
-            if (item.getFrequency() == SubscriptionPlanItem.Frequency.DAILY) {
+            if (item.getFrequency() == SubscriptionPlanItem.DeliveryFrequency.DAILY) {
                 multiplier = 30;
-            } else if (item.getFrequency() == SubscriptionPlanItem.Frequency.ALTERNATE_DAYS) {
-                multiplier = 15;
+            } else if (item.getFrequency() == SubscriptionPlanItem.DeliveryFrequency.WEEKLY) {
+                multiplier = 4;
             }
             
             totalMrp += (item.getMrp() * item.getQty() * multiplier);

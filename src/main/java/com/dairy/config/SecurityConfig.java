@@ -60,11 +60,37 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Maximum Permissiveness for STHI-Alignment
+        // Aligned with STHI: Explicit origins for better compatibility with credentials
+        configuration.setAllowedOrigins(Arrays.asList(
+            "https://farm.sthirvaa.com",
+            "http://farm.sthirvaa.com",
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:8080"
+        ));
+        
+        // Also allow patterns for flexibility
         configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+        
+        // Comprehensive list of headers to avoid preflight rejections
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers"
+        ));
+        
+        configuration.setExposedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "Access-Control-Allow-Origin",
+            "Access-Control-Allow-Credentials"
+        ));
         
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

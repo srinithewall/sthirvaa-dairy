@@ -60,7 +60,6 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Aligned with STHI: Explicit origins for better compatibility with credentials
         configuration.setAllowedOrigins(Arrays.asList(
             "https://farm.sthirvaa.com",
             "http://farm.sthirvaa.com",
@@ -68,22 +67,12 @@ public class SecurityConfig {
             "http://localhost:5173",
             "http://localhost:8080"
         ));
-        
-        // Also allow patterns for flexibility
         configuration.setAllowedOriginPatterns(Arrays.asList("*"));
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         
-        // Comprehensive list of headers to avoid preflight rejections
-        configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization",
-            "Content-Type",
-            "X-Requested-With",
-            "Accept",
-            "Origin",
-            "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
-        ));
+        // Use wildcard to prevent 403 on valid browser preflights
+        configuration.setAllowedHeaders(Arrays.asList("*"));
         
         configuration.setExposedHeaders(Arrays.asList(
             "Authorization",

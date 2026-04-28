@@ -60,20 +60,6 @@ public class MilkRecordService {
             .collect(Collectors.toList());
 
         List<MilkRecord> saved = milkRecordRepository.saveAll(records);
-
-        // Record income automatically
-        if (!saved.isEmpty()) {
-            double totalYield = saved.stream().mapToDouble(MilkRecord::getQuantity).sum();
-            LocalDate date = saved.get(0).getDate();
-
-            Income milkIncome = new Income();
-            milkIncome.setCategory("MILK_PRODUCTION");
-            milkIncome.setAmount(totalYield * 45.0); // Assuming 45 per liter
-            milkIncome.setDate(date);
-            milkIncome.setDescription(String.format("Automatic income from %.1f L of milk produced", totalYield));
-            incomeRepository.save(milkIncome);
-        }
-
         return saved;
     }
 

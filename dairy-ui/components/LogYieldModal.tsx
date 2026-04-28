@@ -135,7 +135,6 @@ export default function LogYieldModal({
           <h2 className="text-2xl font-black text-text tracking-tight uppercase">Yield Logged!</h2>
           <div className="space-y-1">
              <p className="text-text3 text-[14px]">Recorded <span className="text-brand font-black">{totalYield.toFixed(1)}L</span> of production.</p>
-             <p className="text-text3 text-[13px] font-medium italic opacity-70">₹{(totalYield * 45).toFixed(0)} added to income ledger.</p>
           </div>
         </div>
       </div>

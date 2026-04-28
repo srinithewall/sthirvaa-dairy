@@ -194,14 +194,23 @@ export default function MilkProductionPage() {
                     <td className="px-5 py-3.5 text-text3 font-medium">{day.cowCount} cows</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 justify-center">
-                        {/* Edit yield */}
-                        <button
-                          onClick={() => { setEditTarget({ date: day.date }); setShowModal(true); }}
-                          title="Edit yield entry"
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border-custom text-text3 hover:border-brand hover:text-brand text-[10px] font-black uppercase tracking-wider transition-all"
-                        >
-                          <Pencil size={11} /> Edit
-                        </button>
+                        {/* Edit yield - only for last 2 days */}
+                        {(() => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const target = new Date(day.date);
+                          target.setHours(0, 0, 0, 0);
+                          const diff = (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24);
+                          return diff <= 1 && (
+                            <button
+                              onClick={() => { setEditTarget({ date: day.date }); setShowModal(true); }}
+                              title="Edit yield entry"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border-custom text-text3 hover:border-brand hover:text-brand text-[10px] font-black uppercase tracking-wider transition-all"
+                            >
+                              <Pencil size={11} /> Edit
+                            </button>
+                          );
+                        })()}
                         {/* Distribute */}
                         <button
                           onClick={() => setDistributeTarget({ date: day.date, shift: 'MORNING', total: day.morning })}

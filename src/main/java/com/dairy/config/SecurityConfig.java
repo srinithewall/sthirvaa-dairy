@@ -57,62 +57,37 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        
-        configuration.setAllowedOrigins(Arrays.asList(
-            "https://farm.sthirvaa.com",
-            "http://farm.sthirvaa.com",
-            "https://api-origin.sthirvaa.com",
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "http://localhost:8080"
-        ));
-        // Completely removed setAllowedOriginPatterns to disable wildcard conflicts with allowCredentials=true
-        
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        
-        // Allowed headers must explicitly include Access-Control-Request-* for preflights
-        configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization", 
-            "Content-Type", 
-            "Accept", 
-            "Origin", 
-            "X-Requested-With", 
-            "Access-Control-Request-Method", 
-            "Access-Control-Request-Headers"
-        ));
-        
-        configuration.setExposedHeaders(Arrays.asList(
-            "Authorization",
-            "Content-Type",
-            "Access-Control-Allow-Origin",
-            "Access-Control-Allow-Credentials"
-        ));
-        
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-        
+    public org.springframework.web.filter.CorsFilter corsFilter() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(true);
+        // Using setAllowedOriginPatterns to satisfy both allowCredentials=true and wildcard-like flexibility
+        config.setAllowedOriginPatterns(Arrays.asList(
+            "https://farm.sthirvaa.com", 
+            "http://farm.sthirvaa.com",
+            "https://api-origin.sthirvaa.com", 
+            "http://localhost:3000",
+            "http://localhost:5173"
+        ));
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");
+        config.addExposedHeader("Authorization");
+        source.registerCorsConfiguration("/**", config);
+        return new org.springframework.web.filter.CorsFilter(source);
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // Aligned with STHI: Explicitly disable CSRF for API stability
             .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // The corsFilter bean above will handle CORS before it even reaches this chain
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> 
                 auth
-                    // Aligned with STHI: Explicitly allow preflights
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                    // Permissive mode for production stabilization (matched to STHI project current state)
                     .requestMatchers("/api/auth/**", "/api/test/**").permitAll()
-                    .anyRequest().permitAll() // Temporarily permissive to bypass infrastructure blocks
+                    .anyRequest().permitAll()
             );
 
         http.authenticationProvider(authenticationProvider());

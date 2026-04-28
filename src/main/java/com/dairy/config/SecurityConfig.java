@@ -63,16 +63,25 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
             "https://farm.sthirvaa.com",
             "http://farm.sthirvaa.com",
+            "https://api-origin.sthirvaa.com",
             "http://localhost:3000",
             "http://localhost:5173",
             "http://localhost:8080"
         ));
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        // Completely removed setAllowedOriginPatterns to disable wildcard conflicts with allowCredentials=true
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         
-        // Use wildcard to prevent 403 on valid browser preflights
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        // Allowed headers must explicitly include Access-Control-Request-* for preflights
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization", 
+            "Content-Type", 
+            "Accept", 
+            "Origin", 
+            "X-Requested-With", 
+            "Access-Control-Request-Method", 
+            "Access-Control-Request-Headers"
+        ));
         
         configuration.setExposedHeaders(Arrays.asList(
             "Authorization",

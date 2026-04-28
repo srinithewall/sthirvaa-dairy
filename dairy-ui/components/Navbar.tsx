@@ -35,14 +35,11 @@ export default function Navbar() {
       <div className="flex-1" />
 
       <div className="flex items-center gap-2">
-        <button className="bg-white/10 hover:bg-white/20 border-none text-white py-1.5 px-3 rounded-md cursor-pointer text-[13px] flex items-center gap-2 transition-all">
-          <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-          <span>3 Alerts</span>
-        </button>
+
 
         <button className="hidden sm:flex bg-white/10 hover:bg-white/20 border-none text-white py-1.5 px-3 rounded-md cursor-pointer text-[13px] items-center gap-2 transition-all">
           <Home size={14} />
-          <span>Shri Krishna Farm</span>
+          <span>Gopala Dairy</span>
         </button>
         
         <div className="flex items-center gap-3 ml-2 border-l border-white/10 pl-4">

@@ -36,7 +36,7 @@ export default function DashboardPage() {
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-text tracking-tight">Dashboard Overview</h1>
-          <p className="text-[13px] text-text3 mt-1">Thursday, 16 April 2026 · Sthirvaa Farms (Shri Krishna Farm)</p>
+          <p className="text-[13px] text-text3 mt-1">Thursday, 16 April 2026 · Sthirvaa Farms (Gopala Dairy)</p>
         </div>
         <div className="flex gap-2.5">
           <button className="bg-accent text-brand-dark flex items-center gap-2 py-2 px-4 rounded-radius-custom font-semibold text-[13px] hover:bg-accent-dark transition-all shadow-sm">

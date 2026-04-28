@@ -8,8 +8,7 @@ import api from '@/lib/api';
 
 const sidebarItems = [
   { group: 'Overview', items: [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { name: 'Alerts', icon: Bell, path: '/alerts', badge: 3 }
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' }
   ]},
   { group: 'Farm Management', items: [
     { name: 'Herd Management', icon: Layout, path: '/herds' },

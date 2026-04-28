@@ -44,6 +44,19 @@ public class MilkRecordService {
 
     @Transactional
     public List<MilkRecord> saveBatch(List<Map<String, Object>> entries) {
+        if (entries.isEmpty()) return List.of();
+
+        // Group by date and shift to clear old records first
+        Set<String> dateShifts = new HashSet<>();
+        for (Map<String, Object> e : entries) {
+            dateShifts.add(e.get("date").toString() + "|" + e.get("shift").toString());
+        }
+
+        for (String ds : dateShifts) {
+            String[] parts = ds.split("\\|");
+            milkRecordRepository.deleteByDateAndShift(LocalDate.parse(parts[0]), parts[1]);
+        }
+
         List<MilkRecord> records = entries.stream()
             .filter(e -> e.get("quantity") != null && Double.parseDouble(e.get("quantity").toString()) > 0)
             .map(e -> {

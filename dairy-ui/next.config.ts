@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   /* config options here */
   eslint: {
     // Warning: This allows production builds to successfully complete even if

@@ -4,12 +4,17 @@ services:
   app:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/dairy-backend:latest
     container_name: dairy-backend
-    ports:
-      - "80:8080"
     environment:
-      - DB_URL=jdbc:mysql://43.204.221.192:3306/dairy?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - DB_URL=${DB_URL}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
     restart: always
-    network_mode: "host" # Use host networking if the DB is on the same machine and you want to avoid port mapping issues
+    network_mode: "host"
+
+  ui:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/dairy-ui:latest
+    container_name: dairy-ui
+    restart: always
+    network_mode: "host"
+

@@ -3,7 +3,7 @@
 import React from 'react';
 import { Menu, Bell, Home, Settings, LogOut } from 'lucide-react';
 
-export default function Navbar() {
+export default function Navbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const [user, setUser] = React.useState({ username: 'User' });
 
   React.useEffect(() => {
@@ -23,7 +23,10 @@ export default function Navbar() {
 
   return (
     <nav className="h-[56px] bg-brand-dark flex items-center px-4 gap-3 z-[100] relative">
-      <button className="md:hidden text-white p-1">
+      <button 
+        onClick={onToggleSidebar}
+        className="md:hidden text-white p-1 hover:bg-white/10 rounded-md transition-colors"
+      >
         <Menu size={22} />
       </button>
       

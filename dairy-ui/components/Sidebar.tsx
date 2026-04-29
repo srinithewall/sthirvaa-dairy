@@ -30,11 +30,16 @@ const sidebarItems = [
   ]}
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const [user, setUser] = React.useState({ username: 'Loading...', role: 'STAFF', staffId: null, customerId: null });
   const [showModal, setShowModal] = React.useState(false);
   const [staffInfo, setStaffInfo] = React.useState<any>(null);
+
+  // Close sidebar when pathname changes (on mobile)
+  React.useEffect(() => {
+    onClose();
+  }, [pathname]);
 
   React.useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -67,32 +72,54 @@ export default function Sidebar() {
   const displayName = user.username.split('@')[0];
 
   return (
-    <div className="w-[230px] bg-white border-r border-border-custom2 flex flex-col h-screen overflow-y-auto flex-shrink-0 transition-transform hidden md:flex">
-      <div className="p-5 flex items-center justify-between">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-10 h-10 bg-surface rounded-full flex-shrink-0 flex items-center justify-center text-text3 border border-border-custom shadow-sm">
-            <Users size={20} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <div className="text-[15px] font-bold text-[#2D3E50] truncate">
-              Hi, <span className="capitalize">{displayName}</span>
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] md:hidden animate-in fade-in duration-300"
+          onClick={onClose}
+        />
+      )}
+
+      <div className={`
+        fixed md:static inset-y-0 left-0 z-[1001] w-[230px] bg-white border-r border-border-custom2 
+        flex flex-col h-screen overflow-y-auto flex-shrink-0 transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'} 
+        md:translate-x-0 md:flex md:shadow-none
+      `}>
+        <div className="p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-10 h-10 bg-surface rounded-full flex-shrink-0 flex items-center justify-center text-text3 border border-border-custom shadow-sm">
+              <Users size={20} />
             </div>
+            <div className="flex flex-col min-w-0">
+              <div className="text-[15px] font-bold text-[#2D3E50] truncate">
+                Hi, <span className="capitalize">{displayName}</span>
+              </div>
+              <button 
+                onClick={() => setShowModal(true)}
+                className="text-[12px] text-[#4A90E2] font-semibold hover:underline text-left"
+              >
+                View My Info
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
             <button 
               onClick={() => setShowModal(true)}
-              className="text-[12px] text-[#4A90E2] font-semibold hover:underline text-left"
+              className="p-1.5 text-[#4A90E2] hover:bg-surface rounded-md transition-all flex-shrink-0"
+              title="Profile Settings"
             >
-              View My Info
+              <Settings size={18} />
+            </button>
+            <button 
+              onClick={onClose}
+              className="md:hidden p-1.5 text-text3 hover:bg-surface rounded-md transition-all flex-shrink-0"
+            >
+              <X size={20} />
             </button>
           </div>
         </div>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="p-1.5 text-[#4A90E2] hover:bg-surface rounded-md transition-all flex-shrink-0"
-          title="Profile Settings"
-        >
-          <Settings size={18} />
-        </button>
-      </div>
       
       <div className="h-[1px] bg-[#E8EDF2] mx-4 mb-3" />
 

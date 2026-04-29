@@ -72,7 +72,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   const displayName = user.username.split('@')[0];
 
   return (
-    <>
+    <React.Fragment>
       {/* Mobile Backdrop */}
       {isOpen && (
         <div 
@@ -221,5 +221,6 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         </button>
       </div>
     </div>
-  );
+  </React.Fragment>
+);
 }

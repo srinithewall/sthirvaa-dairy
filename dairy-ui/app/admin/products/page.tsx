@@ -18,6 +18,7 @@ interface Product {
   rating?: number;
   reviews?: number;
   tags?: string; // backend stores as comma-separated string
+  imageUrl?: string;
 }
 
 const CATEGORIES = [
@@ -34,7 +35,7 @@ const SUBCATEGORIES: Record<string, string[]> = {
 
 const blankForm = (): ProductForm => ({
   name: '', category: 'dairy', subcategory: 'Milk',
-  price: 0, unit: 'per unit', description: '', inStock: true, tagsInput: ''
+  price: 0, unit: 'per unit', description: '', inStock: true, tagsInput: '', imageUrl: ''
 });
 
 // Separate UI form type to handle tags as editable string
@@ -139,6 +140,18 @@ function ProductFormModal({ isOpen, product, onSave, onClose }:
                 rows={3} placeholder="Product description..."
                 className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:border-brand resize-none ${errors.description ? 'border-red-500 bg-red-50' : 'border-border-custom'}`} />
               {errors.description && <p className="text-red-600 text-[10px] mt-1">{errors.description}</p>}
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-black uppercase mb-2">Image URL</label>
+              <input type="text" value={form.imageUrl ?? ''} onChange={e => set('imageUrl', e.target.value)}
+                placeholder="https://images.unsplash.com/..."
+                className="w-full px-4 py-2.5 border border-border-custom rounded-lg focus:outline-none focus:border-brand" />
+              {form.imageUrl && (
+                <div className="mt-3 relative w-24 h-24 rounded-xl overflow-hidden border border-border-custom shadow-sm bg-surface flex items-center justify-center">
+                   <img src={form.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -342,8 +355,21 @@ export default function ProductManagementPage() {
                 ) : filtered.map(p => (
                   <tr key={p.id} className="border-b border-border-custom hover:bg-surface/50 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-bold text-text">{p.name}</p>
-                      <p className="text-[10px] text-text3 mt-0.5 line-clamp-1">{p.description}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-surface overflow-hidden flex-shrink-0 border border-border-custom">
+                          {p.imageUrl ? (
+                            <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xl">
+                              {CATEGORIES.find(c => c.id === p.category)?.icon ?? '📦'}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-text">{p.name}</p>
+                          <p className="text-[10px] text-text3 mt-0.5 line-clamp-1">{p.description}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-text3">{p.subcategory}</td>
                     <td className="px-6 py-4 text-center font-black text-brand">₹{p.price}</td>

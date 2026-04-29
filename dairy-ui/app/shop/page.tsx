@@ -14,7 +14,7 @@ interface Product {
   price: number;
   unit: string;
   description: string;
-  image?: string;
+  imageUrl?: string;
   inStock: boolean;
   quantity?: number;
   rating?: number;
@@ -28,6 +28,7 @@ interface CartItem extends Product {
 
 /* ─── Constants ──────────────────────────────────────── */
 const CATEGORIES = [
+  { id: 'combos',     name: 'Subscription Combos', icon: '🎁', color: 'text-brand',      bgColor: 'bg-brand/10' },
   { id: 'dairy',      name: 'Dairy & Milk',      icon: '🥛', color: 'text-amber-600', bgColor: 'bg-amber-50' },
   { id: 'vegetables', name: 'Fresh Veggies',      icon: '🥬', color: 'text-green-600', bgColor: 'bg-green-50' },
   { id: 'divine',     name: 'Divine Products',    icon: '🔥', color: 'text-red-600',   bgColor: 'bg-red-50' },
@@ -35,13 +36,60 @@ const CATEGORIES = [
 
 const CATEGORY_ICON: Record<string, string> = { dairy: '🥛', vegetables: '🥬', divine: '🔥' };
 
-/* ─── Stat Card ─────────────────────────────────────── */
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
+/* ─── Subscription Plan Card ────────────────────────── */
+function SubscriptionCard({ plan, onSubscribe }: { plan: any; onSubscribe: (p: any) => void }) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-4 flex flex-col shadow-md text-white ${color}`}>
-      <div className="absolute -right-3 -top-3 opacity-15 scale-150">{icon}</div>
-      <span className="text-[9px] font-black uppercase tracking-widest opacity-90">{label}</span>
-      <span className="text-2xl font-black tracking-tight leading-none mt-1">{value}</span>
+    <div className="bg-white rounded-3xl border border-border-custom shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col h-full group relative">
+      {plan.badgeText && (
+        <div className="absolute top-4 left-4 z-10 bg-brand text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg">
+          {plan.badgeText}
+        </div>
+      )}
+      
+      <div className="relative aspect-[16/10] overflow-hidden bg-surface">
+        <img 
+          src={plan.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'} 
+          alt={plan.name}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60" />
+        <div className="absolute bottom-4 left-4 right-4">
+          <h3 className="text-white font-black text-lg leading-tight drop-shadow-md">{plan.name}</h3>
+        </div>
+      </div>
+
+      <div className="p-5 flex-1 flex flex-col">
+        <p className="text-[11px] text-text3 font-medium mb-4 italic">"{plan.tagline}"</p>
+        
+        <div className="space-y-3 mb-6 flex-1">
+          {plan.items?.map((item: any, idx: number) => (
+            <div key={idx} className="flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center text-brand flex-shrink-0 mt-0.5">
+                <Plus size={10} strokeWidth={4} />
+              </div>
+              <div>
+                <p className="text-[12px] font-bold text-text leading-none">{item.description}</p>
+                <p className="text-[10px] text-text3 mt-1 font-medium">
+                  {item.qty} {item.unit} • {item.frequency?.toLowerCase()}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="pt-4 border-t border-border-custom flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase text-text3 tracking-widest">Monthly</span>
+            <span className="text-2xl font-black text-brand">₹{plan.monthlyPrice}</span>
+          </div>
+          <button 
+            onClick={() => onSubscribe(plan)}
+            className="px-6 py-3 bg-brand-dark text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-brand transition-all shadow-lg active:scale-95"
+          >
+            Subscribe
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -52,9 +100,13 @@ function ProductCard({ product, isInCart, cartQuantity, onAddToCart, onRemoveFro
   return (
     <div className="bg-white rounded-2xl border border-border-custom shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group flex flex-col h-full">
       <div className="relative bg-gradient-to-br from-slate-100 to-slate-50 aspect-square flex items-center justify-center overflow-hidden">
-        <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
-          {CATEGORY_ICON[product.category] ?? '📦'}
-        </div>
+        {product.imageUrl ? (
+          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+        ) : (
+          <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
+            {CATEGORY_ICON[product.category] ?? '📦'}
+          </div>
+        )}
         {!product.inStock && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="text-white font-black text-sm">OUT OF STOCK</span>
@@ -176,30 +228,36 @@ function CheckoutModal({ cart, cartTotal, onClose, onSuccess }:
 /* ─── Main Shopping Page ─────────────────────────────── */
 export default function ShoppingPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [favorites, setFavorites] = useState<number[]>([]);
-  const [activeCategory, setActiveCategory] = useState('dairy');
+  const [activeCategory, setActiveCategory] = useState('combos');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [sortBy, setSortBy] = useState<'price-low' | 'price-high' | 'rating'>('price-low');
 
-  // Fetch from backend
+  // Fetch Products & Plans
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await api.get('/products', { params: { category: activeCategory } });
-        setProducts(res.data);
+        if (activeCategory === 'combos') {
+          const res = await api.get('/subscription-plans');
+          setPlans(res.data);
+        } else {
+          const res = await api.get('/products', { params: { category: activeCategory } });
+          setProducts(res.data);
+        }
       } catch (e) {
         console.error(e);
       } finally {
         setLoading(false);
       }
     };
-    fetchProducts();
+    fetchData();
   }, [activeCategory]);
 
   const filteredProducts = useMemo(() => {
@@ -275,12 +333,7 @@ export default function ShoppingPage() {
       </div>
 
       {/* ─── Stats ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={<ShoppingCart size={48} />} label="Items in Cart" value={cartCount} color="bg-gradient-to-br from-brand to-brand-dark" />
-        <StatCard icon={<span>🛍️</span>} label="Total Products" value={products.length} color="bg-gradient-to-br from-purple-600 to-purple-800" />
-        <StatCard icon={<Heart size={48} />} label="Favorites" value={favorites.length} color="bg-gradient-to-br from-red-500 to-red-700" />
-        <StatCard icon={<span>₹</span>} label="Cart Total" value={`₹${cartTotal}`} color="bg-gradient-to-br from-green-600 to-green-800" />
-      </div>
+      {/* ─── Stats Removed ─── */}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* ─── Category Sidebar ─── */}
@@ -327,6 +380,16 @@ export default function ShoppingPage() {
             <div className="flex flex-col items-center justify-center py-24 gap-4">
               <Loader2 size={36} className="animate-spin text-brand" />
               <p className="text-text3 text-[12px] font-medium">Loading products...</p>
+            </div>
+          ) : activeCategory === 'combos' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {plans.map(plan => (
+                <SubscriptionCard 
+                  key={plan.id} 
+                  plan={plan} 
+                  onSubscribe={(p) => alert(`Subscription for ${p.name} coming soon! We will contact you on WhatsApp.`)} 
+                />
+              ))}
             </div>
           ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

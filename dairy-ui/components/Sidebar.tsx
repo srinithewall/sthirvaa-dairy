@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, X } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, X, Layers } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
@@ -22,7 +22,8 @@ const sidebarItems = [
   { group: 'Shop', items: [
     { name: 'Sthirvaa Shop', icon: ShoppingCart, path: '/shop' },
     { name: 'My Orders', icon: ClipboardList, path: '/orders' },
-    { name: 'Products Admin', icon: Package2, path: '/admin/products' }
+    { name: 'Products Admin', icon: Package2, path: '/admin/products' },
+    { name: 'Combo Admin', icon: Layers, path: '/admin/subscriptions' }
   ]},
   { group: 'Operations', items: [
     { name: 'Staff Management', icon: Users, path: '/staff' },

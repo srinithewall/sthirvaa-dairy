@@ -3,9 +3,11 @@ package com.dairy.service;
 import com.dairy.model.Customer;
 import com.dairy.model.Income;
 import com.dairy.model.MilkDispatch;
+import com.dairy.model.Sale;
 import com.dairy.repo.CustomerRepository;
 import com.dairy.repo.IncomeRepository;
 import com.dairy.repo.MilkDispatchRepository;
+import com.dairy.repo.SaleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ public class MilkDispatchService {
     @Autowired private MilkDispatchRepository dispatchRepository;
     @Autowired private CustomerRepository customerRepository;
     @Autowired private IncomeRepository incomeRepository;
+    @Autowired private SaleRepository saleRepository;
 
     public List<MilkDispatch> getByDate(LocalDate date) {
         return dispatchRepository.findByDate(date);
@@ -68,6 +71,19 @@ public class MilkDispatchService {
             d.setRatePerLitre(rate);
             d.setTotalAmount(qty * rate);
             dispatchRepository.save(d);
+
+            // Also create a Sale record for the Sales module if it's a customer dispatch
+            if ("CUSTOMER".equals(type)) {
+                Sale sale = new Sale();
+                sale.setDate(d.getDate());
+                sale.setItemName("Milk (" + d.getShift() + ")");
+                sale.setQuantity(d.getQuantity());
+                sale.setPrice(d.getRatePerLitre());
+                sale.setTotalAmount(d.getTotalAmount());
+                sale.setCustomer(d.getCustomer());
+                sale.setPaymentStatus("PENDING"); // Default to pending for distribution
+                saleRepository.save(sale);
+            }
         }
 
         // Recalculate daily income from all dispatches on this date

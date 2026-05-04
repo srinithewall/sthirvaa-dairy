@@ -5,7 +5,7 @@ import AppLayout from '@/components/AppLayout';
 import LogYieldModal from '@/components/LogYieldModal';
 import DistributeModal from '@/components/DistributeModal';
 import api from '@/lib/api';
-import { Droplets, Plus, TrendingUp, Sun, Moon, ChevronLeft, ChevronRight, Pencil, Truck } from 'lucide-react';
+import { Droplets, Plus, TrendingUp, Sun, Moon, ChevronLeft, ChevronRight, Pencil, Truck, CheckCircle2, AlertCircle } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────── */
 interface Herd {
@@ -22,15 +22,11 @@ interface DaySummary {
   morning: number;
   evening: number;
   total: number;
+  distributed: number;
   cowCount: number;
 }
 
 const todayStr = () => new Date().toISOString().split('T')[0];
-const nextWeekStr = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 7);
-  return d.toISOString().split('T')[0];
-};
 
 const fmt = (n: number) => n % 1 === 0 ? `${n}` : n.toFixed(1);
 
@@ -158,6 +154,7 @@ export default function MilkProductionPage() {
                 <th className="px-5 py-3 text-amber-600">Morning (L)</th>
                 <th className="px-5 py-3 text-indigo-600">Evening (L)</th>
                 <th className="px-5 py-3 text-brand">Total (L)</th>
+                <th className="px-5 py-3 text-brand-dark">Distributed (L)</th>
                 <th className="px-5 py-3">Cows</th>
                 <th className="px-5 py-3 text-center">Actions</th>
               </tr>
@@ -165,64 +162,83 @@ export default function MilkProductionPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-text3 text-[13px] italic">
+                  <td colSpan={7} className="py-16 text-center text-text3 text-[13px] italic">
                     Loading production logs…
                   </td>
                 </tr>
               ) : paged.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center">
+                  <td colSpan={7} className="py-16 text-center">
                     <Droplets size={40} className="mx-auto text-border-custom mb-3" />
                     <p className="text-text3 text-[13px] font-medium">No milk records logged yet.</p>
                     <p className="text-text3 text-[11px] mt-1">Click "+ Log Yield" to start recording.</p>
                   </td>
                 </tr>
               ) : (
-                paged.map((day) => (
-                  <tr
-                    key={day.date}
-                    className="border-b border-border-custom/50 hover:bg-surface/50 transition-colors last:border-0"
-                  >
-                    <td className="px-5 py-3.5">
-                      <div className="font-black text-text">{day.date}</div>
-                    </td>
-                    <td className="px-5 py-3.5 font-bold text-amber-700">{fmt(day.morning)} L</td>
-                    <td className="px-5 py-3.5 font-bold text-indigo-700">{fmt(day.evening)} L</td>
-                    <td className="px-5 py-3.5">
-                      <span className="font-black text-brand-dark text-[14px]">{fmt(day.total)} L</span>
-                    </td>
-                    <td className="px-5 py-3.5 text-text3 font-medium">{day.cowCount} cows</td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2 justify-center">
-                        {/* Edit yield - only for last 2 days */}
-                        {(() => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          const target = new Date(day.date);
-                          target.setHours(0, 0, 0, 0);
-                          const diff = (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24);
-                          return diff <= 1 && (
-                            <button
-                              onClick={() => { setEditTarget({ date: day.date }); setShowModal(true); }}
-                              title="Edit yield entry"
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border-custom text-text3 hover:border-brand hover:text-brand text-[10px] font-black uppercase tracking-wider transition-all"
-                            >
-                              <Pencil size={11} /> Edit
-                            </button>
-                          );
-                        })()}
-                        {/* Distribute */}
-                        <button
-                          onClick={() => setDistributeTarget({ date: day.date, shift: 'MORNING', total: day.morning })}
-                          title="Distribute milk to customers"
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-brand/40 text-brand hover:bg-brand hover:text-white text-[10px] font-black uppercase tracking-wider transition-all"
-                        >
-                          <Truck size={11} /> Distribute
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                paged.map((day) => {
+                  const isFullyDistributed = day.distributed >= day.total && day.total > 0;
+                  return (
+                    <tr
+                      key={day.date}
+                      className="border-b border-border-custom/50 hover:bg-surface/50 transition-colors last:border-0"
+                    >
+                      <td className="px-5 py-3.5">
+                        <div className="font-black text-text">{day.date}</div>
+                      </td>
+                      <td className="px-5 py-3.5 font-bold text-amber-700">{fmt(day.morning)} L</td>
+                      <td className="px-5 py-3.5 font-bold text-indigo-700">{fmt(day.evening)} L</td>
+                      <td className="px-5 py-3.5">
+                        <span className="font-black text-brand-dark text-[14px]">{fmt(day.total)} L</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${isFullyDistributed ? 'text-brand' : 'text-amber-600'}`}>
+                            {fmt(day.distributed)} L
+                          </span>
+                          {isFullyDistributed ? (
+                            <CheckCircle2 size={14} className="text-brand" />
+                          ) : day.distributed > 0 ? (
+                            <AlertCircle size={14} className="text-amber-500" />
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-text3 font-medium">{day.cowCount} cows</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2 justify-center">
+                          {/* Edit yield - only for last 2 days */}
+                          {(() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const target = new Date(day.date);
+                            target.setHours(0, 0, 0, 0);
+                            const diff = (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24);
+                            return diff <= 1 && (
+                              <button
+                                onClick={() => { setEditTarget({ date: day.date }); setShowModal(true); }}
+                                title="Edit yield entry"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border-custom text-text3 hover:border-brand hover:text-brand text-[10px] font-black uppercase tracking-wider transition-all"
+                              >
+                                <Pencil size={11} /> Edit
+                              </button>
+                            );
+                          })()}
+                          {/* Distribute */}
+                          <button
+                            onClick={() => setDistributeTarget({ date: day.date, shift: 'COMBINED', total: day.total })}
+                            title="Distribute milk to customers"
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${
+                              isFullyDistributed 
+                                ? 'border-brand bg-brand text-white hover:bg-brand-dark' 
+                                : 'border-brand/40 text-brand hover:bg-brand hover:text-white'
+                            }`}
+                          >
+                            <Truck size={11} /> {isFullyDistributed ? 'Update Dist.' : 'Distribute'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

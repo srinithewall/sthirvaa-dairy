@@ -21,6 +21,7 @@ public class MilkDispatch {
     // Customer who received the milk (nullable for waste/own-use rows)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Customer customer;
 
     // "CUSTOMER", "WASTE", "OWN_USE"

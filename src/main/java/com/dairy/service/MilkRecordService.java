@@ -5,6 +5,7 @@ import com.dairy.model.Income;
 import com.dairy.model.MilkRecord;
 import com.dairy.repo.HerdRepository;
 import com.dairy.repo.IncomeRepository;
+import com.dairy.repo.MilkDispatchRepository;
 import com.dairy.repo.MilkRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,9 @@ public class MilkRecordService {
 
     @Autowired
     private IncomeRepository incomeRepository;
+
+    @Autowired
+    private MilkDispatchRepository dispatchRepository;
 
     public List<MilkRecord> getAll() {
         return milkRecordRepository.findAll();
@@ -104,11 +108,15 @@ public class MilkRecordService {
                 .distinct()
                 .count();
 
+            Double distributed = dispatchRepository.sumQuantityByDate(date);
+            if (distributed == null) distributed = 0.0;
+
             Map<String, Object> dayMap = new HashMap<>();
             dayMap.put("date", date.toString());
             dayMap.put("morning", morning);
             dayMap.put("evening", evening);
             dayMap.put("total", morning + evening);
+            dayMap.put("distributed", distributed);
             dayMap.put("cowCount", cowCount);
             
             summary.add(dayMap);

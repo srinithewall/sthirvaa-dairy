@@ -1,6 +1,7 @@
 package com.dairy.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,7 +17,7 @@ public class Asset {
     private String category;
 
     @Column(name = "purchase_date")
-    private LocalDateTime purchaseDate;
+    private LocalDate purchaseDate;
 
     private Double value;
 
@@ -56,8 +57,8 @@ public class Asset {
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
 
-    public LocalDateTime getPurchaseDate() { return purchaseDate; }
-    public void setPurchaseDate(LocalDateTime purchaseDate) { this.purchaseDate = purchaseDate; }
+    public LocalDate getPurchaseDate() { return purchaseDate; }
+    public void setPurchaseDate(LocalDate purchaseDate) { this.purchaseDate = purchaseDate; }
 
     public Double getValue() { return value; }
     public void setValue(Double value) { this.value = value; }

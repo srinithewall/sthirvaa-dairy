@@ -88,12 +88,12 @@ export default function InventoryPage() {
   };
 
   const filteredItems = items.filter(item => 
-    item.itemName.toLowerCase().includes(searchQuery.toLowerCase())
+    item.itemName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredAssets = assets.filter(asset => 
-    asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    asset.category.toLowerCase().includes(searchQuery.toLowerCase())
+    asset.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    asset.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (

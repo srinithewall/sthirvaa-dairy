@@ -55,7 +55,7 @@ export default function SalesPage() {
         <div className="bg-white p-4 rounded-radius-custom-lg border border-border-custom card-shadow">
           <div className="text-[11px] text-text3 uppercase font-bold tracking-wider mb-1">Liters Sold</div>
           <div className="text-2xl font-black text-brand">
-             {sales.filter(s => s.itemName.toLowerCase().includes('milk')).reduce((acc, s) => acc + s.quantity, 0)} L
+             {sales.filter(s => s.itemName?.toLowerCase().includes('milk')).reduce((acc, s) => acc + s.quantity, 0)} L
           </div>
         </div>
         <div className="bg-white p-4 rounded-radius-custom-lg border border-border-custom card-shadow">

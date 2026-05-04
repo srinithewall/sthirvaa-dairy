@@ -13,6 +13,7 @@ public class MilkRecord {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "herd_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Herd herd;
 
     @Column(nullable = false)
@@ -26,6 +27,7 @@ public class MilkRecord {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "worker_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User worker;
 
     private LocalDateTime createdAt;

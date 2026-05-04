@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, X, Layers } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
@@ -15,19 +15,17 @@ const sidebarItems = [
     { name: 'Milk Production', icon: Droplets, path: '/production' }
   ]},
   { group: 'Business', items: [
+    { name: 'Digital Ledger', icon: BarChart3, path: '/ledger' },
     { name: 'Sales', icon: ShoppingCart, path: '/sales' },
-    { name: 'Expenses', icon: DollarSign, path: '/ledger?type=EXPENSE' },
     { name: 'Inventory', icon: Package, path: '/inventory' }
   ]},
   { group: 'Shop', items: [
     { name: 'Sthirvaa Shop', icon: ShoppingCart, path: '/shop' },
     { name: 'My Orders', icon: ClipboardList, path: '/orders' },
-    { name: 'Products Admin', icon: Package2, path: '/admin/products' },
-    { name: 'Combo Admin', icon: Layers, path: '/admin/subscriptions' }
+    { name: 'Products Admin', icon: Package2, path: '/admin/products' }
   ]},
   { group: 'Operations', items: [
-    { name: 'Staff Management', icon: Users, path: '/staff' },
-    { name: 'Digital Ledger', icon: BarChart3, path: '/ledger' }
+    { name: 'Staff Management', icon: Users, path: '/staff' }
   ]}
 ];
 

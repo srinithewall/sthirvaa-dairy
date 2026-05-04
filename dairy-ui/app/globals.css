@@ -1,41 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Outfit:wght@300;400;600;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --brand: #2D6A4F;
-    --brand-light: #52B788;
-    --brand-dark: #1B4332;
+    --brand: #1B4332;
+    --brand-light: #2D6A4F;
+    --brand-dark: #081C15;
+    --gold: #C5A059;
+    --parchment: #FDFCF0;
     --accent: #F7B731;
     --accent-dark: #d4920a;
     --sidebar-w: 230px;
-    --nav-h: 56px;
-    --background: #F0F4F1;
-    --foreground: #1A2E22;
+    --nav-h: 64px;
+    --background: #FDFCF0;
+    --foreground: #1B4332;
     --surface: #FFFFFF;
     --surface2: #F5F9F6;
-    --text: #1A2E22;
+    --text: #1B4332;
     --text2: #4A6355;
     --text3: #7A9485;
-    --border: rgba(45,106,79,0.12);
-    --border2: rgba(45,106,79,0.22);
+    --border: rgba(27,67,50,0.1);
+    --border2: rgba(27,67,50,0.2);
     --danger: #E05252;
     --warn: #F7B731;
-    --success: #2D6A4F;
+    --success: #1B4332;
     --info: #3A7BD5;
-    --radius: 10px;
-    --radius-lg: 14px;
+    --radius: 12px;
+    --radius-lg: 20px;
   }
 
   body {
     background: var(--background);
     color: var(--text);
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Outfit', sans-serif;
     font-size: 14px;
     height: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Playfair Display', serif;
   }
 }
 

@@ -26,13 +26,13 @@ public class CategoryController {
     }
 
     @PostMapping
-    @PreAuthorize("@ss.can('LEDGER')")
+    @PreAuthorize("@ss.can('LEDGER', 'CREATE')")
     public Category createCategory(@RequestBody Category category) {
         return categoryRepository.save(category);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@ss.can('LEDGER')")
+    @PreAuthorize("@ss.can('LEDGER', 'EDIT')")
     public ResponseEntity<Category> updateCategory(@PathVariable Long id, @RequestBody Category category) {
         return categoryRepository.findById(id)
                 .map(existing -> {
@@ -43,7 +43,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@ss.can('LEDGER')")
+    @PreAuthorize("@ss.can('LEDGER', 'DELETE')")
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         if (categoryRepository.existsById(id)) {
             categoryRepository.deleteById(id);

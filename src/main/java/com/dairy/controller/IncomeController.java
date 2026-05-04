@@ -30,13 +30,13 @@ public class IncomeController {
     }
 
     @PostMapping
-    @PreAuthorize("@ss.can('LEDGER')")
+    @PreAuthorize("@ss.can('LEDGER', 'CREATE')")
     public Income createIncome(@RequestBody Income income) {
         return incomeService.saveIncome(income);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@ss.can('LEDGER')")
+    @PreAuthorize("@ss.can('LEDGER', 'EDIT')")
     public ResponseEntity<Income> updateIncome(@PathVariable Long id, @RequestBody Income income) {
         return incomeService.getIncomeById(id)
                 .map(existing -> {
@@ -47,7 +47,7 @@ public class IncomeController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@ss.can('LEDGER')")
+    @PreAuthorize("@ss.can('LEDGER', 'DELETE')")
     public ResponseEntity<Void> deleteIncome(@PathVariable Long id) {
         incomeService.deleteIncome(id);
         return ResponseEntity.noContent().build();

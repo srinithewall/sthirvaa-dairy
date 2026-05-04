@@ -80,7 +80,7 @@ public class SecurityConfig {
                 auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers("/api/auth/**", "/api/test/**").permitAll()
-                    .anyRequest().permitAll()
+                    .anyRequest().authenticated()
             );
 
         http.authenticationProvider(authenticationProvider());

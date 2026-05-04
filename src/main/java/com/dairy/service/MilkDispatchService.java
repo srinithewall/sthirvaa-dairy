@@ -45,7 +45,11 @@ public class MilkDispatchService {
         String shift = entries.get(0).get("shift").toString();
 
         // Delete old records for this date+shift (enables correction from scratch)
-        dispatchRepository.deleteByDateAndShift(date, shift);
+        if ("COMBINED".equalsIgnoreCase(shift)) {
+            dispatchRepository.deleteByDate(date);
+        } else {
+            dispatchRepository.deleteByDateAndShift(date, shift);
+        }
 
         // Save new dispatches
         for (Map<String, Object> e : entries) {

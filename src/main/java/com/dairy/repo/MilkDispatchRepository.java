@@ -12,6 +12,7 @@ public interface MilkDispatchRepository extends JpaRepository<MilkDispatch, Long
     List<MilkDispatch> findByDateAndShift(LocalDate date, String shift);
     List<MilkDispatch> findByDateBetween(LocalDate start, LocalDate end);
     void deleteByDateAndShift(LocalDate date, String shift);
+    void deleteByDate(LocalDate date);
 
     @Query("SELECT SUM(d.totalAmount) FROM MilkDispatch d WHERE d.date = :date AND d.dispatchType = 'CUSTOMER'")
     Double sumRevenueByDate(@Param("date") LocalDate date);

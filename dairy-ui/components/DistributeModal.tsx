@@ -39,7 +39,9 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
 
   useEffect(() => {
     api.get(`/milk-dispatch/by-date?date=${date}`).then(r => {
-      const existing: any[] = (r.data as any[]).filter(d => d.shift === shift);
+      const all: any[] = r.data;
+      const existing = shift === 'COMBINED' ? all : all.filter(d => d.shift === shift);
+      
       if (existing.length > 0) {
         setRows(existing.map(d => ({
           key: nk(),

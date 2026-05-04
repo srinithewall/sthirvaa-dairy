@@ -184,110 +184,117 @@ function LedgerPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto pb-10">
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-4xl mx-auto pb-10 px-1">
+        {/* Header Section */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-text tracking-tight">Digital Ledger</h1>
-            <p className="text-[13px] text-text3 mt-1">Sthirvaa Farms · Financial Entries</p>
+            <h1 className="text-2xl font-black text-text tracking-tight uppercase">Digital Ledger</h1>
+            <p className="text-[13px] text-text3 mt-1 font-medium">Sthirvaa Farms · Financial Entries</p>
           </div>
-          <div className="bg-white p-1 rounded-lg border border-border-custom flex shadow-sm">
+          <div className="bg-white p-1 rounded-xl border border-border-custom flex shadow-sm w-full sm:w-auto">
             <button 
               onClick={() => setActiveTab('EXPENSE')}
-              className={`px-6 py-2 rounded-md transition-all text-[13px] font-bold ${activeTab === 'EXPENSE' ? 'bg-danger text-white' : 'text-text3'}`}
+              className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg transition-all text-[12px] font-black tracking-widest ${activeTab === 'EXPENSE' ? 'bg-danger text-white' : 'text-text3'}`}
             >
               EXPENSE
             </button>
             <button 
               onClick={() => setActiveTab('INCOME')}
-              className={`px-6 py-2 rounded-md transition-all text-[13px] font-bold ${activeTab === 'INCOME' ? 'bg-brand text-white' : 'text-text3'}`}
+              className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg transition-all text-[12px] font-black tracking-widest ${activeTab === 'INCOME' ? 'bg-brand text-white' : 'text-text3'}`}
             >
               INCOME
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-white p-6 rounded-radius-custom-lg border border-border-custom shadow-sm flex flex-col items-center justify-center gap-1 text-center">
-             <span className="text-[11px] font-bold text-text3 uppercase tracking-widest">Net Balance</span>
+             <span className="text-[10px] font-black text-text3 uppercase tracking-[0.2em]">Net Balance</span>
              <span className={`text-2xl font-black ${balance >= 0 ? 'text-brand' : 'text-danger'}`}>
                ₹{balance.toLocaleString()}
              </span>
           </div>
           <div className="bg-danger/5 border border-danger/10 p-6 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
-             <span className="text-[11px] font-bold text-danger uppercase tracking-widest">Total Expense</span>
+             <span className="text-[10px] font-black text-danger uppercase tracking-[0.2em]">Total Expense</span>
              <span className="text-2xl font-black text-danger">₹{totalExpense.toLocaleString()}</span>
           </div>
           <div className="bg-brand/5 border border-brand/10 p-6 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
-             <span className="text-[11px] font-bold text-brand uppercase tracking-widest">Total Income</span>
+             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em]">Total Income</span>
              <span className="text-2xl font-black text-brand">₹{totalIncome.toLocaleString()}</span>
           </div>
         </div>
 
+        {/* Category Selection Section */}
         <div className="mb-4 flex items-center justify-between px-1">
-          <h2 className="text-[14px] font-bold text-text2 uppercase tracking-wide">Select Category</h2>
+          <h2 className="text-[12px] font-black text-text2 uppercase tracking-widest">Select Category</h2>
         </div>
         
-        <div className="bg-white p-8 rounded-radius-custom-lg border border-border-custom card-shadow mb-8 relative overflow-hidden">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-y-10 gap-x-4 relative z-10">
+        <div className="bg-white p-4 sm:p-8 rounded-radius-custom-lg border border-border-custom card-shadow mb-8 relative overflow-hidden">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-y-8 sm:gap-y-10 gap-x-2 sm:gap-x-4 relative z-10">
             {filteredCategories.map((cat) => (
               <div 
                 key={cat.id} 
                 onClick={() => setSelectedCategory(cat)}
-                className="flex flex-col items-center gap-3 group cursor-pointer"
+                className="flex flex-col items-center gap-2 sm:gap-3 group cursor-pointer"
               >
-                <div className={`w-16 h-16 rounded-[20px] flex items-center justify-center text-2xl shadow-lg transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-2xl ${activeTab === 'EXPENSE' ? 'bg-danger/10 text-danger border border-danger/20 group-hover:bg-danger group-hover:text-white' : 'bg-brand/10 text-brand border border-brand/20 group-hover:bg-brand group-hover:text-white'}`}>
+                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] sm:rounded-[20px] flex items-center justify-center text-xl sm:text-2xl shadow-md sm:shadow-lg transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl ${activeTab === 'EXPENSE' ? 'bg-danger/10 text-danger border border-danger/20 group-hover:bg-danger group-hover:text-white' : 'bg-brand/10 text-brand border border-brand/20 group-hover:bg-brand group-hover:text-white'}`}>
                   {cat.iconCode || cat.icon || cat.name.charAt(0)}
                 </div>
-                <span className="text-[12px] font-extrabold text-text2 text-center leading-tight">{cat.name}</span>
+                <span className="text-[11px] sm:text-[12px] font-black text-text2 text-center leading-tight">{cat.name}</span>
               </div>
             ))}
             <div 
               onClick={() => setShowCategoryModal(true)}
-              className="flex flex-col items-center gap-3 cursor-pointer group"
+              className="flex flex-col items-center gap-2 sm:gap-3 cursor-pointer group"
             >
-              <div className="w-16 h-16 rounded-[20px] bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 group-hover:bg-slate-800 group-hover:text-white transition-all shadow-md group-hover:-translate-y-1">
-                <Plus size={28} />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] sm:rounded-[20px] bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 group-hover:bg-slate-800 group-hover:text-white transition-all shadow-sm group-hover:-translate-y-1">
+                <Plus size={24} />
               </div>
-              <span className="text-[12px] font-extrabold text-slate-500 uppercase tracking-tighter text-center">Add New<br/>Category</span>
+              <span className="text-[11px] sm:text-[12px] font-black text-slate-500 uppercase tracking-tighter text-center">Add New<br/>Category</span>
             </div>
           </div>
         </div>
 
+        {/* Recent Transactions List */}
         <div className="bg-white rounded-radius-custom-lg border border-border-custom overflow-hidden card-shadow">
-          <div className="p-5 border-b border-border-custom bg-surface2/50 flex items-center justify-between">
-            <h3 className="text-[15px] font-black flex items-center gap-2 text-text">
-              <History size={18} className="text-brand" /> RECENT TRANSACTIONS
+          <div className="p-4 sm:p-5 border-b border-border-custom bg-surface2/50 flex items-center justify-between">
+            <h3 className="text-[13px] font-black flex items-center gap-2 text-text uppercase tracking-widest">
+              <History size={16} className="text-brand" /> Recent Transactions
             </h3>
           </div>
           
           <div className="divide-y divide-border-custom bg-white">
             {loading ? (
-              <div className="p-20 text-center">
+              <div className="p-10 sm:p-20 text-center">
                  <div className="inline-block w-8 h-8 border-4 border-brand/30 border-t-brand rounded-full animate-spin"></div>
               </div>
             ) : history.length === 0 ? (
-              <div className="p-20 text-center text-text3 font-bold">NO TRANSACTIONS YET</div>
+              <div className="p-10 sm:p-20 text-center text-text3 font-bold">NO TRANSACTIONS YET</div>
             ) : history.filter(item => item.type === activeTab).map((item) => (
-              <div key={`${item.type}-${item.id}`} className="p-5 flex items-center justify-between hover:bg-surface transition-all group border-l-4 border-transparent hover:border-brand">
-                <div className="flex items-center gap-5">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold shadow-sm ${item.type === 'EXPENSE' ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}`}>
+              <div key={`${item.type}-${item.id}`} className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-surface transition-all group border-l-4 border-transparent hover:border-brand gap-4 sm:gap-0">
+                <div className="flex items-center gap-4 sm:gap-5 w-full sm:w-auto">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-xl flex items-center justify-center text-lg sm:text-xl font-bold shadow-sm ${item.type === 'EXPENSE' ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}`}>
                     {categories.find(c => c.name === item.category)?.iconCode || item.category.charAt(0)}
                   </div>
-                  <div>
-                    <div className="font-black text-text text-[15px]">{item.category}</div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] font-bold bg-surface2 px-2 py-0.5 rounded text-text2">{item.date}</span>
-                      <span className="text-[12px] text-text3 font-medium line-clamp-1">{item.description}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-black text-text text-[14px] sm:text-[15px]">{item.category}</div>
+                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                      <span className="text-[10px] font-black bg-surface2 px-1.5 py-0.5 rounded text-text2 flex-shrink-0">{item.date}</span>
+                      <span className="text-[11px] sm:text-[12px] text-text3 font-medium truncate sm:line-clamp-1 max-w-[150px] sm:max-w-none">
+                        {item.description}
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <div className={`font-black text-[18px] ${item.type === 'EXPENSE' ? 'text-danger' : 'text-brand'}`}>
+                
+                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-1 sm:mt-0">
+                  <div className="text-left sm:text-right">
+                    <div className={`font-black text-[16px] sm:text-[18px] ${item.type === 'EXPENSE' ? 'text-danger' : 'text-brand'}`}>
                       {item.type === 'EXPENSE' ? '-' : '+'} ₹{item.amount.toLocaleString()}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => {
                         setEditingTransaction(item);
@@ -295,13 +302,13 @@ function LedgerPage() {
                         setDescription(item.description);
                         setDate(item.date);
                       }}
-                      className="p-2 hover:bg-white rounded-lg text-text3 hover:text-brand transition-colors"
+                      className="p-2 bg-surface2 sm:bg-transparent hover:bg-white rounded-lg text-text3 hover:text-brand transition-colors"
                     >
                       <Edit2 size={16} />
                     </button>
                     <button 
                       onClick={() => handleDeleteTransaction(item.id, item.type)}
-                      className="p-2 hover:bg-white rounded-lg text-text3 hover:text-danger transition-colors"
+                      className="p-2 bg-surface2 sm:bg-transparent hover:bg-white rounded-lg text-text3 hover:text-danger transition-colors"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -313,6 +320,7 @@ function LedgerPage() {
         </div>
       </div>
 
+      {/* Entry Modal */}
       {(selectedCategory || editingTransaction) && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl">
@@ -370,6 +378,7 @@ function LedgerPage() {
         </div>
       )}
 
+      {/* New Category Modal */}
       {showCategoryModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl">

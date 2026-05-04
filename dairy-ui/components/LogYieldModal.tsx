@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { X, Sun, Moon, Calendar, MessageSquare, Droplets, Check } from 'lucide-react';
 import api from '@/lib/api';
+import { useNotification } from '@/components/NotificationContext';
 
 /* ─── Types ──────────────────────────────────────────── */
 interface Herd {
@@ -50,6 +51,7 @@ export default function LogYieldModal({
   const [showComments, setShowComments] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { showToast } = useNotification();
 
   // Build base entries from lactatingCows list
   useEffect(() => {
@@ -99,7 +101,7 @@ export default function LogYieldModal({
   }, [entries]);
 
   const handleSubmit = async () => {
-    if (!date) return alert('Please pick a date.');
+    if (!date) return showToast('Please pick a date.', 'warning');
     const batch: any[] = [];
     entries.forEach((e) => {
       if (parseFloat(e.morning) > 0)
@@ -108,7 +110,7 @@ export default function LogYieldModal({
         batch.push({ herdId: e.herdId, date, shift: 'EVENING', quantity: parseFloat(e.evening) });
     });
 
-    if (batch.length === 0) return alert('Please enter at least one yield value.');
+    if (batch.length === 0) return showToast('Please enter at least one yield value.', 'warning');
 
     setSaving(true);
     try {
@@ -119,7 +121,7 @@ export default function LogYieldModal({
         onClose();
       }, 2000);
     } catch (err: any) {
-      alert(`Failed to save: ${err.response?.data?.message || err.message}`);
+      showToast(`Failed to save: ${err.response?.data?.message || err.message}`, 'error');
     } finally {
       setSaving(false);
     }

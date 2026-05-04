@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, Camera, ChevronDown } from 'lucide-react';
 import api from '@/lib/api';
+import { useNotification } from '@/components/NotificationContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FormData {
@@ -128,6 +129,7 @@ export default function RegisterAnimalModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [ageYears, setAgeYears] = useState('');
   const [ageMonths, setAgeMonths] = useState('');
+  const { showToast } = useNotification();
 
   const [formData, setFormData] = useState<FormData>({
     tagNumber: '',
@@ -166,7 +168,7 @@ export default function RegisterAnimalModal({
       });
       set('imageUrl', res.data.url);
     } catch {
-      alert('Image upload failed. You can still register without the photo.');
+      showToast('Image upload failed. You can still register without the photo.', 'error');
       setImagePreview(null); // Revert preview if upload fails
     } finally {
       setUploadingImage(false);
@@ -198,7 +200,7 @@ export default function RegisterAnimalModal({
       
       // Handle the generic 500 error gracefully and explicitly address the likely duplicate tag situation
       const errorMsg = err.response?.data?.message || err.message;
-      alert(`Registration failed.\n\nBackend Error: ${errorMsg}\n\nMost likely cause: The Tag Number you entered might already exist in the system. Try using a unique Tag Number.`);
+      showToast(`Registration failed. Backend Error: ${errorMsg}. Most likely cause: The Tag Number you entered might already exist.`, 'error');
     } finally {
       setRegistering(false);
     }

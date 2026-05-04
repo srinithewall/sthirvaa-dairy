@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
+import { useNotification } from '@/components/NotificationContext';
 
 /* --- Types --- */
 export interface Product {
@@ -34,7 +35,7 @@ const blankProduct = (): Product => ({
 });
 
 /* --- Image Upload Component (Internal) --- */
-function ImageUploadInput({ value, onChange, label = "Image URL" }: { value?: string; onChange: (val: string) => void; label?: string }) {
+function ImageUploadInput({ value, onChange, label = "Image URL", showToast }: { value?: string; onChange: (val: string) => void; label?: string; showToast: any }) {
   const [uploading, setUploading] = useState(false);
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -47,7 +48,7 @@ function ImageUploadInput({ value, onChange, label = "Image URL" }: { value?: st
       if (res.data && res.data.url) onChange(res.data.url);
     } catch (err) {
       console.error(err);
-      alert('Failed to upload image.');
+      showToast('Failed to upload image.', 'error');
     } finally {
       setUploading(false);
     }
@@ -83,6 +84,7 @@ export default function ProductFormModal({ isOpen, product, onSave, onClose }: P
   const [form, setForm] = useState<Product>(blankProduct());
   const [errors, setErrors] = useState<any>({});
   const [saving, setSaving] = useState(false);
+  const { showToast } = useNotification();
 
   useEffect(() => {
     if (product) setForm(product);
@@ -144,7 +146,7 @@ export default function ProductFormModal({ isOpen, product, onSave, onClose }: P
               </div>
            </div>
            
-           <ImageUploadInput value={form.imageUrl} onChange={url => setForm({...form, imageUrl: url})} label="Product Image" />
+           <ImageUploadInput value={form.imageUrl} onChange={url => setForm({...form, imageUrl: url})} label="Product Image" showToast={showToast} />
            
            <div>
               <label className="block text-[10px] font-black uppercase mb-1">Description</label>

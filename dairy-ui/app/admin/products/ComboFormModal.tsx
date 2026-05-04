@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, ChevronDown, ChevronUp, Minus, Gift, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
+import { useNotification } from '@/components/NotificationContext';
 
 /* --- Types --- */
 export interface SubscriptionPlanItem {
@@ -42,9 +43,10 @@ interface ImageUploadInputProps {
   value?: string;
   onChange: (val: string) => void;
   label?: string;
+  showToast: any;
 }
 
-function ImageUploadInput({ value, onChange, label = "Image URL" }: ImageUploadInputProps) {
+function ImageUploadInput({ value, onChange, label = "Image URL", showToast }: ImageUploadInputProps) {
   const [uploading, setUploading] = useState(false);
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,7 +59,7 @@ function ImageUploadInput({ value, onChange, label = "Image URL" }: ImageUploadI
       if (res.data && res.data.url) onChange(res.data.url);
     } catch (err) {
       console.error(err);
-      alert('Failed to upload image.');
+      showToast('Failed to upload image.', 'error');
     } finally {
       setUploading(false);
     }
@@ -105,6 +107,7 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
   const [form, setForm] = useState<SubscriptionPlan>(blankPlan());
   const [saving, setSaving] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
+  const { showToast } = useNotification();
 
   const DAYS_MAP: Record<string, number> = { DAILY: 30, WEEKLY: 4, MONTHLY: 1, ONE_TIME: 1 };
 
@@ -142,7 +145,7 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
       onSave();
     } catch (e: any) {
       console.error(e);
-      alert('Failed to save combo.');
+      showToast('Failed to save combo.', 'error');
     } finally {
       setSaving(false);
     }
@@ -169,7 +172,7 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                 <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-5 py-3.5 bg-white border border-border-custom rounded-2xl text-sm font-bold outline-none focus:border-brand shadow-sm" placeholder="e.g. Essential Dairy Pack" />
               </div>
               <div className="col-span-1">
-                <ImageUploadInput value={form.imageUrl} onChange={url => setForm({...form, imageUrl: url})} label="Combo Visual" />
+                <ImageUploadInput value={form.imageUrl} onChange={url => setForm({...form, imageUrl: url})} label="Combo Visual" showToast={showToast} />
               </div>
             </div>
             <div>

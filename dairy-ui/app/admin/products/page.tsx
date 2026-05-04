@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 import { Plus, Edit2, Trash2, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { useNotification } from '@/components/NotificationContext';
 import ProductFormModal, { Product } from './ProductFormModal';
 import ComboFormModal, { SubscriptionPlan } from './ComboFormModal';
 
@@ -17,30 +18,31 @@ export default function ProductManagementPage() {
   const [showComboModal, setShowComboModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | undefined>();
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number, type: 'product' | 'combo' } | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const { showToast, confirm } = useNotification();
 
   const seedData = async () => {
-    if (!confirm('This will insert sample data into your database. Continue?')) return;
-    setSeeding(true);
-    try {
-      const SAMPLE_PRODUCTS: Product[] = [
-        { name: 'Sthirvaa A2 Gir Milk', category: 'dairy', subcategory: 'Milk', price: 90, unit: '1 Litre', description: 'Pure A2 milk from our Gir cows.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400' },
-        { name: 'Organic Buffalo Curd', category: 'dairy', subcategory: 'Curd', price: 65, unit: '500g', description: 'Thick, creamy curd made from buffalo milk.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=400' },
-        { name: 'Desi Cow Ghee', category: 'dairy', subcategory: 'Ghee', price: 850, unit: '500ml', description: 'Bilona method handmade ghee.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=400' },
-        { name: 'Farm Fresh Eggs', category: 'dairy', subcategory: 'Eggs', price: 120, unit: '12 pcs', description: 'Free-range organic brown eggs.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?w=400' },
-        { name: 'Premium Paneer', category: 'dairy', subcategory: 'Paneer', price: 140, unit: '250g', description: 'Soft, fresh paneer made daily.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc0?w=400' },
-        { name: 'Fresh Chicken', category: 'meat', subcategory: 'Chicken', price: 280, unit: '1 kg', description: 'Tender, fresh chicken cut to order.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587593810167-a84920ea0881?w=400' },
-        { name: 'Organic Tomatoes', category: 'vegetables', subcategory: 'Veggies', price: 40, unit: '1 kg', description: 'Pesticide-free red tomatoes.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400' },
-        { name: 'Divine Pooja Pack', category: 'divine', subcategory: 'Divine', price: 250, unit: '1 Pack', description: 'Complete pooja essentials kit.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=400' }
-      ];
-      for (const p of SAMPLE_PRODUCTS) await api.post('/products', p);
-      await fetchProducts();
-      alert('Data seeded successfully!');
-    } catch (e: any) {
-      console.error(e);
-      alert('Failed to seed: ' + (e.response?.data?.message || e.message));
-    } finally { setSeeding(false); }
+    confirm('This will insert sample data into your database. Continue?', async () => {
+      setSeeding(true);
+      try {
+        const SAMPLE_PRODUCTS: Product[] = [
+          { name: 'Sthirvaa A2 Gir Milk', category: 'dairy', subcategory: 'Milk', price: 90, unit: '1 Litre', description: 'Pure A2 milk from our Gir cows.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400' },
+          { name: 'Organic Buffalo Curd', category: 'dairy', subcategory: 'Curd', price: 65, unit: '500g', description: 'Thick, creamy curd made from buffalo milk.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=400' },
+          { name: 'Desi Cow Ghee', category: 'dairy', subcategory: 'Ghee', price: 850, unit: '500ml', description: 'Bilona method handmade ghee.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=400' },
+          { name: 'Farm Fresh Eggs', category: 'dairy', subcategory: 'Eggs', price: 120, unit: '12 pcs', description: 'Free-range organic brown eggs.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?w=400' },
+          { name: 'Premium Paneer', category: 'dairy', subcategory: 'Paneer', price: 140, unit: '250g', description: 'Soft, fresh paneer made daily.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc0?w=400' },
+          { name: 'Fresh Chicken', category: 'meat', subcategory: 'Chicken', price: 280, unit: '1 kg', description: 'Tender, fresh chicken cut to order.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587593810167-a84920ea0881?w=400' },
+          { name: 'Organic Tomatoes', category: 'vegetables', subcategory: 'Veggies', price: 40, unit: '1 kg', description: 'Pesticide-free red tomatoes.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400' },
+          { name: 'Divine Pooja Pack', category: 'divine', subcategory: 'Divine', price: 250, unit: '1 Pack', description: 'Complete pooja essentials kit.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=400' }
+        ];
+        for (const p of SAMPLE_PRODUCTS) await api.post('/products', p);
+        await fetchProducts();
+        showToast('Data seeded successfully!');
+      } catch (e: any) {
+        console.error(e);
+        showToast('Failed to seed: ' + (e.response?.data?.message || e.message), 'error');
+      } finally { setSeeding(false); }
+    });
   };
 
   useEffect(() => { 
@@ -64,28 +66,37 @@ export default function ProductManagementPage() {
     try {
       if (p.id) await api.put(`/products/${p.id}`, p);
       else await api.post('/products', p);
+      showToast(`Product ${p.id ? 'updated' : 'created'} successfully!`);
       fetchProducts();
     } catch (e: any) {
       console.error(e);
-      alert('Failed to save product: ' + (e.response?.data?.message || e.message));
+      showToast('Failed to save product: ' + (e.response?.data?.message || e.message), 'error');
       throw e;
     }
   };
 
-  const handleDeleteProduct = (id: number) => setDeleteConfirm({ id, type: 'product' });
-  const handleDeletePlan = (id: number) => setDeleteConfirm({ id, type: 'combo' });
+  const handleDeleteProduct = (id: number) => {
+    confirm('Are you sure you want to delete this product?', async () => {
+      try {
+        await api.delete(`/products/${id}`);
+        showToast('Product deleted successfully!');
+        fetchProducts();
+      } catch (e: any) {
+        showToast(e.response?.data?.message || 'Failed to delete.', 'error');
+      }
+    }, 'danger');
+  };
 
-  const executeDelete = async () => {
-    if (!deleteConfirm) return;
-    try {
-      if (deleteConfirm.type === 'product') await api.delete(`/products/${deleteConfirm.id}`);
-      else await api.delete(`/subscription-plans/${deleteConfirm.id}`);
-      activeTab === 'products' ? fetchProducts() : fetchPlans();
-      setDeleteConfirm(null);
-    } catch (e: any) {
-      console.error(e);
-      alert(e.response?.data?.message || 'Failed to delete.');
-    }
+  const handleDeletePlan = (id: number) => {
+    confirm('Are you sure you want to delete this combo plan?', async () => {
+      try {
+        await api.delete(`/subscription-plans/${id}`);
+        showToast('Combo plan deleted successfully!');
+        fetchPlans();
+      } catch (e: any) {
+        showToast(e.response?.data?.message || 'Failed to delete.', 'error');
+      }
+    }, 'danger');
   };
 
   return (
@@ -167,23 +178,7 @@ export default function ProductManagementPage() {
         )}
 
         <ProductFormModal isOpen={showProductModal} product={editingProduct} onSave={handleProductSave} onClose={() => { setShowProductModal(false); setEditingProduct(undefined); }} />
-        <ComboFormModal isOpen={showComboModal} plan={editingPlan} onSave={() => { fetchPlans(); setShowComboModal(false); setEditingPlan(undefined); }} onClose={() => { setShowComboModal(false); setEditingPlan(undefined); }} fetchPlans={fetchPlans} />
-
-        {deleteConfirm && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[3000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center space-y-6 animate-in zoom-in-95 duration-300">
-              <div className="w-20 h-20 bg-red-100 text-red-600 rounded-[2rem] flex items-center justify-center mx-auto mb-2"><AlertCircle size={40} strokeWidth={2.5}/></div>
-              <div>
-                <h3 className="font-black text-2xl text-text tracking-tight">Confirm Deletion</h3>
-                <p className="text-xs text-text3 mt-2 font-medium">This will permanently remove the <b>{deleteConfirm.type}</b> from the database.</p>
-              </div>
-              <div className="flex gap-4 pt-2">
-                <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-4 border-2 border-border-custom rounded-2xl font-black text-sm text-text2 hover:bg-surface transition-all">Keep it</button>
-                <button onClick={executeDelete} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-red-600/20 active:scale-95 transition-all">Yes, Delete</button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ComboFormModal isOpen={showComboModal} plan={editingPlan} onSave={() => { showToast('Combo saved successfully!'); fetchPlans(); setShowComboModal(false); setEditingPlan(undefined); }} onClose={() => { setShowComboModal(false); setEditingPlan(undefined); }} fetchPlans={fetchPlans} />
       </div>
     </AppLayout>
   );

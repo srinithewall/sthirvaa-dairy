@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '@/lib/api';
 import { Plus, Minus, ShoppingCart, Search, X, Loader2, ChevronRight, Star, Clock, CheckCircle2, ShieldCheck, MapPin, Leaf, User } from 'lucide-react';
+import { useNotification } from '@/components/NotificationContext';
 
 /* ─── Types ─── */
 interface Product {
@@ -200,6 +201,7 @@ export default function ConsumerShopPage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCart, setShowCart] = useState(false);
+  const { showToast } = useNotification();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -309,7 +311,7 @@ export default function ConsumerShopPage() {
             <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#1B4332]" size={30} /></div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {plans.map((plan) => <SubscriptionCard key={plan.id} plan={plan} onSubscribe={p => alert(`Subscription for ${p.name} selected!`)} />)}
+              {plans.map((plan) => <SubscriptionCard key={plan.id} plan={plan} onSubscribe={p => showToast(`Subscription for ${p.name} selected!`)} />)}
             </div>
           )}
         </section>

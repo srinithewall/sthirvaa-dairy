@@ -5,6 +5,7 @@ import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { Plus, History, X, FolderPlus, Edit2, Trash2 } from 'lucide-react';
+import { useNotification } from '@/components/NotificationContext';
 
 interface Category {
   id: number;
@@ -44,6 +45,7 @@ function LedgerPage() {
 
   // Edit / Delete State
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const { showToast, confirm } = useNotification();
 
   const searchParams = useSearchParams();
   const typeParam = searchParams.get('type');
@@ -103,14 +105,14 @@ function LedgerPage() {
         date: date
       });
       
-      alert(`${type.charAt(0) + type.slice(1).toLowerCase()} added successfully!`);
+      showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} added successfully!`);
       setSelectedCategory(null);
       setAmount('');
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to save entry.");
+      showToast(err.response?.data?.message || "Failed to save entry.", 'error');
     } finally {
       setSaving(false);
     }
@@ -129,29 +131,30 @@ function LedgerPage() {
         date: date
       });
       
-      alert(`${type.charAt(0) + type.slice(1).toLowerCase()} updated successfully!`);
+      showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} updated successfully!`);
       setEditingTransaction(null);
       setAmount('');
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to update entry.");
+      showToast(err.response?.data?.message || "Failed to update entry.", 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteTransaction = async (id: number, type: 'EXPENSE' | 'INCOME') => {
-    if (!confirm("Are you sure you want to delete this record?")) return;
-    try {
-      const endpoint = type === 'EXPENSE' ? `/expenses/${id}` : `/income/${id}`;
-      await api.delete(endpoint);
-      alert(`${type.charAt(0) + type.slice(1).toLowerCase()} deleted successfully!`);
-      fetchData();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to delete.");
-    }
+    confirm("Are you sure you want to delete this record?", async () => {
+      try {
+        const endpoint = type === 'EXPENSE' ? `/expenses/${id}` : `/income/${id}`;
+        await api.delete(endpoint);
+        showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} deleted successfully!`);
+        fetchData();
+      } catch (err: any) {
+        showToast(err.response?.data?.message || "Failed to delete.", 'error');
+      }
+    }, 'danger');
   };
 
   const handleCreateCategory = async () => {
@@ -163,13 +166,13 @@ function LedgerPage() {
         type: activeTab,
         iconCode: newCatIcon
       });
-      alert(`Category "${newCatName}" created successfully!`);
+      showToast(`Category "${newCatName}" created successfully!`);
       setShowCategoryModal(false);
       setNewCatName('');
       setNewCatIcon('📂');
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to create category.");
+      showToast(err.response?.data?.message || "Failed to create category.", 'error');
     } finally {
       setCreatingCategory(false);
     }

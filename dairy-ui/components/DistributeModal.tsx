@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { X, Trash2, ChevronDown, Check } from 'lucide-react';
 import api from '@/lib/api';
+import { useNotification } from '@/components/NotificationContext';
 
 interface Customer { id: number; name: string; defaultRate: number; }
 
@@ -30,6 +31,7 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
   const [rows, setRows] = useState<DispatchRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { showToast } = useNotification();
 
   useEffect(() => {
     api.get('/customers').then(r => setCustomers(r.data)).catch(() => {});
@@ -92,15 +94,15 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
         quantity: parseFloat(r.quantity),
         ratePerLitre: parseFloat(r.ratePerLitre) || 0,
       }));
-    if (!payload.length) { alert('Enter at least one quantity.'); return; }
-    if (overAllocated) { alert('Over-allocated! Please fix quantities.'); return; }
+    if (!payload.length) { showToast('Enter at least one quantity.', 'warning'); return; }
+    if (overAllocated) { showToast('Over-allocated! Please fix quantities.', 'error'); return; }
     setSaving(true);
     try {
       await api.post('/milk-dispatch/session', payload);
       setSuccess(true);
       setTimeout(() => { onSave(); onClose(); }, 1800);
     } catch (e: any) {
-      alert(e.response?.data?.message || e.message);
+      showToast(e.response?.data?.message || e.message, 'error');
     } finally { setSaving(false); }
   };
 

@@ -86,11 +86,16 @@ function LedgerPage() {
     }
   };
 
+  const totalExpense = history.filter(h => h.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
+  const totalIncome = history.filter(h => h.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
+  const balance = totalIncome - totalExpense;
+
   const handleSaveEntry = async () => {
     if (!selectedCategory || !amount) return;
     setSaving(true);
     try {
-      const endpoint = selectedCategory.type === 'EXPENSE' ? '/expenses' : '/income';
+      const type = selectedCategory.type;
+      const endpoint = type === 'EXPENSE' ? '/expenses' : '/income';
       await api.post(endpoint, {
         category: selectedCategory.name,
         amount: parseFloat(amount),
@@ -98,6 +103,7 @@ function LedgerPage() {
         date: date
       });
       
+      alert(`${type.charAt(0) + type.slice(1).toLowerCase()} added successfully!`);
       setSelectedCategory(null);
       setAmount('');
       setDescription('');
@@ -114,7 +120,8 @@ function LedgerPage() {
     if (!editingTransaction || !amount) return;
     setSaving(true);
     try {
-      const endpoint = editingTransaction.type === 'EXPENSE' ? `/expenses/${editingTransaction.id}` : `/income/${editingTransaction.id}`;
+      const type = editingTransaction.type;
+      const endpoint = type === 'EXPENSE' ? `/expenses/${editingTransaction.id}` : `/income/${editingTransaction.id}`;
       await api.put(endpoint, {
         category: editingTransaction.category,
         amount: parseFloat(amount),
@@ -122,6 +129,7 @@ function LedgerPage() {
         date: date
       });
       
+      alert(`${type.charAt(0) + type.slice(1).toLowerCase()} updated successfully!`);
       setEditingTransaction(null);
       setAmount('');
       setDescription('');
@@ -139,6 +147,7 @@ function LedgerPage() {
     try {
       const endpoint = type === 'EXPENSE' ? `/expenses/${id}` : `/income/${id}`;
       await api.delete(endpoint);
+      alert(`${type.charAt(0) + type.slice(1).toLowerCase()} deleted successfully!`);
       fetchData();
     } catch (err: any) {
       alert(err.response?.data?.message || "Failed to delete.");
@@ -154,6 +163,7 @@ function LedgerPage() {
         type: activeTab,
         iconCode: newCatIcon
       });
+      alert(`Category "${newCatName}" created successfully!`);
       setShowCategoryModal(false);
       setNewCatName('');
       setNewCatIcon('📂');
@@ -195,16 +205,18 @@ function LedgerPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-white p-6 rounded-radius-custom-lg border border-border-custom shadow-sm flex flex-col items-center justify-center gap-1 text-center">
-             <span className="text-[11px] font-bold text-text3 uppercase tracking-widest">Initial Balance</span>
-             <span className="text-2xl font-black text-text">₹0.00</span>
+             <span className="text-[11px] font-bold text-text3 uppercase tracking-widest">Net Balance</span>
+             <span className={`text-2xl font-black ${balance >= 0 ? 'text-brand' : 'text-danger'}`}>
+               ₹{balance.toLocaleString()}
+             </span>
           </div>
           <div className="bg-danger/5 border border-danger/10 p-6 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
              <span className="text-[11px] font-bold text-danger uppercase tracking-widest">Total Expense</span>
-             <span className="text-2xl font-black text-danger">₹{history.filter(h => h.type === 'EXPENSE').reduce((a,b)=>a+b.amount,0).toLocaleString()}</span>
+             <span className="text-2xl font-black text-danger">₹{totalExpense.toLocaleString()}</span>
           </div>
           <div className="bg-brand/5 border border-brand/10 p-6 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
              <span className="text-[11px] font-bold text-brand uppercase tracking-widest">Total Income</span>
-             <span className="text-2xl font-black text-brand">₹{history.filter(h => h.type === 'INCOME').reduce((a,b)=>a+b.amount,0).toLocaleString()}</span>
+             <span className="text-2xl font-black text-brand">₹{totalIncome.toLocaleString()}</span>
           </div>
         </div>
 

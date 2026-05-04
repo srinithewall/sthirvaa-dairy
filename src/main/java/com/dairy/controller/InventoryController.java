@@ -17,6 +17,22 @@ public class InventoryController {
         return inventoryService.getAllInventory();
     }
 
+    @PostMapping
+    public Inventory addInventory(@RequestBody Inventory inventory) {
+        return inventoryService.saveInventory(inventory);
+    }
+
+    @PutMapping("/{id}")
+    public Inventory updateInventory(@PathVariable Long id, @RequestBody Inventory inventory) {
+        inventory.setId(id);
+        return inventoryService.saveInventory(inventory);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteInventory(@PathVariable Long id) {
+        inventoryService.deleteInventory(id);
+    }
+
     @GetMapping("/{itemName}")
     public Inventory getInventoryByItem(@PathVariable String itemName) {
         return inventoryService.getInventoryByItem(itemName)

@@ -41,13 +41,13 @@ public class ProductController {
     }
 
     @PostMapping
-    @PreAuthorize("@ss.can('SHOP')")
+    @PreAuthorize("@ss.can('SHOP', 'CREATE')")
     public Product createProduct(@RequestBody Product product) {
         return productRepository.save(product);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@ss.can('SHOP')")
+    @PreAuthorize("@ss.can('SHOP', 'EDIT')")
     public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product product) {
         return productRepository.findById(id).map(existing -> {
             product.setId(id);
@@ -56,7 +56,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@ss.can('SHOP')")
+    @PreAuthorize("@ss.can('SHOP', 'DELETE')")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         if (productRepository.existsById(id)) {
             productRepository.deleteById(id);

@@ -264,87 +264,92 @@ public class SampleDataInitializer implements CommandLineRunner {
 
         List<Product> products = productRepository.findAll();
         Product milk = products.stream().filter(p -> p.getName().contains("Milk")).findFirst().orElse(null);
-        Product curd = products.stream().filter(p -> p.getName().contains("Curd")).findFirst().orElse(null);
+        Product chicken = products.stream().filter(p -> p.getName().contains("Chicken") || p.getName().contains("Chicken")).findFirst().orElse(null);
         
-        if (milk == null || curd == null) {
-            logger.warn("Skipping subscription seeding: Milk or Curd product not found.");
-            return;
+        // If chicken doesn't exist, create it as a product first
+        if (chicken == null) {
+            chicken = new Product();
+            chicken.setName("Premium Fresh Chicken");
+            chicken.setCategory("meat");
+            chicken.setSubcategory("Chicken");
+            chicken.setPrice(200.0);
+            chicken.setUnit("1 Kg");
+            chicken.setDescription("Farm fresh premium chicken.");
+            productRepository.save(chicken);
         }
 
-        // 1. Small Starter
-        SubscriptionPlan starter = new SubscriptionPlan();
-        starter.setName("Small Starter");
-        starter.setTagline("Perfect for individuals");
-        starter.setMonthlyPrice(1299.0);
-        starter.setQuarterlyPrice(3699.0);
-        starter.setYearlyPrice(14499.0);
-        starter.setBadgeText("Popular");
-        starter.setDisplayOrder(1);
-        starter.setImageUrl("https://images.unsplash.com/photo-1528750955925-53f5a1532441?w=600");
+        // 1. Family Combo (The main one from brochure)
+        SubscriptionPlan familyCombo = new SubscriptionPlan();
+        familyCombo.setName("Farm Fresh Family Combo");
+        familyCombo.setTagline("Everything your family needs for a healthy month");
+        familyCombo.setMonthlyPrice(3999.0);
+        familyCombo.setBadgeText("Best Seller");
+        familyCombo.setDisplayOrder(1);
+        familyCombo.setImageUrl("https://images.unsplash.com/photo-1542838132-92c53300491e?w=800"); // Organic food basket
         
-        SubscriptionPlanItem item1 = new SubscriptionPlanItem();
-        item1.setProductId(milk.getId());
-        item1.setDescription(milk.getName());
-        item1.setUnit("Litre");
-        item1.setQty(0.5);
-        item1.setFrequency(SubscriptionPlanItem.DeliveryFrequency.DAILY);
-        item1.setMrp(45.0);
-        item1.setSellingPrice(40.0);
-        starter.addItem(item1);
-        planRepository.save(starter);
+        // Items for Family Combo
+        SubscriptionPlanItem milkItem = new SubscriptionPlanItem();
+        milkItem.setDescription("Pure Cow Milk");
+        milkItem.setQty(1.0);
+        milkItem.setUnit("Litre");
+        milkItem.setFrequency(SubscriptionPlanItem.DeliveryFrequency.DAILY);
+        familyCombo.addItem(milkItem);
 
-        // 2. Daily Essential
-        SubscriptionPlan essential = new SubscriptionPlan();
-        essential.setName("Daily Essential");
-        essential.setTagline("Our most popular plan for small families");
-        essential.setMonthlyPrice(2499.0);
-        essential.setQuarterlyPrice(7199.0);
-        essential.setYearlyPrice(27999.0);
-        essential.setBadgeText("Best Value");
-        essential.setDisplayOrder(2);
-        essential.setImageUrl("https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600");
+        SubscriptionPlanItem eggItem = new SubscriptionPlanItem();
+        eggItem.setDescription("Fresh Farm Eggs");
+        eggItem.setQty(24.0);
+        eggItem.setUnit("pcs");
+        eggItem.setFrequency(SubscriptionPlanItem.DeliveryFrequency.WEEKLY);
+        familyCombo.addItem(eggItem);
 
-        SubscriptionPlanItem item2 = new SubscriptionPlanItem();
-        item2.setProductId(milk.getId());
-        item2.setDescription(milk.getName());
-        item2.setUnit("Litre");
-        item2.setQty(1.0);
-        item2.setFrequency(SubscriptionPlanItem.DeliveryFrequency.DAILY);
-        item2.setMrp(90.0);
-        item2.setSellingPrice(80.0);
-        essential.addItem(item2);
-        planRepository.save(essential);
+        SubscriptionPlanItem chickenItem = new SubscriptionPlanItem();
+        chickenItem.setDescription("Premium Chicken");
+        chickenItem.setQty(1.0);
+        chickenItem.setUnit("Kg");
+        chickenItem.setFrequency(SubscriptionPlanItem.DeliveryFrequency.WEEKLY); // Twice weekly in brochure, but simplified here
+        familyCombo.addItem(chickenItem);
 
-        // 3. Family Feast
-        SubscriptionPlan feast = new SubscriptionPlan();
-        feast.setName("Family Feast");
-        feast.setTagline("Everything your large family needs");
-        feast.setMonthlyPrice(4899.0);
-        feast.setQuarterlyPrice(13999.0);
-        feast.setYearlyPrice(54999.0);
-        feast.setDisplayOrder(3);
-        feast.setImageUrl("https://images.unsplash.com/photo-1563636619-e910f01859ec?w=600");
+        planRepository.save(familyCombo);
 
-        SubscriptionPlanItem item3 = new SubscriptionPlanItem();
-        item3.setProductId(milk.getId());
-        item3.setDescription(milk.getName());
-        item3.setUnit("Litre");
-        item3.setQty(2.0);
-        item3.setFrequency(SubscriptionPlanItem.DeliveryFrequency.DAILY);
-        item3.setMrp(180.0);
-        item3.setSellingPrice(150.0);
-        feast.addItem(item3);
+        // 2. Protein Combo
+        SubscriptionPlan proteinCombo = new SubscriptionPlan();
+        proteinCombo.setName("Daily Protein Combo");
+        proteinCombo.setTagline("Daily Milk + Weekly Eggs");
+        proteinCombo.setMonthlyPrice(1999.0);
+        proteinCombo.setDisplayOrder(2);
+        proteinCombo.setImageUrl("https://images.unsplash.com/photo-1494390248081-4e521a5940db?w=800");
 
-        SubscriptionPlanItem item4 = new SubscriptionPlanItem();
-        item4.setProductId(curd.getId());
-        item4.setDescription(curd.getName());
-        item4.setUnit("500g");
-        item4.setQty(0.5);
-        item4.setFrequency(SubscriptionPlanItem.DeliveryFrequency.WEEKLY);
-        item4.setMrp(65.0);
-        item4.setSellingPrice(55.0);
-        feast.addItem(item4);
-        
-        planRepository.save(feast);
+        SubscriptionPlanItem pMilk = new SubscriptionPlanItem();
+        pMilk.setDescription("Pure Cow Milk");
+        pMilk.setQty(1.0);
+        pMilk.setUnit("Litre");
+        pMilk.setFrequency(SubscriptionPlanItem.DeliveryFrequency.DAILY);
+        proteinCombo.addItem(pMilk);
+
+        SubscriptionPlanItem pEgg = new SubscriptionPlanItem();
+        pEgg.setDescription("Fresh Farm Eggs");
+        pEgg.setQty(24.0);
+        pEgg.setUnit("pcs");
+        pEgg.setFrequency(SubscriptionPlanItem.DeliveryFrequency.WEEKLY);
+        proteinCombo.addItem(pEgg);
+
+        planRepository.save(proteinCombo);
+
+        // 3. Chicken Combo
+        SubscriptionPlan chickenCombo = new SubscriptionPlan();
+        chickenCombo.setName("Monthly Chicken Combo");
+        chickenCombo.setTagline("1 Kg Premium Chicken Twice a Week");
+        chickenCombo.setMonthlyPrice(2399.0);
+        chickenCombo.setDisplayOrder(3);
+        chickenCombo.setImageUrl("https://images.unsplash.com/photo-1587593810167-a84920ea0881?w=800");
+
+        SubscriptionPlanItem cItem = new SubscriptionPlanItem();
+        cItem.setDescription("Premium Chicken");
+        cItem.setQty(1.0);
+        cItem.setUnit("Kg");
+        cItem.setFrequency(SubscriptionPlanItem.DeliveryFrequency.WEEKLY);
+        chickenCombo.addItem(cItem);
+
+        planRepository.save(chickenCombo);
     }
 }

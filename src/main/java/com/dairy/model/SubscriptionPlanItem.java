@@ -55,6 +55,9 @@ public class SubscriptionPlanItem {
     @Column(name = "selling_price")
     private Double sellingPrice;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "is_free")
     private boolean isFree = false;
 
@@ -102,6 +105,9 @@ public class SubscriptionPlanItem {
 
     public Double getSellingPrice() { return sellingPrice; }
     public void setSellingPrice(Double sellingPrice) { this.sellingPrice = sellingPrice; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     public boolean isFree() { return isFree; }
     public void setFree(boolean isFree) { this.isFree = isFree; }

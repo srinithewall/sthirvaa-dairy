@@ -34,7 +34,7 @@ public class SubscriptionPlanController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN') or @ss.can('SHOP')")
+    @PreAuthorize("@ss.can('SHOP', 'CREATE')")
     public SubscriptionPlan createPlan(@RequestBody SubscriptionPlan plan) {
         if (plan.getItems() != null) {
             plan.getItems().forEach(item -> item.setPlan(plan));
@@ -43,7 +43,7 @@ public class SubscriptionPlanController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN') or @ss.can('SHOP')")
+    @PreAuthorize("@ss.can('SHOP', 'EDIT')")
     public ResponseEntity<SubscriptionPlan> updatePlan(@PathVariable Long id, @RequestBody SubscriptionPlan planUpdates) {
         return subscriptionPlanRepository.findById(id).map(existing -> {
             existing.setName(planUpdates.getName());
@@ -57,6 +57,13 @@ public class SubscriptionPlanController {
             existing.setImageUrl(planUpdates.getImageUrl());
             existing.setDisplayOrder(planUpdates.getDisplayOrder());
             existing.setIsActive(planUpdates.getIsActive());
+            existing.setSavings(planUpdates.getSavings());
+            existing.setTotalValue(planUpdates.getTotalValue());
+            existing.setIncludesPoojaPack(planUpdates.getIncludesPoojaPack());
+            existing.setQuarterlyBonus(planUpdates.getQuarterlyBonus());
+            existing.setHalfYearlyBonus(planUpdates.getHalfYearlyBonus());
+            existing.setYearlyBonus(planUpdates.getYearlyBonus());
+
 
             // Clear and replace items to ensure orphan removal triggers
             existing.getItems().clear();
@@ -72,7 +79,7 @@ public class SubscriptionPlanController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN') or @ss.can('SHOP')")
+    @PreAuthorize("@ss.can('SHOP', 'DELETE')")
     public ResponseEntity<Void> deletePlan(@PathVariable Long id) {
         if (subscriptionPlanRepository.existsById(id)) {
             subscriptionPlanRepository.deleteById(id);

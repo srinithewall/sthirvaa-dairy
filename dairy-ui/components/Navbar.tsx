@@ -30,9 +30,9 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar: () => voi
         <Menu size={22} />
       </button>
       
-      <div className="text-lg font-bold text-white flex items-center gap-1.5 tracking-tight">
+      <div className="text-lg font-serif font-black text-white flex items-center gap-2 tracking-tight">
         <span className="text-xl">🌿</span>
-        <span>Sthirvaa<span className="text-accent"> Farms</span></span>
+        <span className="uppercase tracking-widest">Sthirvaa<span className="text-accent"> Farms</span></span>
       </div>
 
       <div className="flex-1" />

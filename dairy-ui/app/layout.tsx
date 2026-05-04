@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sthirvaa Farms",
-  description: "Pure quality, naturally grown",
+  title: "STHIRVAA FARMS",
+  description: "Pure Quality · Rooted in Trust",
 };
 
 import { NotificationProvider } from "@/components/NotificationContext";

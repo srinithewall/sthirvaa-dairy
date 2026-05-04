@@ -139,14 +139,100 @@ export default function MilkProductionPage() {
         />
       </div>
 
-      {/* ── History Table ── */}
+      {/* ── History Section ── */}
       <div className="bg-white border border-border-custom rounded-2xl shadow-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-border-custom flex items-center justify-between">
           <h2 className="text-[13px] font-black text-text uppercase tracking-[0.15em]">Production History</h2>
           <span className="text-[11px] text-text3 font-medium">{summary.length} days recorded</span>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* ── MOBILE: Card List (hidden on md+) ── */}
+        <div className="md:hidden divide-y divide-border-custom">
+          {loading ? (
+            <div className="py-12 text-center text-text3 text-[13px] italic">Loading production logs…</div>
+          ) : paged.length === 0 ? (
+            <div className="py-12 text-center px-4">
+              <Droplets size={36} className="mx-auto text-border-custom mb-3" />
+              <p className="text-text3 text-[13px] font-medium">No milk records logged yet.</p>
+              <p className="text-text3 text-[11px] mt-1">Tap "+ Log Yield" to start recording.</p>
+            </div>
+          ) : (
+            paged.map((day) => {
+              const isFullyDistributed = day.distributed >= day.total && day.total > 0;
+              const today = new Date(); today.setHours(0,0,0,0);
+              const target = new Date(day.date); target.setHours(0,0,0,0);
+              const diff = (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24);
+              const canEdit = diff <= 1;
+              return (
+                <div key={day.date} className="p-4 hover:bg-surface/40 transition-colors">
+                  {/* Card Header: Date + Distribution Badge */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-black text-text text-[14px]">{day.date}</span>
+                    {isFullyDistributed ? (
+                      <span className="flex items-center gap-1 text-[10px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">
+                        <CheckCircle2 size={10} /> Fully Distributed
+                      </span>
+                    ) : day.distributed > 0 ? (
+                      <span className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                        <AlertCircle size={10} /> Partial
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black text-text3 bg-surface px-2 py-0.5 rounded-full">Not Distributed</span>
+                    )}
+                  </div>
+
+                  {/* Yield Stats Row */}
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    <div className="bg-amber-50 rounded-lg p-2 text-center">
+                      <div className="text-[9px] font-black text-amber-600 uppercase tracking-wide mb-0.5">Morning</div>
+                      <div className="font-black text-amber-700 text-[13px]">{fmt(day.morning)}L</div>
+                    </div>
+                    <div className="bg-indigo-50 rounded-lg p-2 text-center">
+                      <div className="text-[9px] font-black text-indigo-600 uppercase tracking-wide mb-0.5">Evening</div>
+                      <div className="font-black text-indigo-700 text-[13px]">{fmt(day.evening)}L</div>
+                    </div>
+                    <div className="bg-brand/10 rounded-lg p-2 text-center">
+                      <div className="text-[9px] font-black text-brand uppercase tracking-wide mb-0.5">Total</div>
+                      <div className="font-black text-brand text-[13px]">{fmt(day.total)}L</div>
+                    </div>
+                    <div className="bg-surface rounded-lg p-2 text-center">
+                      <div className="text-[9px] font-black text-text3 uppercase tracking-wide mb-0.5">Dist.</div>
+                      <div className={`font-black text-[13px] ${isFullyDistributed ? 'text-brand' : 'text-amber-600'}`}>{fmt(day.distributed)}L</div>
+                    </div>
+                  </div>
+
+                  {/* Sub info + Actions */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-text3 font-medium">{day.cowCount} cows milked</span>
+                    <div className="flex items-center gap-2">
+                      {canEdit && (
+                        <button
+                          onClick={() => { setEditTarget({ date: day.date }); setShowModal(true); }}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border-custom text-text3 hover:border-brand hover:text-brand text-[10px] font-black uppercase tracking-wide transition-all"
+                        >
+                          <Pencil size={10} /> Edit
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setDistributeTarget({ date: day.date, shift: 'COMBINED', total: day.total })}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wide transition-all ${
+                          isFullyDistributed
+                            ? 'border-brand bg-brand text-white'
+                            : 'border-brand/40 text-brand hover:bg-brand hover:text-white'
+                        }`}
+                      >
+                        <Truck size={10} /> {isFullyDistributed ? 'Update' : 'Distribute'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* ── DESKTOP: Full Table (hidden below md) ── */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-[13px] text-left">
             <thead className="bg-surface text-text3 uppercase text-[10px] font-black tracking-[0.15em] border-b border-border-custom">
               <tr>
@@ -205,7 +291,6 @@ export default function MilkProductionPage() {
                       <td className="px-5 py-3.5 text-text3 font-medium">{day.cowCount} cows</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2 justify-center">
-                          {/* Edit yield - only for last 2 days */}
                           {(() => {
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);

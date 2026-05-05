@@ -66,7 +66,11 @@ public class MilkDispatchService {
 
             Double rate = 0.0;
             if ("CUSTOMER".equals(type)) {
-                Long customerId = Long.parseLong(e.get("customerId").toString());
+                Object custIdObj = e.get("customerId");
+                if (custIdObj == null) {
+                    throw new RuntimeException("customerId is required for CUSTOMER dispatch type");
+                }
+                Long customerId = Long.parseLong(custIdObj.toString());
                 Customer customer = customerRepository.findById(customerId)
                         .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
                 d.setCustomer(customer);

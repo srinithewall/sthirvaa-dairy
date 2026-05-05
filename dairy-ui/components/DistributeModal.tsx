@@ -34,7 +34,18 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
   const { showToast } = useNotification();
 
   useEffect(() => {
-    api.get('/customers').then(r => setCustomers(r.data)).catch(() => {});
+    api.get('/customers').then(r => {
+      const list: Customer[] = r.data;
+      setCustomers(list);
+      // Auto-select first customer for any CUSTOMER rows that have no customer yet
+      if (list.length > 0) {
+        setRows(prev => prev.map(row =>
+          row.dispatchType === 'CUSTOMER' && row.customerId === null
+            ? { ...row, customerId: list[0].id, ratePerLitre: String(list[0].defaultRate ?? 45) }
+            : row
+        ));
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -98,6 +109,8 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
       }));
     if (!payload.length) { showToast('Enter at least one quantity.', 'warning'); return; }
     if (overAllocated) { showToast('Over-allocated! Please fix quantities.', 'error'); return; }
+    const missingCustomer = payload.some(p => p.dispatchType === 'CUSTOMER' && !p.customerId);
+    if (missingCustomer) { showToast('Please select a customer for all dispatch rows.', 'warning'); return; }
     setSaving(true);
     try {
       await api.post('/milk-dispatch/session', payload);

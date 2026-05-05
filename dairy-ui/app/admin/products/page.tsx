@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { Plus, Edit2, Trash2, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, RefreshCw, ImageIcon, Package } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import ProductFormModal, { Product } from './ProductFormModal';
 import ComboFormModal, { SubscriptionPlan } from './ComboFormModal';
 
-/* --- Main Admin Page --- */
 export default function ProductManagementPage() {
   const [activeTab, setActiveTab] = useState<'products' | 'combos'>('products');
   const [products, setProducts] = useState<Product[]>([]);
@@ -27,32 +26,27 @@ export default function ProductManagementPage() {
       try {
         const SAMPLE_PRODUCTS: Product[] = [
           { name: 'Sthirvaa A2 Gir Milk', category: 'dairy', subcategory: 'Milk', price: 90, unit: '1 Litre', description: 'Pure A2 milk from our Gir cows.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400' },
-          { name: 'Organic Buffalo Curd', category: 'dairy', subcategory: 'Curd', price: 65, unit: '500g', description: 'Thick, creamy curd made from buffalo milk.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=400' },
-          { name: 'Desi Cow Ghee', category: 'dairy', subcategory: 'Ghee', price: 850, unit: '500ml', description: 'Bilona method handmade ghee.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=400' },
-          { name: 'Farm Fresh Eggs', category: 'dairy', subcategory: 'Eggs', price: 120, unit: '12 pcs', description: 'Free-range organic brown eggs.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?w=400' },
-          { name: 'Premium Paneer', category: 'dairy', subcategory: 'Paneer', price: 140, unit: '250g', description: 'Soft, fresh paneer made daily.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc0?w=400' },
-          { name: 'Fresh Chicken', category: 'meat', subcategory: 'Chicken', price: 280, unit: '1 kg', description: 'Tender, fresh chicken cut to order.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587593810167-a84920ea0881?w=400' },
-          { name: 'Organic Tomatoes', category: 'vegetables', subcategory: 'Veggies', price: 40, unit: '1 kg', description: 'Pesticide-free red tomatoes.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400' },
-          { name: 'Divine Pooja Pack', category: 'divine', subcategory: 'Divine', price: 250, unit: '1 Pack', description: 'Complete pooja essentials kit.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=400' }
+          { name: 'Organic Buffalo Curd', category: 'dairy', subcategory: 'Curd', price: 65, unit: '500g', description: 'Thick, creamy curd.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=400' },
+          { name: 'Desi Cow Ghee', category: 'dairy', subcategory: 'Ghee', price: 850, unit: '500ml', description: 'Bilona method ghee.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=400' },
+          { name: 'Farm Fresh Eggs', category: 'dairy', subcategory: 'Eggs', price: 120, unit: '12 pcs', description: 'Free-range eggs.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?w=400' },
         ];
         for (const p of SAMPLE_PRODUCTS) await api.post('/products', p);
         await fetchProducts();
         showToast('Data seeded successfully!');
       } catch (e: any) {
-        console.error(e);
         showToast('Failed to seed: ' + (e.response?.data?.message || e.message), 'error');
       } finally { setSeeding(false); }
     });
   };
 
-  useEffect(() => { 
-    if (activeTab === 'products') fetchProducts(); 
+  useEffect(() => {
+    if (activeTab === 'products') fetchProducts();
     else fetchPlans();
   }, [activeTab]);
 
   const fetchProducts = async () => {
     setLoading(true);
-    try { const res = await api.get('/products'); setProducts(res.data); } 
+    try { const res = await api.get('/products'); setProducts(res.data); }
     catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
@@ -69,116 +63,219 @@ export default function ProductManagementPage() {
       showToast(`Product ${p.id ? 'updated' : 'created'} successfully!`);
       fetchProducts();
     } catch (e: any) {
-      console.error(e);
-      showToast('Failed to save product: ' + (e.response?.data?.message || e.message), 'error');
+      showToast('Failed to save: ' + (e.response?.data?.message || e.message), 'error');
       throw e;
     }
   };
 
   const handleDeleteProduct = (id: number) => {
-    confirm('Are you sure you want to delete this product?', async () => {
-      try {
-        await api.delete(`/products/${id}`);
-        showToast('Product deleted successfully!');
-        fetchProducts();
-      } catch (e: any) {
-        showToast(e.response?.data?.message || 'Failed to delete.', 'error');
-      }
+    confirm('Delete this product?', async () => {
+      try { await api.delete(`/products/${id}`); showToast('Product deleted!'); fetchProducts(); }
+      catch (e: any) { showToast(e.response?.data?.message || 'Failed to delete.', 'error'); }
     }, 'danger');
   };
 
   const handleDeletePlan = (id: number) => {
-    confirm('Are you sure you want to delete this combo plan?', async () => {
-      try {
-        await api.delete(`/subscription-plans/${id}`);
-        showToast('Combo plan deleted successfully!');
-        fetchPlans();
-      } catch (e: any) {
-        showToast(e.response?.data?.message || 'Failed to delete.', 'error');
-      }
+    confirm('Delete this combo plan?', async () => {
+      try { await api.delete(`/subscription-plans/${id}`); showToast('Combo deleted!'); fetchPlans(); }
+      catch (e: any) { showToast(e.response?.data?.message || 'Failed to delete.', 'error'); }
     }, 'danger');
   };
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-black text-text tracking-tight uppercase">Shop Management</h1>
-            <p className="text-[11px] text-text3 font-bold uppercase tracking-wider mt-1">Inventory & Subscription Engine</p>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+
+        {/* ── Page Header ── */}
+        <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-black text-text tracking-tight uppercase truncate">Shop Management</h1>
+            <p className="text-[10px] text-text3 font-bold uppercase tracking-wider mt-0.5">Inventory & Subscription Engine</p>
           </div>
-          <div className="flex gap-3">
-            <button onClick={seedData} disabled={seeding} className="bg-white text-text2 border border-border-custom px-5 py-2.5 rounded-xl font-bold text-[12px] uppercase tracking-wider flex items-center gap-2 hover:bg-surface transition-all">
-              {seeding ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />} Sync
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={seedData} disabled={seeding}
+              className="bg-white text-text2 border border-border-custom px-3 sm:px-4 py-2 rounded font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5 hover:bg-surface transition-all">
+              {seeding ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              <span className="hidden sm:inline">Sync</span>
             </button>
-            <button onClick={() => activeTab === 'products' ? setShowProductModal(true) : setShowComboModal(true)}
-              className="bg-brand text-white px-6 py-2.5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-lg shadow-brand/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-2">
-              <Plus size={18} /> Add {activeTab === 'products' ? 'Product' : 'Combo'}
+            <button
+              onClick={() => activeTab === 'products' ? setShowProductModal(true) : setShowComboModal(true)}
+              className="bg-brand text-white px-3 sm:px-5 py-2 rounded font-black text-[11px] uppercase tracking-wide shadow-lg shadow-brand/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5">
+              <Plus size={15} />
+              <span>{activeTab === 'products' ? 'Add Product' : 'Add Combo'}</span>
             </button>
           </div>
         </div>
 
-        <div className="flex gap-2 mb-8 bg-surface p-1.5 rounded-2xl w-fit border border-border-custom">
-          <button onClick={() => setActiveTab('products')} className={`px-8 py-2.5 rounded-xl text-[11px] font-black transition-all ${activeTab === 'products' ? 'bg-white shadow-md text-brand' : 'text-text3 hover:text-text'}`}>Product Catalogue</button>
-          <button onClick={() => setActiveTab('combos')} className={`px-8 py-2.5 rounded-xl text-[11px] font-black transition-all ${activeTab === 'combos' ? 'bg-white shadow-md text-brand' : 'text-text3 hover:text-text'}`}>Subscription Combos</button>
+        {/* ── Tabs ── */}
+        <div className="flex gap-1 mb-5 bg-surface p-1 rounded border border-border-custom w-fit">
+          <button onClick={() => setActiveTab('products')}
+            className={`px-4 sm:px-6 py-2 rounded text-[11px] font-black transition-all ${activeTab === 'products' ? 'bg-white shadow text-brand' : 'text-text3 hover:text-text'}`}>
+            Products
+          </button>
+          <button onClick={() => setActiveTab('combos')}
+            className={`px-4 sm:px-6 py-2 rounded text-[11px] font-black transition-all ${activeTab === 'combos' ? 'bg-white shadow text-brand' : 'text-text3 hover:text-text'}`}>
+            Combos
+          </button>
         </div>
 
+        {/* ── Content ── */}
         {loading ? (
-          <div className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-brand mb-4" size={32} /><p className="text-xs font-bold text-text3">Loading data...</p></div>
-        ) : activeTab === 'products' ? (
-          <div className="bg-white rounded-2xl border border-border-custom shadow-sm overflow-hidden">
-             <table className="w-full text-left">
-                <thead className="bg-surface text-[10px] font-black uppercase text-text3 border-b border-border-custom">
-                  <tr><th className="px-6 py-4">Product</th><th className="px-6 py-4">Category</th><th className="px-6 py-4 text-center">Price</th><th className="px-6 py-4 text-center">Actions</th></tr>
-                </thead>
-                <tbody className="text-[13px] font-bold">
-                  {products.map(p => (
-                    <tr key={p.id} className="border-b border-border-custom last:border-0 hover:bg-surface/50 transition-colors">
-                      <td className="px-6 py-4 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg border border-border-custom overflow-hidden bg-surface flex-shrink-0">
-                          <img src={p.imageUrl || 'https://via.placeholder.com/50'} className="w-full h-full object-cover" />
-                        </div>
-                        <div><p className="text-text font-bold text-sm">{p.name}</p></div>
-                      </td>
-                      <td className="px-6 py-4"><span className="px-2.5 py-1 bg-surface rounded-md text-[10px] font-black text-text3 uppercase">{p.category}</span></td>
-                      <td className="px-6 py-4 text-center font-black text-brand">₹{p.price}</td>
-                      <td className="px-6 py-4">
-                         <div className="flex justify-center gap-2">
-                            <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-2 text-brand hover:bg-brand/10 rounded-lg transition-all"><Edit2 size={16}/></button>
-                            <button onClick={() => p.id && handleDeleteProduct(p.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={16}/></button>
-                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-             </table>
+          <div className="py-20 text-center">
+            <Loader2 className="animate-spin mx-auto text-brand mb-3" size={28} />
+            <p className="text-xs font-bold text-text3">Loading...</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {plans.map(plan => (
-              <div key={plan.id} className="bg-white rounded-xl border border-border-custom shadow-sm overflow-hidden flex flex-col group hover:shadow-md transition-all">
-                <div className="h-32 bg-surface relative">
-                  <img src={plan.imageUrl || 'https://via.placeholder.com/300'} className="w-full h-full object-cover" />
-                  <div className="absolute top-2 right-2 bg-brand text-white px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider shadow-md">{plan.badgeText || 'PLAN'}</div>
-                </div>
-                <div className="p-4 flex-1 flex flex-col">
-                  <h3 className="font-black text-sm text-text mb-1 truncate">{plan.name}</h3>
-                  <p className="text-brand font-black text-xs">₹{plan.monthlyPrice} <span className="text-[9px] text-text3 uppercase font-bold">/ Mo</span></p>
-                  <div className="mt-3 flex-1 space-y-1 bg-surface/30 p-2 rounded-lg border border-border-custom">
-                    {plan.items?.slice(0, 2).map((item, i) => <div key={i} className="text-[9px] text-text2 font-bold flex justify-between truncate"><span>{item.description}</span></div>)}
+        ) : activeTab === 'products' ? (
+
+          /* ── Products Table ── */
+          <div className="bg-white rounded border border-border-custom shadow-sm overflow-hidden">
+            {/* Mobile card view */}
+            <div className="block sm:hidden divide-y divide-border-custom">
+              {products.map(p => (
+                <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-10 h-10 rounded border border-border-custom overflow-hidden bg-surface flex-shrink-0">
+                    <img src={p.imageUrl || ''} className="w-full h-full object-cover"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
-                  <div className="flex gap-2 mt-4">
-                    <button onClick={() => { setEditingPlan(plan); setShowComboModal(true); }} className="flex-1 py-2 bg-text text-white rounded-lg font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1 hover:opacity-90 transition-all shadow-sm">Edit</button>
-                    <button onClick={() => plan.id && handleDeletePlan(plan.id)} className="px-2.5 py-2 text-red-600 border border-red-50 bg-red-50 hover:bg-red-600 hover:text-white rounded-lg transition-all"><Trash2 size={14}/></button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-bold text-text truncate">{p.name}</p>
+                    <p className="text-[10px] text-text3 font-medium">{p.category} · <span className="text-brand font-black">₹{p.price}</span></p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-1.5 text-brand hover:bg-brand/10 rounded transition-all"><Edit2 size={14} /></button>
+                    <button onClick={() => p.id && handleDeleteProduct(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-all"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <table className="w-full text-left hidden sm:table">
+              <thead className="bg-surface text-[10px] font-black uppercase text-text3 border-b border-border-custom">
+                <tr>
+                  <th className="px-5 py-3">Product</th>
+                  <th className="px-5 py-3">Category</th>
+                  <th className="px-5 py-3 text-center">Price</th>
+                  <th className="px-5 py-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="text-[13px] font-bold divide-y divide-border-custom">
+                {products.map(p => (
+                  <tr key={p.id} className="hover:bg-surface/50 transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded border border-border-custom overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
+                          {p.imageUrl ? (
+                            <img src={p.imageUrl} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).replaceWith(document.createTextNode('')) }} />
+                          ) : <Package size={16} className="text-text3" />}
+                        </div>
+                        <p className="text-text font-bold text-sm truncate max-w-[200px]">{p.name}</p>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3"><span className="px-2 py-0.5 bg-surface rounded text-[10px] font-black text-text3 uppercase">{p.category}</span></td>
+                    <td className="px-5 py-3 text-center font-black text-brand">₹{p.price}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex justify-center gap-1.5">
+                        <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-1.5 text-brand hover:bg-brand/10 rounded transition-all"><Edit2 size={15} /></button>
+                        <button onClick={() => p.id && handleDeleteProduct(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-all"><Trash2 size={15} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {products.length === 0 && (
+              <div className="py-16 text-center text-text3 text-sm font-medium">No products yet. Click "Add Product" to get started.</div>
+            )}
+          </div>
+
+        ) : (
+          /* ── Combo Cards ── */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {plans.map(plan => (
+              <div key={plan.id} className="bg-white rounded border border-border-custom shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all">
+                {/* Image */}
+                <div className="h-28 bg-surface relative overflow-hidden flex items-center justify-center">
+                  {plan.imageUrl ? (
+                    <img src={plan.imageUrl} className="w-full h-full object-cover"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  ) : (
+                    <ImageIcon size={28} className="text-text3/40" />
+                  )}
+                  {plan.badgeText && (
+                    <div className="absolute top-2 right-2 bg-brand text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shadow">
+                      {plan.badgeText.replace('???', '₹')}
+                    </div>
+                  )}
+                </div>
+
+                {/* Body */}
+                <div className="p-3 flex-1 flex flex-col gap-2">
+                  <div>
+                    <h3 className="font-black text-[13px] text-text leading-tight truncate">{plan.name}</h3>
+                    {plan.tagline && <p className="text-[10px] text-text3 truncate mt-0.5">{plan.tagline}</p>}
+                  </div>
+
+                  {/* Price row */}
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-brand font-black text-sm">₹{plan.monthlyPrice}</p>
+                    <span className="text-[9px] text-text3 uppercase font-bold">/mo</span>
+                    {plan.totalMrp && plan.totalMrp > plan.monthlyPrice && (
+                      <p className="text-[10px] text-text3 line-through ml-auto">₹{plan.totalMrp}</p>
+                    )}
+                  </div>
+
+                  {/* Items preview */}
+                  <div className="flex-1 bg-surface/40 rounded border border-border-custom p-2 space-y-1">
+                    {plan.items?.slice(0, 3).map((item, i) => (
+                      <div key={i} className="flex items-center justify-between gap-1">
+                        <p className="text-[9px] text-text2 font-bold truncate">{item.description}</p>
+                        {item.sellingPrice ? <p className="text-[9px] text-brand font-black flex-shrink-0">₹{item.sellingPrice}</p> : null}
+                      </div>
+                    ))}
+                    {(plan.items?.length ?? 0) > 3 && (
+                      <p className="text-[8px] text-text3 font-medium">+{(plan.items?.length ?? 0) - 3} more</p>
+                    )}
+                  </div>
+
+                  {/* Tiers preview */}
+                  {plan.tiers && plan.tiers.length > 0 && (
+                    <div className="flex gap-1 flex-wrap">
+                      {plan.tiers.slice(0, 3).map((t, i) => (
+                        <span key={i} className="text-[8px] bg-brand/10 text-brand font-black px-1.5 py-0.5 rounded">
+                          {t.label || `${t.durationMonths}m`}{t.discountPercent > 0 ? ` -${t.discountPercent}%` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => { setEditingPlan(plan); setShowComboModal(true); }}
+                      className="flex-1 py-2 bg-brand text-white rounded font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 hover:opacity-90 transition-all shadow-sm">
+                      <Edit2 size={11} /> Edit
+                    </button>
+                    <button onClick={() => plan.id && handleDeletePlan(plan.id)}
+                      className="px-2.5 py-2 text-red-500 border border-red-100 bg-red-50 hover:bg-red-500 hover:text-white rounded transition-all">
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               </div>
             ))}
+            {plans.length === 0 && (
+              <div className="col-span-full py-16 text-center text-text3 text-sm font-medium">No combos yet. Click "Add Combo" to create one.</div>
+            )}
           </div>
         )}
 
-        <ProductFormModal isOpen={showProductModal} product={editingProduct} onSave={handleProductSave} onClose={() => { setShowProductModal(false); setEditingProduct(undefined); }} />
-        <ComboFormModal isOpen={showComboModal} plan={editingPlan} onSave={() => { showToast('Combo saved successfully!'); fetchPlans(); setShowComboModal(false); setEditingPlan(undefined); }} onClose={() => { setShowComboModal(false); setEditingPlan(undefined); }} fetchPlans={fetchPlans} />
+        <ProductFormModal
+          isOpen={showProductModal} product={editingProduct} onSave={handleProductSave}
+          onClose={() => { setShowProductModal(false); setEditingProduct(undefined); }} />
+        <ComboFormModal
+          isOpen={showComboModal} plan={editingPlan}
+          onSave={() => { showToast('Combo saved!'); fetchPlans(); setShowComboModal(false); setEditingPlan(undefined); }}
+          onClose={() => { setShowComboModal(false); setEditingPlan(undefined); }}
+          fetchPlans={fetchPlans} />
       </div>
     </AppLayout>
   );

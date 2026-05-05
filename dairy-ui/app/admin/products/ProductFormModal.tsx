@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Loader2 } from 'lucide-react';
+import { X, Loader2, ImageIcon } from 'lucide-react';
 import api from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 
@@ -17,7 +17,7 @@ export interface Product {
   inStock: boolean;
   rating?: number;
   reviews?: number;
-  tags?: string; 
+  tags?: string;
   imageUrl?: string;
   slashedPrice?: number;
 }
@@ -26,7 +26,7 @@ const CATEGORIES = [
   { id: 'dairy', label: 'Dairy & Milk', icon: '🥛' },
   { id: 'vegetables', label: 'Fresh Veggies', icon: '🥬' },
   { id: 'divine', label: 'Divine Products', icon: '🔥' },
-  { id: 'meat', label: 'Meats', icon: '🍗' }
+  { id: 'meat', label: 'Meats', icon: '🍗' },
 ] as const;
 
 const blankProduct = (): Product => ({
@@ -34,38 +34,46 @@ const blankProduct = (): Product => ({
   price: 0, unit: 'per unit', description: '', inStock: true, imageUrl: ''
 });
 
-/* --- Image Upload Component (Internal) --- */
-function ImageUploadInput({ value, onChange, label = "Image URL", showToast }: { value?: string; onChange: (val: string) => void; label?: string; showToast: any }) {
+const inputCls = 'w-full px-3 py-2.5 border border-border-custom rounded text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all bg-white';
+
+/* --- Image Upload --- */
+function ImageUploadInput({ value, onChange, showToast }: { value?: string; onChange: (v: string) => void; showToast: any }) {
   const [uploading, setUploading] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => { setImgError(false); }, [value]);
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Immediate local preview
+    onChange(URL.createObjectURL(file));
     const formData = new FormData();
     formData.append('file', file);
     setUploading(true);
     try {
       const res = await api.post('/files/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      if (res.data && res.data.url) onChange(res.data.url);
-    } catch (err) {
-      console.error(err);
+      if (res.data?.url) onChange(res.data.url);
+    } catch {
       showToast('Failed to upload image.', 'error');
-    } finally {
-      setUploading(false);
-    }
+    } finally { setUploading(false); }
   };
+
   return (
-    <div className="flex flex-col h-full justify-end">
-      <label className="block text-[11px] font-bold text-text3 uppercase tracking-wider mb-1">{label}</label>
-      <div className="flex gap-2 items-center h-full min-h-[40px]">
-        {value && (
-          <div className="w-10 h-10 rounded-lg border border-border-custom overflow-hidden bg-surface flex-shrink-0">
-            <img src={value} alt="Preview" className="w-full h-full object-cover" />
-          </div>
-        )}
-        <div className="relative flex-1">
-          <input type="file" accept="image/*" onChange={handleUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={uploading} />
-          <button type="button" className="w-full px-4 py-2 bg-surface border border-border-custom rounded-xl text-[12px] font-black uppercase tracking-widest text-text2 flex items-center justify-center gap-2" disabled={uploading}>
-            {uploading ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={16} /> {value ? 'Change' : 'Select File'}</>}
+    <div>
+      <label className="block text-[10px] font-black text-text3 uppercase tracking-wider mb-1.5">Product Image</label>
+      <div className="flex gap-3 items-center">
+        <div className="w-14 h-14 rounded border border-border-custom overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
+          {value && !imgError
+            ? <img src={value} alt="Preview" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            : <ImageIcon size={20} className="text-text3" />}
+        </div>
+        <div className="relative flex-1 min-w-0">
+          <input type="file" accept="image/*" onChange={handleUpload}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={uploading} />
+          <button type="button" disabled={uploading}
+            className="w-full px-3 py-2.5 bg-surface border border-border-custom rounded text-[11px] font-black uppercase tracking-wider text-text2 hover:bg-white transition-all truncate">
+            {uploading ? <span className="flex items-center justify-center gap-2"><Loader2 size={12} className="animate-spin" /> Uploading…</span> : value ? 'Change Image' : 'Upload Image'}
           </button>
         </div>
       </div>
@@ -92,71 +100,124 @@ export default function ProductFormModal({ isOpen, product, onSave, onClose }: P
     setErrors({});
   }, [product, isOpen]);
 
-  const validateForm = () => {
-    const newErrors: any = {};
-    if (!form.name?.trim()) newErrors.name = 'Required';
-    if (!form.price || form.price <= 0) newErrors.price = 'Required';
-    if (!form.unit?.trim()) newErrors.unit = 'Required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const validate = () => {
+    const e: any = {};
+    if (!form.name?.trim()) e.name = 'Required';
+    if (!form.price || form.price <= 0) e.price = 'Required';
+    if (!form.unit?.trim()) e.unit = 'Required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validate()) return;
     setSaving(true);
-    try { 
-      await onSave(form); 
-      onClose(); 
-    } catch (err) {
-      console.error('Save failed:', err);
-    } finally { 
-      setSaving(false); 
-    }
+    try { await onSave(form); onClose(); }
+    catch { /* handled by parent */ }
+    finally { setSaving(false); }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[2000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-border-custom sticky top-0 bg-white z-10">
-          <h2 className="font-black text-[14px] uppercase tracking-wider">{product ? 'Edit Product' : 'Add New Product'}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-surface rounded-full transition-colors"><X size={18} /></button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[2000] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg my-2 sm:my-0 overflow-hidden border border-border-custom">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-border-custom bg-white sticky top-0 z-10">
+          <div>
+            <p className="text-[9px] font-black uppercase text-text3 tracking-[0.2em] mb-0.5">Product</p>
+            <h2 className="font-black text-base text-text">{product ? 'Edit Product' : 'Add New Product'}</h2>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface rounded transition-colors"><X size={16} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-           <div className="grid grid-cols-2 gap-4 bg-surface/50 p-4 rounded-2xl border border-border-custom">
-              <div className="col-span-2">
-                <label className={`block text-[10px] font-black uppercase mb-1 ${errors.name ? 'text-red-500' : ''}`}>Product Name</label>
-                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-4 py-2 border border-border-custom rounded-xl text-sm outline-none" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase mb-1">Category</label>
-                <select value={form.category} onChange={e => setForm({...form, category: e.target.value as any})} className="w-full px-4 py-2 border border-border-custom rounded-xl text-sm bg-white">
-                  {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase mb-1">Unit</label>
-                <input value={form.unit} onChange={e => setForm({...form, unit: e.target.value})} className="w-full px-4 py-2 border border-border-custom rounded-xl text-sm outline-none" />
-              </div>
-               <div>
-                <label className="block text-[10px] font-black uppercase mb-1">Price (₹)</label>
-                <input type="number" value={form.price} onChange={e => setForm({...form, price: parseFloat(e.target.value)})} className="w-full px-4 py-2 border border-border-custom rounded-xl text-sm font-black text-brand" />
-              </div>
-           </div>
-           
-           <ImageUploadInput value={form.imageUrl} onChange={url => setForm({...form, imageUrl: url})} label="Product Image" showToast={showToast} />
-           
-           <div>
-              <label className="block text-[10px] font-black uppercase mb-1">Description</label>
-              <textarea value={form.description || ''} onChange={e => setForm({...form, description: e.target.value})} className="w-full px-4 py-2 border border-border-custom rounded-xl text-sm h-24 outline-none" />
-           </div>
-           
-           <div className="flex gap-3 pt-4">
-              <button type="button" onClick={onClose} className="flex-1 py-3 border border-border-custom rounded-xl font-bold text-sm">Cancel</button>
-              <button type="submit" disabled={saving} className="flex-1 py-3 bg-brand text-white rounded-xl font-black text-sm uppercase shadow-lg shadow-brand/20">{saving ? 'Saving...' : 'Save Product'}</button>
-           </div>
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+
+          {/* Name */}
+          <div>
+            <label className={`block text-[10px] font-black uppercase mb-1.5 ${errors.name ? 'text-red-500' : 'text-text3'}`}>
+              Product Name {errors.name && <span className="text-red-400 normal-case font-medium">— {errors.name}</span>}
+            </label>
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. A2 Gir Milk" className={`${inputCls} ${errors.name ? 'border-red-400' : ''}`} />
+          </div>
+
+          {/* Category + Unit */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-black uppercase text-text3 mb-1.5">Category</label>
+              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value as any })} className={inputCls}>
+                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase text-text3 mb-1.5">Unit</label>
+              <input value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })}
+                placeholder="e.g. 1 Litre" className={`${inputCls} ${errors.unit ? 'border-red-400' : ''}`} />
+            </div>
+          </div>
+
+          {/* Price + Slashed Price */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={`block text-[10px] font-black uppercase mb-1.5 ${errors.price ? 'text-red-500' : 'text-text3'}`}>
+                Price (₹)
+              </label>
+              <input type="number" value={form.price}
+                onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0 })}
+                className={`${inputCls} font-black text-brand ${errors.price ? 'border-red-400' : ''}`} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase text-text3 mb-1.5">Market Price / MRP (₹)</label>
+              <input type="number" value={form.slashedPrice || ''}
+                onChange={e => setForm({ ...form, slashedPrice: parseFloat(e.target.value) || undefined })}
+                placeholder="Optional" className={`${inputCls} text-text3`} />
+            </div>
+          </div>
+
+          {/* Subcategory */}
+          <div>
+            <label className="block text-[10px] font-black uppercase text-text3 mb-1.5">Subcategory</label>
+            <input value={form.subcategory} onChange={e => setForm({ ...form, subcategory: e.target.value })}
+              placeholder="e.g. Milk, Curd, Ghee" className={inputCls} />
+          </div>
+
+          {/* Image Upload */}
+          <ImageUploadInput value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} showToast={showToast} />
+
+          {/* Description */}
+          <div>
+            <label className="block text-[10px] font-black uppercase text-text3 mb-1.5">Description</label>
+            <textarea value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="Brief product description..." rows={3}
+              className="w-full px-3 py-2.5 border border-border-custom rounded text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all resize-none" />
+          </div>
+
+          {/* In Stock toggle */}
+          <div className="flex items-center justify-between py-2 px-3 bg-surface rounded border border-border-custom">
+            <div>
+              <p className="text-[11px] font-black text-text">In Stock</p>
+              <p className="text-[9px] text-text3">Toggle product availability</p>
+            </div>
+            <button type="button" onClick={() => setForm({ ...form, inStock: !form.inStock })}
+              className={`w-10 h-5 rounded-full transition-all relative ${form.inStock ? 'bg-brand' : 'bg-gray-300'}`}>
+              <span className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${form.inStock ? 'left-5' : 'left-0.5'}`} />
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-3 border border-border-custom rounded font-bold text-sm text-text2 hover:bg-surface transition-all">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-[2] py-3 bg-brand text-white rounded font-black text-[12px] uppercase tracking-wider shadow-lg shadow-brand/20 hover:opacity-90 disabled:opacity-50 transition-all">
+              {saving ? <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" /> Saving…</span> : 'Save Product'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

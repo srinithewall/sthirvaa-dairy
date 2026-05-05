@@ -13,15 +13,194 @@ interface Product {
 }
 
 interface CartItem extends Product { cartQuantity: number; }
+interface SubscriptionPlanTier {
+  id?: number;
+  durationMonths: number;
+  label: string;
+  discountPercent: number;
+}
 interface SubscriptionPlanItem {
   description: string; qty: number; unit: string; frequency: string; imageUrl?: string; mrp?: number; sellingPrice?: number;
 }
 interface SubscriptionPlan {
-  id: number; name: string; tagline: string; monthlyPrice: number; badgeText?: string;
-  imageUrl?: string; savings?: number; totalValue?: number; includesPoojaPack?: boolean; items: SubscriptionPlanItem[];
+  id: number; name: string; tagline: string; monthlyPrice: number; totalMrp?: number;
+  badgeText?: string; imageUrl?: string; savings?: number; totalValue?: number;
+  includesPoojaPack?: boolean; items: SubscriptionPlanItem[];
+  tiers?: SubscriptionPlanTier[];
 }
 
-import AppLayout from '@/components/AppLayout';
+/* ─── Subscribe Modal ─────────────────────────────────────── */
+function SubscribeModal({ plan, onClose }: { plan: SubscriptionPlan; onClose: () => void }) {
+  const [selected, setSelected] = useState(0); // index into tiers
+  const tiers: SubscriptionPlanTier[] = plan.tiers?.length
+    ? [...plan.tiers].sort((a, b) => a.durationMonths - b.durationMonths)
+    : [{ durationMonths: 1, label: '1 Month', discountPercent: 0 }];
+
+  const tier = tiers[selected];
+  const effPrice = Math.round(plan.monthlyPrice * (1 - (tier.discountPercent ?? 0) / 100));
+  const totalPayable = effPrice * tier.durationMonths;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[6000] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-[#1B4332] px-6 py-5 flex items-start justify-between">
+          <div>
+            <p className="text-[#C5A059] text-[10px] font-black uppercase tracking-[0.2em] mb-1">Subscribe Now</p>
+            <h3 className="text-white font-black text-lg leading-tight">{plan.name}</h3>
+            <p className="text-white/60 text-[11px] font-medium mt-0.5">{plan.tagline}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors mt-0.5"><X size={16} /></button>
+        </div>
+
+        {/* Tier Selector */}
+        <div className="px-6 pt-5 pb-2">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-3">Choose Duration</p>
+          <div className="grid gap-2">
+            {tiers.map((t, i) => {
+              const price = Math.round(plan.monthlyPrice * (1 - (t.discountPercent ?? 0) / 100));
+              const total = price * t.durationMonths;
+              const isSelected = i === selected;
+              return (
+                <button key={i} onClick={() => setSelected(i)}
+                  className={`flex items-center justify-between w-full px-4 py-3.5 rounded-2xl border-2 transition-all text-left ${
+                    isSelected ? 'border-[#1B4332] bg-[#1B4332]/5' : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-[#1B4332]' : 'border-gray-300'}`}>
+                      {isSelected && <div className="w-2 h-2 rounded-full bg-[#1B4332]" />}
+                    </div>
+                    <div>
+                      <p className={`font-black text-sm ${isSelected ? 'text-[#1B4332]' : 'text-gray-700'}`}>{t.label || `${t.durationMonths} Month${t.durationMonths > 1 ? 's' : ''}`}</p>
+                      {t.discountPercent > 0 && (
+                        <p className="text-[10px] font-bold text-emerald-600">Save {t.discountPercent}% vs monthly</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-black text-base ${isSelected ? 'text-[#1B4332]' : 'text-gray-700'}`}>₹{price}<span className="text-[10px] font-bold text-gray-400">/mo</span></p>
+                    <p className="text-[10px] text-gray-400 font-medium">₹{total} total</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Summary & CTA */}
+        <div className="px-6 py-5">
+          <div className="bg-[#F0F4F1] rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider">You Pay</p>
+              <p className="text-2xl font-black text-[#1B4332]">₹{totalPayable}</p>
+              <p className="text-[10px] text-gray-400 font-medium">for {tier.durationMonths} month{tier.durationMonths > 1 ? 's' : ''}</p>
+            </div>
+            {tier.discountPercent > 0 && (
+              <div className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl text-center">
+                <p className="text-[9px] font-black uppercase tracking-wider">Saving</p>
+                <p className="text-[14px] font-black">₹{Math.round(plan.monthlyPrice * tier.durationMonths - totalPayable)}</p>
+              </div>
+            )}
+          </div>
+          <button className="w-full py-4 bg-[#1B4332] text-white rounded-2xl font-black text-[13px] uppercase tracking-[0.15em] shadow-lg hover:bg-[#081C15] transition-all active:scale-[0.98]">
+            Confirm Subscription
+          </button>
+          <p className="text-center text-[10px] text-gray-400 font-medium mt-3 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={11} className="text-gray-400" /> Cancel anytime. No hidden charges.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Subscription Card ────────────────────────────────────── */
+function SubscriptionCard({ plan, onSubscribe }: { plan: SubscriptionPlan; onSubscribe: (p: SubscriptionPlan) => void }) {
+  const mrp = plan.totalMrp || plan.totalValue || 0;
+  const ourPrice = plan.monthlyPrice;
+  const savings = mrp > ourPrice ? mrp - ourPrice : (plan.savings ?? 0);
+  const savingPct = mrp > 0 ? Math.round((savings / mrp) * 100) : 0;
+  const badge = plan.badgeText?.replace('???', '₹');
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden group">
+      {/* Image */}
+      <div className="relative h-36 overflow-hidden bg-[#F0F4F1]">
+        <img src={plan.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600'} alt={plan.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        {badge && (
+          <div className="absolute top-2.5 left-2.5 bg-[#C5A059] text-white px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-md flex items-center gap-1">
+            <Star size={9} fill="currentColor" /> {badge}
+          </div>
+        )}
+        {savingPct > 0 && (
+          <div className="absolute top-2.5 right-2.5 bg-emerald-500 text-white px-2 py-1 rounded-lg text-[9px] font-black shadow-md">
+            {savingPct}% OFF
+          </div>
+        )}
+        <div className="absolute bottom-2.5 left-3 right-3">
+          <h3 className="text-white font-black text-sm leading-tight drop-shadow-md">{plan.name}</h3>
+          <p className="text-white/70 text-[10px] font-medium mt-0.5 line-clamp-1">{plan.tagline}</p>
+        </div>
+      </div>
+
+      <div className="p-4 flex-1 flex flex-col gap-3">
+        {/* Price Block */}
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Market Price</p>
+            {mrp > 0 ? (
+              <p className="text-sm font-bold text-gray-400 line-through">₹{mrp}<span className="text-[9px]">/mo</span></p>
+            ) : <p className="text-sm text-gray-300">—</p>}
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] font-black text-[#C5A059] uppercase tracking-wider mb-0.5">Our Price</p>
+            <p className="text-2xl font-black text-[#1B4332] leading-none">₹{ourPrice}<span className="text-[10px] font-bold text-gray-400">/mo</span></p>
+          </div>
+        </div>
+
+        {/* Items */}
+        <div className="flex-1 bg-[#F9FBF9] rounded-xl border border-[#E8F0EA] p-3 space-y-2">
+          {plan.items?.slice(0, 3).map((item, i) => (
+            <div key={i} className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-1 h-1 rounded-full bg-[#C5A059] flex-shrink-0" />
+                <p className="text-[11px] font-bold text-gray-700 leading-tight truncate">{item.description}</p>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                {item.sellingPrice ? (
+                  <p className="text-[11px] font-black text-[#1B4332]">₹{item.sellingPrice}<span className="text-[8px] text-gray-400">/{item.unit}</span></p>
+                ) : null}
+                {item.mrp && item.sellingPrice && item.mrp > item.sellingPrice ? (
+                  <p className="text-[9px] text-gray-400 line-through">₹{item.mrp}</p>
+                ) : null}
+              </div>
+            </div>
+          ))}
+          {(plan.items?.length ?? 0) > 3 && (
+            <p className="text-[9px] text-gray-400 font-medium pt-0.5">+{(plan.items?.length ?? 0) - 3} more items</p>
+          )}
+        </div>
+
+        {/* Savings row */}
+        {savings > 0 && (
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><ShieldCheck size={10} className="text-emerald-500" /> Cancel Anytime</span>
+            <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md">Save ₹{Math.round(savings)}/mo</span>
+          </div>
+        )}
+
+        {/* CTA */}
+        <button onClick={() => onSubscribe(plan)}
+          className="w-full py-3 bg-[#1B4332] text-white rounded-xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-[#081C15] transition-all active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 border border-[#1B4332]/20 mt-auto">
+          Subscribe Now <ChevronRight size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
 const CATEGORIES = [
   { id: 'all', name: 'All Products', icon: '🛍️' },
@@ -193,6 +372,8 @@ function ProductCard({ product, isInCart, cartQuantity, onAddToCart, onRemoveFro
   );
 }
 
+import AppLayout from '@/components/AppLayout';
+
 export default function ConsumerShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -201,6 +382,7 @@ export default function ConsumerShopPage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCart, setShowCart] = useState(false);
+  const [subscribingPlan, setSubscribingPlan] = useState<SubscriptionPlan | null>(null);
   const { showToast } = useNotification();
 
   useEffect(() => {
@@ -311,7 +493,7 @@ export default function ConsumerShopPage() {
             <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#1B4332]" size={30} /></div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {plans.map((plan) => <SubscriptionCard key={plan.id} plan={plan} onSubscribe={p => showToast(`Subscription for ${p.name} selected!`)} />)}
+              {plans.map((plan) => <SubscriptionCard key={plan.id} plan={plan} onSubscribe={p => setSubscribingPlan(p)} />)}
             </div>
           )}
         </section>
@@ -447,6 +629,7 @@ export default function ConsumerShopPage() {
           </div>
         </div>
       )}
+      {subscribingPlan && <SubscribeModal plan={subscribingPlan} onClose={() => setSubscribingPlan(null)} />}
       </div>
     </AppLayout>
   );

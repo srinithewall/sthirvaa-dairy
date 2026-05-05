@@ -81,6 +81,13 @@ public class SubscriptionPlan {
     @JsonIgnoreProperties("plan")
     private List<SubscriptionPlanItem> items = new ArrayList<>();
 
+    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("plan")
+    private List<SubscriptionPlanTier> tiers = new ArrayList<>();
+
+    @Column(name = "total_mrp")
+    private Double totalMrp;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -185,4 +192,15 @@ public class SubscriptionPlan {
             items.forEach(this::addItem);
         }
     }
+
+    public List<SubscriptionPlanTier> getTiers() { return tiers; }
+    public void setTiers(List<SubscriptionPlanTier> tiers) {
+        this.tiers.clear();
+        if (tiers != null) {
+            tiers.forEach(t -> { t.setPlan(this); this.tiers.add(t); });
+        }
+    }
+
+    public Double getTotalMrp() { return totalMrp; }
+    public void setTotalMrp(Double totalMrp) { this.totalMrp = totalMrp; }
 }

@@ -39,6 +39,9 @@ public class SubscriptionPlanController {
         if (plan.getItems() != null) {
             plan.getItems().forEach(item -> item.setPlan(plan));
         }
+        if (plan.getTiers() != null) {
+            plan.getTiers().forEach(tier -> tier.setPlan(plan));
+        }
         return subscriptionPlanRepository.save(plan);
     }
 
@@ -47,12 +50,9 @@ public class SubscriptionPlanController {
     public ResponseEntity<SubscriptionPlan> updatePlan(@PathVariable Long id, @RequestBody SubscriptionPlan planUpdates) {
         return subscriptionPlanRepository.findById(id).map(existing -> {
             existing.setName(planUpdates.getName());
-            existing.setSlug(planUpdates.getSlug());
             existing.setTagline(planUpdates.getTagline());
             existing.setMonthlyPrice(planUpdates.getMonthlyPrice());
-            existing.setQuarterlyPrice(planUpdates.getQuarterlyPrice());
-            existing.setHalfYearlyPrice(planUpdates.getHalfYearlyPrice());
-            existing.setYearlyPrice(planUpdates.getYearlyPrice());
+            existing.setTotalMrp(planUpdates.getTotalMrp());
             existing.setBadgeText(planUpdates.getBadgeText());
             existing.setImageUrl(planUpdates.getImageUrl());
             existing.setDisplayOrder(planUpdates.getDisplayOrder());
@@ -60,17 +60,22 @@ public class SubscriptionPlanController {
             existing.setSavings(planUpdates.getSavings());
             existing.setTotalValue(planUpdates.getTotalValue());
             existing.setIncludesPoojaPack(planUpdates.getIncludesPoojaPack());
-            existing.setQuarterlyBonus(planUpdates.getQuarterlyBonus());
-            existing.setHalfYearlyBonus(planUpdates.getHalfYearlyBonus());
-            existing.setYearlyBonus(planUpdates.getYearlyBonus());
 
-
-            // Clear and replace items to ensure orphan removal triggers
+            // Clear and replace items
             existing.getItems().clear();
             if (planUpdates.getItems() != null) {
                 for (SubscriptionPlanItem item : planUpdates.getItems()) {
                     item.setPlan(existing);
                     existing.getItems().add(item);
+                }
+            }
+
+            // Clear and replace tiers
+            existing.getTiers().clear();
+            if (planUpdates.getTiers() != null) {
+                for (com.dairy.model.SubscriptionPlanTier tier : planUpdates.getTiers()) {
+                    tier.setPlan(existing);
+                    existing.getTiers().add(tier);
                 }
             }
 

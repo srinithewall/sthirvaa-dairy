@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import api from '@/lib/api';
 import { Plus, Minus, ShoppingCart, Search, X, Loader2, ChevronRight, Star, Clock, CheckCircle2, ShieldCheck, MapPin, Leaf, User } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
+import AppLayout from '@/components/AppLayout';
 
 /* ─── Types ─── */
 interface Product {
@@ -210,126 +211,6 @@ const CATEGORIES = [
   { id: 'meat', name: 'Meats', icon: '🍗' }
 ];
 
-
-
-const SAMPLE_PRODUCTS: Product[] = [
-  { id: 101, name: 'Sthirvaa A2 Gir Milk', category: 'dairy', subcategory: 'Milk', price: 90, unit: '1 Litre', description: 'Pure A2 milk from our Gir cows.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400', mrp: 110 },
-  { id: 102, name: 'Organic Buffalo Curd', category: 'dairy', subcategory: 'Curd', price: 65, unit: '500g', description: 'Thick, creamy curd made from buffalo milk.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1628045610815-37cb420ba679?w=400', mrp: 80 },
-  { id: 103, name: 'Desi Cow Ghee', category: 'dairy', subcategory: 'Ghee', price: 850, unit: '500ml', description: 'Bilona method handmade ghee.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=400', mrp: 999 },
-  { id: 104, name: 'Farm Fresh Eggs', category: 'eggs', subcategory: 'Eggs', price: 120, unit: '12 pcs', description: 'Free-range organic brown eggs.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?w=400', mrp: 150 },
-  { id: 105, name: 'Premium Paneer', category: 'paneer', subcategory: 'Paneer', price: 140, unit: '250g', description: 'Soft, fresh paneer made daily.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc0?w=400', mrp: 180 },
-  { id: 106, name: 'Fresh Chicken', category: 'meat', subcategory: 'Chicken', price: 280, unit: '1 kg', description: 'Tender, fresh chicken cut to order.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1587593810167-a84920ea0881?w=400', mrp: 350 },
-  { id: 107, name: 'Organic Tomatoes', category: 'vegetables', subcategory: 'Veggies', price: 40, unit: '1 kg', description: 'Pesticide-free red tomatoes.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400', mrp: 60 },
-  { id: 108, name: 'Divine Pooja Pack', category: 'divine', subcategory: 'Divine', price: 250, unit: '1 Pack', description: 'Complete pooja essentials kit.', inStock: true, imageUrl: 'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=400', mrp: 300 }
-];
-
-const SAMPLE_PLANS: SubscriptionPlan[] = [
-  {
-    id: 1, name: 'Essential Dairy Pack', tagline: '1 Litre Pure Milk Daily + 500ml Ghee', monthlyPrice: 1999, badgeText: '₹66/day',
-    imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600', totalValue: 2459, savings: 460, includesPoojaPack: true,
-    items: [{ description: '1 Litre Pure Milk Daily', qty: 1, unit: 'Litre', frequency: 'DAILY' }, { description: '500ml Ghee', qty: 500, unit: 'ml', frequency: 'MONTHLY' }]
-  },
-  {
-    id: 2, name: 'Protein Pack', tagline: '1 Litre Milk Daily + 96 Eggs/month', monthlyPrice: 2499, badgeText: '₹83/day',
-    imageUrl: 'https://images.unsplash.com/photo-1598514982205-f36b96d1e8d4?w=600', totalValue: 3239, savings: 740, includesPoojaPack: true,
-    items: [{ description: '1 Litre Milk Daily', qty: 1, unit: 'Litre', frequency: 'DAILY' }, { description: '96 Eggs/month', qty: 96, unit: 'pcs', frequency: 'MONTHLY' }, { description: 'Chicken 1kg', qty: 1, unit: 'kg', frequency: 'WEEKLY' }]
-  },
-  {
-    id: 3, name: 'Family Smart Pack', tagline: '2 Litre Milk Daily + 96 Eggs/month', monthlyPrice: 2999, badgeText: '₹99/day',
-    imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600', totalValue: 3859, savings: 860, includesPoojaPack: true,
-    items: [{ description: '2 Litre Milk Daily', qty: 2, unit: 'Litre', frequency: 'DAILY' }, { description: '96 Eggs/month', qty: 96, unit: 'pcs', frequency: 'MONTHLY' }]
-  },
-  {
-    id: 4, name: 'Premium Family Pack', tagline: '2 Litre Milk Daily + 96 Eggs/month', monthlyPrice: 3499, badgeText: 'Most Popular',
-    imageUrl: 'https://images.unsplash.com/photo-1494390248081-4e521a5940db?w=600', totalValue: 4529, savings: 1030, includesPoojaPack: true,
-    items: [{ description: '2 Litre Milk Daily', qty: 2, unit: 'Litre', frequency: 'DAILY' }, { description: '96 Eggs/month', qty: 96, unit: 'pcs', frequency: 'MONTHLY' }, { description: 'Chicken 1kg', qty: 1, unit: 'kg', frequency: 'WEEKLY' }]
-  }
-];
-
-function SubscriptionCard({ plan, onSubscribe }: { plan: SubscriptionPlan; onSubscribe: (p: SubscriptionPlan) => void }) {
-  const savings = plan.savings || 0;
-  const totalVal = plan.totalValue || plan.monthlyPrice + savings;
-  
-  // Helper to fix encoding issues with rupee symbol in badges
-  const formattedBadge = plan.badgeText?.replace('???', '₹');
-
-  return (
-    <div className="bg-[#FDFCF0] rounded-xl border border-[#EADAB8] shadow-sm hover:shadow-lg hover:border-[#C5A059] transition-all duration-300 flex flex-col group overflow-hidden">
-      {/* Header Image */}
-      <div className="relative h-32 overflow-hidden bg-white">
-        <img src={plan.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600'} alt={plan.name} className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80" />
-        {formattedBadge && (
-          <div className="absolute top-2 left-2 bg-[#C5A059] text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-md flex items-center gap-1">
-             <Star size={10} fill="currentColor" /> {formattedBadge}
-          </div>
-        )}
-        <div className="absolute bottom-2 left-3 right-3">
-          <h3 className="text-white font-black text-base leading-tight drop-shadow-md">{plan.name}</h3>
-        </div>
-      </div>
-      
-      <div className="p-3 flex-1 flex flex-col">
-        <p className="text-[11px] font-bold text-gray-700 mb-3 line-clamp-1">{plan.tagline}</p>
-        
-        {/* Value vs Our Price */}
-        <div className="bg-white rounded-lg p-2.5 mb-4 border border-gray-100 flex items-center justify-between shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 h-full bg-[#C5A059]/20" />
-          <div>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Market Value</p>
-            <p className="text-xs font-bold text-gray-400 line-through decoration-[#1B4332]/30">₹{totalVal}<span className="text-[9px] font-normal">/mo</span></p>
-          </div>
-          <div className="text-right">
-            <p className="text-[9px] font-black text-[#C5A059] uppercase tracking-widest">Our Price</p>
-            <p className="text-xl font-black text-[#1B4332] leading-none">₹{plan.monthlyPrice}<span className="text-[10px] font-bold text-gray-500">/mo</span></p>
-          </div>
-        </div>
-        
-        {/* Items List */}
-        <div className="flex-1 space-y-2.5 mb-4">
-          {plan.items?.map((item, i) => (
-            <div key={i} className="flex items-start justify-between gap-1.5">
-              <div className="flex items-start gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#C5A059] mt-1.5 flex-shrink-0" />
-                <div>
-                  <p className="text-xs font-bold text-gray-800 leading-tight">{item.description}</p>
-                  <p className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">{item.qty} {item.unit} • {item.frequency}</p>
-                </div>
-              </div>
-              <div className="text-right flex-shrink-0 pt-0.5">
-                <p className="text-[10px] font-black text-gray-800 leading-none">₹{item.sellingPrice}<span className="text-[8px] font-bold text-gray-400">/{item.unit}</span></p>
-                {item.mrp > item.sellingPrice && (
-                   <p className="text-[8px] text-gray-400 line-through mt-0.5">₹{item.mrp}</p>
-                )}
-              </div>
-            </div>
-          ))}
-          {plan.includesPoojaPack && (
-            <div className="flex items-center gap-1.5 pt-1.5 border-t border-dashed border-[#EADAB8]">
-              <Star size={11} className="text-amber-500" fill="currentColor" />
-              <p className="text-[10px] font-black text-amber-600 uppercase tracking-tight">Includes Divine Pooja Pack</p>
-            </div>
-          )}
-        </div>
-        
-        {/* Action */}
-        <div className="mt-auto">
-          {savings > 0 && (
-            <div className="flex items-center justify-between mb-2.5 px-1">
-              <span className="text-[10px] font-bold text-gray-500 flex items-center gap-1"><ShieldCheck size={11} className="text-green-600" /> Cancel Anytime</span>
-              <span className="text-[10px] font-black text-[#1B4332] bg-[#E8F5EE] px-2 py-0.5 rounded-md border border-[#1B4332]/10">Save ₹{savings}/mo</span>
-            </div>
-          )}
-          <button onClick={() => onSubscribe(plan)} className="w-full py-2.5 bg-[#1B4332] text-white rounded-lg font-black text-xs uppercase tracking-widest hover:bg-[#081C15] hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1.5 border border-[#1B4332]/20 shadow-md">
-            Subscribe Now <ChevronRight size={14} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
 function ProductCard({ product, isInCart, cartQuantity, onAddToCart, onRemoveFromCart }:
   { product: Product; isInCart: boolean; cartQuantity: number; onAddToCart: (p: Product) => void; onRemoveFromCart: (id: number) => void }) {
   const discount = product.slashedPrice ? Math.round(((product.slashedPrice - product.price) / product.slashedPrice) * 100) : 0;
@@ -371,8 +252,6 @@ function ProductCard({ product, isInCart, cartQuantity, onAddToCart, onRemoveFro
     </div>
   );
 }
-
-import AppLayout from '@/components/AppLayout';
 
 export default function ConsumerShopPage() {
   const [products, setProducts] = useState<Product[]>([]);

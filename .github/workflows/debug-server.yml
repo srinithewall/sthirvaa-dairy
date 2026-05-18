@@ -20,18 +20,14 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
           chmod 600 private_key.pem
           ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@43.204.221.192 "
-            echo '=== DOCKER CONTAINERS ==='
-            docker ps -a
-            echo '=== DOCKER COMPOSE LOGS ==='
-            cd ~/dairy-deployment && docker compose logs --tail=50
-            echo '=== DEEP INSPECT NGINX OR PROXY ==='
-            for container in \$(docker ps --format '{{.Names}}'); do
-              echo \"Container: \$container\"
-              if [[ \"\$container\" == *\"nginx\"* || \"\$container\" == *\"proxy\"* ]]; then
-                echo \"--- Config for \$container ---\"
-                docker exec \$container find /etc/nginx -name \"*.conf\" -exec echo \"File: {}\" \; -exec docker exec \$container cat {} \; 2>/dev/null || true
-              fi
-            done
+            echo '=== NGINX CONFIG DUMP ==='
+            docker exec nginx cat /etc/nginx/conf.d/default.conf 2>/dev/null || true
+            echo '=== NGINX MAIN DUMP ==='
+            docker exec nginx cat /etc/nginx/nginx.conf 2>/dev/null || true
+            echo '=== NGINX SSL DUMP ==='
+            docker exec nginx cat /etc/nginx/ssl/nginx.conf 2>/dev/null || true
+            echo '=== ALL DOCKER COMPOSE CONFIG PATHS ==='
+            find ~ -name 'docker-compose.yml' -o -name 'docker-compose.yaml'
           " > debug-output.txt
           rm -f private_key.pem
 
@@ -41,5 +37,5 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           mv debug-output.txt dairy-ui/debug-output.txt
           git add dairy-ui/debug-output.txt
-          git commit -m "ci: Deep inspect AWS Nginx Docker config [skip ci]" || echo "No changes"
+          git commit -m "ci: Dump Nginx container config and compose files [skip ci]" || echo "No changes"
           git push

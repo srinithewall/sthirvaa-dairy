@@ -15,30 +15,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: SSH and Debug
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: 43.204.221.192
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "=== LISTENING PORTS ===" > ~/debug-output.txt
-            sudo netstat -tulpn >> ~/debug-output.txt || netstat -tulpn >> ~/debug-output.txt || ss -tulpn >> ~/debug-output.txt
-            echo "=== NGINX CONFIG ===" >> ~/debug-output.txt
-            sudo cat /etc/nginx/sites-enabled/* >> ~/debug-output.txt || cat /etc/nginx/sites-enabled/* >> ~/debug-output.txt
-            echo "=== DOCKER LOGS ===" >> ~/debug-output.txt
-            docker logs dairy-ui --tail=50 >> ~/debug-output.txt
-            echo "=== LOCAL SYSTEMD OR SERVICE ===" >> ~/debug-output.txt
-            ps -ef | grep node >> ~/debug-output.txt
-
-      - name: Download Debug Output from Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: 43.204.221.192
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "debug-output.txt"
-          target: "."
+      - name: SSH and Read Logs natively
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@43.204.221.192 "
+            echo '=== PORTS ==='
+            sudo netstat -tulpn || netstat -tulpn || ss -tulpn
+            echo '=== NGINX ==='
+            sudo cat /etc/nginx/sites-enabled/* || cat /etc/nginx/sites-enabled/*
+            echo '=== DOCKER LOGS ==='
+            docker logs dairy-ui --tail=50
+            echo '=== PROCESSES ==='
+            ps -ef | grep node
+          " > debug-output.txt
+          rm -f private_key.pem
 
       - name: Commit and Push Debug File
         run: |

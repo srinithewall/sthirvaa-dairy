@@ -70,7 +70,7 @@ export default function StaffPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-black text-text tracking-tight uppercase">Staff Management</h1>
@@ -82,7 +82,7 @@ export default function StaffPage() {
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row bg-white rounded-radius-custom-lg border border-border-custom card-shadow h-[360px] overflow-hidden">
+        <div className="flex flex-col md:flex-row bg-white rounded-radius-custom-lg border border-border-custom card-shadow h-auto md:h-[450px] overflow-hidden">
           
           {/* Left Sidebar - Staff List */}
           <div className={`w-full md:w-[280px] border-r border-border-custom flex-col bg-surface flex-shrink-0 ${!showMobileList ? 'hidden md:flex' : 'flex'}`}>
@@ -109,7 +109,7 @@ export default function StaffPage() {
             </div>
 
             {/* List - max height constrains it to ~5 items visible at a time with scroll */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 md:overflow-y-auto">
               {filteredStaff.length === 0 ? (
                 <div className="text-center text-text3 text-[12px] py-6">No staff found.</div>
               ) : (
@@ -140,7 +140,7 @@ export default function StaffPage() {
           </div>
 
           {/* Right Detail Pane */}
-          <div className={`flex-1 bg-white p-5 overflow-y-auto ${showMobileList ? 'hidden md:block' : 'block'}`}>
+          <div className={`flex-1 bg-white p-5 md:overflow-y-auto ${showMobileList ? 'hidden md:block' : 'block'}`}>
             
             {/* Mobile Back Button */}
             <button 
@@ -175,64 +175,44 @@ export default function StaffPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Contact Details */}
-                  <div>
-                    <div className="relative mb-2">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-border-custom"></div>
-                      </div>
-                      <div className="relative flex justify-start">
-                        <span className="bg-white pr-2 text-[10px] font-bold tracking-widest text-text3 uppercase">
-                          Contact Details
-                        </span>
-                      </div>
+                <div className="space-y-5 animate-in fade-in duration-300">
+                  {/* Description Bio */}
+                  {selectedStaff.description && (
+                    <div className="bg-surface p-4 rounded-xl border border-border-custom text-xs text-text2 italic leading-relaxed font-medium">
+                      "{selectedStaff.description}"
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-1.5 text-xs font-medium">
-                      <div className="text-text3">Phone Number</div>
-                      <div className="sm:col-span-2 font-medium text-text2">
+                  )}
+
+                  {/* Structured Details Grid (Uniform Alignment) */}
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-5 bg-surface/30 p-5 rounded-2xl border border-border-custom shadow-inner">
+                    <div>
+                      <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Phone Number</label>
+                      <div className="text-[13px] sm:text-[14px] font-medium text-text2">
                         {selectedStaff.phone ? (selectedStaff.phone.startsWith('+91') ? selectedStaff.phone : `+91 ${selectedStaff.phone}`) : 'N/A'}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Category */}
-                  <div>
-                    <div className="relative mb-2">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-border-custom"></div>
-                      </div>
-                      <div className="relative flex justify-start">
-                        <span className="bg-white pr-2 text-[10px] font-bold tracking-widest text-text3 uppercase">
-                          Category
-                        </span>
-                      </div>
+                    <div>
+                      <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Role Title</label>
+                      <div className="text-[13px] sm:text-[14px] font-bold text-text">{selectedStaff.role || 'N/A'}</div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-1.5 text-xs font-medium">
-                      <div className="text-text3 mb-0.5 sm:mb-0">Role</div>
-                      <div className="sm:col-span-2 font-bold text-text mb-0.5 sm:mb-0">{selectedStaff.role || 'N/A'}</div>
-                      
-                      <div className="text-text3">Staff Type</div>
-                      <div className="sm:col-span-2 font-medium text-text2">{selectedStaff.type || 'N/A'}</div>
-                    </div>
-                  </div>
 
-                  {/* Other Info */}
-                  <div>
-                    <div className="relative mb-2">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-border-custom"></div>
-                      </div>
-                      <div className="relative flex justify-start">
-                        <span className="bg-white pr-2 text-[10px] font-bold tracking-widest text-text3 uppercase">
-                          Other Information
-                        </span>
-                      </div>
+                    <div>
+                      <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Staff Category</label>
+                      <div className="text-[13px] sm:text-[14px] font-medium text-text2 uppercase">{selectedStaff.type || 'N/A'}</div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-1.5 text-xs font-medium">
-                      <div className="text-text3">Joining Date</div>
-                      <div className="sm:col-span-2 font-medium text-text2">{formatDate(selectedStaff.joinDate)}</div>
+
+                    <div>
+                      <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Joining Date</label>
+                      <div className="text-[13px] sm:text-[14px] font-medium text-text2">{formatDate(selectedStaff.joinDate)}</div>
                     </div>
+
+                    {selectedStaff.location && (
+                      <div className="col-span-2 border-t border-border-custom/50 pt-4">
+                        <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Work Location</label>
+                        <div className="text-[13px] sm:text-[14px] font-medium text-text2">{selectedStaff.location}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

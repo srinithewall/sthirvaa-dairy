@@ -8,6 +8,10 @@ import java.util.List;
 public interface MilkRecordRepository extends JpaRepository<MilkRecord, Long> {
     List<MilkRecord> findByDate(LocalDate date);
     List<MilkRecord> findByHerdId(Long herdId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByHerdId(Long herdId);
     void deleteByDateAndShift(LocalDate date, String shift);
     List<MilkRecord> findByDateAndShift(LocalDate date, String shift);
     List<MilkRecord> findAllByOrderByDateDesc();

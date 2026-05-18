@@ -12,6 +12,9 @@ public class HerdService {
     @Autowired
     private HerdRepository herdRepository;
 
+    @Autowired
+    private com.dairy.repo.MilkRecordRepository milkRecordRepository;
+
     public List<Herd> getAllHerds() {
         return herdRepository.findAll();
     }
@@ -24,7 +27,9 @@ public class HerdService {
         return herdRepository.save(herd);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void deleteHerd(Long id) {
+        milkRecordRepository.deleteByHerdId(id);
         herdRepository.deleteById(id);
     }
 

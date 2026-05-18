@@ -78,8 +78,15 @@ jobs:
             # Authenticate Docker to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
             
-            # Pull the new image and restart the UI container
+            # Pull the new image
             docker compose pull ui
+            
+            # Kill any host-level process running on port 3000 to avoid EADDRINUSE bind conflicts
+            echo "Freeing up port 3000..."
+            sudo fuser -k 3000/tcp || true
+            sudo kill -9 $(sudo lsof -t -i:3000) 2>/dev/null || true
+            
+            # Restart the UI container
             docker compose up -d ui
             
             docker image prune -f

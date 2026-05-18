@@ -1,0 +1,34 @@
+name: Debug AWS Server
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/debug-server.yml'
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and Debug
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 43.204.221.192
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "=== DOCKER CONTAINERS ==="
+            docker ps -a
+            echo "=== PM2 PROCESSES ==="
+            if command -v pm2 &> /dev/null; then
+              pm2 status
+              pm2 list
+            else
+              echo "pm2 not found"
+            fi
+            echo "=== LISTENING PORTS ==="
+            sudo netstat -tulpn || netstat -tulpn || ss -tulpn
+            echo "=== DOCKER COMPOSE STATUS ==="
+            cd ~/dairy-deployment
+            docker compose ps
+            echo "=== DOCKER COMPOSE LOGS ==="
+            docker compose logs --tail=50 ui

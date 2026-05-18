@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Lock, Mail, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -34,7 +34,7 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Invalid email or password. Please try again.');
+      setError(err.response?.data?.message || 'Invalid username/email or password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -65,17 +65,17 @@ export default function LoginPage() {
 
           <div className="space-y-5">
             <div>
-              <label className="block text-[11px] font-bold text-text3 uppercase tracking-widest mb-2 px-1">Email Address</label>
+              <label className="block text-[11px] font-bold text-text3 uppercase tracking-widest mb-2 px-1">Username or Email</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text3" size={18} />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-text3" size={18} />
                 <input 
-                  type="email" 
+                  type="text" 
                   name="email"
                   required
                   autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@sthirvaa.com"
+                  placeholder="e.g. bhavya or admin@sthirvaa.com"
                   className="w-full bg-[#F5F9F6] border-none outline-none focus:ring-2 focus:ring-brand/20 py-4 pl-12 pr-4 rounded-2xl text-text font-medium transition-all"
                 />
               </div>

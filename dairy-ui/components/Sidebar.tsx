@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, FileText, X } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
+import { changelogData } from '@/lib/changelog';
 
 const sidebarItems = [
   { group: 'Overview', items: [
@@ -35,6 +36,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   const [user, setUser] = React.useState({ username: 'Loading...', role: 'STAFF', staffId: null, customerId: null });
   const [showModal, setShowModal] = React.useState(false);
   const [staffInfo, setStaffInfo] = React.useState<any>(null);
+  const [showChangelogModal, setShowChangelogModal] = React.useState(false);
 
   // Close sidebar when pathname changes (on mobile)
   React.useEffect(() => {
@@ -211,16 +213,100 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         </React.Fragment>
       ))}
 
-      <div className="mt-auto p-4">
+      <div className="mt-auto p-4 flex flex-col gap-2">
+        <button 
+          onClick={() => setShowChangelogModal(true)}
+          className="flex items-center gap-2 text-text3 hover:text-brand transition-colors text-xs font-semibold w-full border border-gray-100 rounded-lg p-2 bg-surface hover:bg-[#E8F5EE]/40"
+        >
+          <Info size={14} className="text-brand" />
+          <span>Version v1.2.1</span>
+        </button>
+
         <button 
           onClick={handleLogout}
-          className="flex items-center gap-2 text-text3 hover:text-danger transition-colors text-sm font-medium w-full"
+          className="flex items-center gap-2 text-text3 hover:text-danger transition-colors text-sm font-medium w-full px-2 mt-1"
         >
           <LogOut size={16} />
           <span>Logout</span>
         </button>
       </div>
     </div>
+
+    {/* Changelog & Release Notes Modal */}
+    {showChangelogModal && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 border border-brand/20 flex flex-col max-h-[80vh]">
+          {/* Header */}
+          <div className="bg-brand-dark p-5 text-white flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-white/10 rounded-lg">
+                <Info size={20} className="text-accent" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-lg font-bold">System Changelog</h2>
+                <p className="text-[10px] text-accent font-semibold tracking-wider uppercase">Sthirvaa Farms • Release History</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowChangelogModal(false)}
+              className="text-white/50 hover:text-white transition-colors p-1"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          {/* Body (Scrollable) */}
+          <div className="p-6 overflow-y-auto space-y-5 bg-surface/30 flex-1 text-left">
+            {changelogData.map((entry, index) => (
+              <div key={index} className="relative pl-6 border-l border-gray-200 last:border-transparent pb-3">
+                {/* Dot on Timeline */}
+                <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 bg-brand rounded-full ring-4 ring-white" />
+                
+                {/* Release Meta */}
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-brand-dark text-accent text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                      {entry.version}
+                    </span>
+                    {entry.status && (
+                      <span className="text-[10px] text-brand bg-brand/10 font-bold px-1.5 py-0.5 rounded">
+                        {entry.status}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-text3 font-bold">{entry.date}</span>
+                </div>
+                
+                <div className="text-[9px] text-text2 font-bold mb-2.5 flex items-center gap-1">
+                  <GitCommit size={10} className="text-text3" />
+                  <span>Commit:</span>
+                  <span className="bg-surface2 px-1 py-0.2 rounded font-mono text-[9px] border border-border-custom">{entry.commit}</span>
+                </div>
+
+                {/* Bullet points */}
+                <ul className="space-y-1.5">
+                  {entry.changes.map((change, cIdx) => (
+                    <li key={cIdx} className="text-[11px] text-text2 leading-relaxed pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-brand before:font-bold">
+                      {change}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          
+          {/* Footer */}
+          <div className="p-4 border-t border-border-custom bg-white flex justify-end flex-shrink-0">
+            <button 
+              onClick={() => setShowChangelogModal(false)}
+              className="bg-brand text-white px-5 py-2 rounded-lg font-bold hover:bg-brand-dark transition-colors text-xs shadow-md"
+            >
+              Close Version Info
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </React.Fragment>
 );
 }

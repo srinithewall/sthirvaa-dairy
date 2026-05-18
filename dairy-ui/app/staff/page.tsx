@@ -70,7 +70,7 @@ export default function StaffPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto pb-10 px-1">
         <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-black text-text tracking-tight uppercase">Staff Management</h1>

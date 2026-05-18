@@ -4,6 +4,18 @@ This changelog serves as the single source of truth for all versioned releases, 
 
 ---
 
+## ⚡ [v1.2.1] — Database Index Optimization & Speed Polish
+> **Release Date:** May 18, 2026  
+> **Target Commit:** Direct Database Optimization (Live Update)  
+> **Module Status:** Optimized & Latency-Protected
+
+### ⚡ Optimized & Accelerated
+- **Created Missing High-Frequency Indexes:** Added MySQL database index `idx_income_date` and `idx_expense_date` to date-columns of the high-traffic transactions and reports tables.
+- **Aggregated Report Query Speedups:** Drastically reduced dashboard metric load times by eliminating sequential full-table scans.
+- **Latency Protection:** Shielded local development environments from AWS remote database network round-trip overhead on serial date aggregations.
+
+---
+
 ## 🚀 [v1.2.0] — Staff Directory Overhaul & DB Mappings
 > **Release Date:** May 18, 2026  
 > **Target Commit:** `bd3b3ab`  

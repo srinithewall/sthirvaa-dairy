@@ -19,6 +19,8 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+export const runtime = 'edge';
+
 export default function InvoicePage({ params }: { params: { id: string } }) {
   const [inv, setInv] = useState<any>(null);
   const [loading, setLoading] = useState(true);

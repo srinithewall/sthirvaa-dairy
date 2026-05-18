@@ -183,14 +183,14 @@ export default function StaffPage() {
                         <div className="w-full border-t border-border-custom"></div>
                       </div>
                       <div className="relative flex justify-start">
-                        <span className="bg-white pr-2 text-[10px] font-black tracking-widest text-text3 uppercase">
+                        <span className="bg-white pr-2 text-[10px] font-bold tracking-widest text-text3 uppercase">
                           Contact Details
                         </span>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-1.5 text-xs font-medium">
                       <div className="text-text3">Phone Number</div>
-                      <div className="sm:col-span-2 font-bold text-text">
+                      <div className="sm:col-span-2 font-medium text-text2">
                         {selectedStaff.phone ? (selectedStaff.phone.startsWith('+91') ? selectedStaff.phone : `+91 ${selectedStaff.phone}`) : 'N/A'}
                       </div>
                     </div>
@@ -203,7 +203,7 @@ export default function StaffPage() {
                         <div className="w-full border-t border-border-custom"></div>
                       </div>
                       <div className="relative flex justify-start">
-                        <span className="bg-white pr-2 text-[10px] font-black tracking-widest text-text3 uppercase">
+                        <span className="bg-white pr-2 text-[10px] font-bold tracking-widest text-text3 uppercase">
                           Category
                         </span>
                       </div>
@@ -213,7 +213,7 @@ export default function StaffPage() {
                       <div className="sm:col-span-2 font-bold text-text mb-0.5 sm:mb-0">{selectedStaff.role || 'N/A'}</div>
                       
                       <div className="text-text3">Staff Type</div>
-                      <div className="sm:col-span-2 font-bold text-text">{selectedStaff.type || 'N/A'}</div>
+                      <div className="sm:col-span-2 font-medium text-text2">{selectedStaff.type || 'N/A'}</div>
                     </div>
                   </div>
 
@@ -224,14 +224,14 @@ export default function StaffPage() {
                         <div className="w-full border-t border-border-custom"></div>
                       </div>
                       <div className="relative flex justify-start">
-                        <span className="bg-white pr-2 text-[10px] font-black tracking-widest text-text3 uppercase">
+                        <span className="bg-white pr-2 text-[10px] font-bold tracking-widest text-text3 uppercase">
                           Other Information
                         </span>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-1.5 text-xs font-medium">
                       <div className="text-text3">Joining Date</div>
-                      <div className="sm:col-span-2 font-bold text-text">{formatDate(selectedStaff.joinDate)}</div>
+                      <div className="sm:col-span-2 font-medium text-text2">{formatDate(selectedStaff.joinDate)}</div>
                     </div>
                   </div>
                 </div>

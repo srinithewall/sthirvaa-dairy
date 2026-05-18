@@ -500,7 +500,13 @@ export default function ConsumerShopPage() {
                       <p className="text-3xl font-black text-[#1B4332]">₹{cartTotal}</p>
                    </div>
                 </div>
-                <button className="w-full py-4 bg-[#1B4332] text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-lg hover:bg-[#081C15] hover:-translate-y-0.5 transition-all active:translate-y-0">
+                <button 
+                  onClick={() => {
+                    localStorage.setItem('checkout_cart', JSON.stringify(cart));
+                    window.location.href = '/checkout';
+                  }}
+                  className="w-full py-4 bg-[#1B4332] text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-lg hover:bg-[#081C15] hover:-translate-y-0.5 transition-all active:translate-y-0"
+                >
                   Checkout Securely
                 </button>
               </div>

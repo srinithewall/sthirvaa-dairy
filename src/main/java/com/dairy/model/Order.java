@@ -28,6 +28,15 @@ public class Order {
     @Column(name = "payment_method")
     private String paymentMethod;
 
+    @Column(name = "payment_status")
+    private String paymentStatus; // UNPAID, PAID
+
+    private Double subtotal;
+    private Double discount;
+    
+    @Column(name = "gateway_fee")
+    private Double gatewayFee;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -66,6 +75,18 @@ public class Order {
 
     public String getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+
+    public Double getSubtotal() { return subtotal; }
+    public void setSubtotal(Double subtotal) { this.subtotal = subtotal; }
+
+    public Double getDiscount() { return discount; }
+    public void setDiscount(Double discount) { this.discount = discount; }
+
+    public Double getGatewayFee() { return gatewayFee; }
+    public void setGatewayFee(Double gatewayFee) { this.gatewayFee = gatewayFee; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

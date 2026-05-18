@@ -92,4 +92,22 @@ public class OrderController {
             return ResponseEntity.ok(orderRepository.save(order));
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    @Autowired
+    private com.dairy.service.OrderService orderService;
+
+    @PostMapping("/checkout-flow")
+    public ResponseEntity<com.dairy.dto.OrderResponseDTO> processCheckoutFlow(@RequestBody com.dairy.dto.CheckoutRequestDTO request) {
+        return ResponseEntity.ok(orderService.processCheckout(request));
+    }
+
+    @GetMapping("/invoices")
+    public ResponseEntity<List<com.dairy.dto.OrderResponseDTO>> getMyInvoices() {
+        return ResponseEntity.ok(orderService.getMyOrders());
+    }
+
+    @GetMapping("/invoice/{id}")
+    public ResponseEntity<com.dairy.dto.OrderResponseDTO> getInvoiceById(@PathVariable String id) {
+        return ResponseEntity.ok(orderService.getOrderById(id));
+    }
 }

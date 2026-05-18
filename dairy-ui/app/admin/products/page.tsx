@@ -94,13 +94,13 @@ export default function ProductManagementPage() {
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <button onClick={seedData} disabled={seeding}
-              className="bg-white text-text2 border border-border-custom px-3 sm:px-4 py-2 rounded font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5 hover:bg-surface transition-all">
+              className="bg-white text-text2 border border-border-custom px-3 sm:px-4 py-2 rounded-sm font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5 hover:bg-surface transition-all">
               {seeding ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               <span className="hidden sm:inline">Sync</span>
             </button>
             <button
               onClick={() => activeTab === 'products' ? setShowProductModal(true) : setShowComboModal(true)}
-              className="bg-brand text-white px-3 sm:px-5 py-2 rounded font-black text-[11px] uppercase tracking-wide shadow-lg shadow-brand/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5">
+              className="bg-brand text-white px-3 sm:px-5 py-2 rounded-sm font-black text-[11px] uppercase tracking-wide shadow-lg shadow-brand/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5">
               <Plus size={15} />
               <span>{activeTab === 'products' ? 'Add Product' : 'Add Combo'}</span>
             </button>
@@ -108,13 +108,13 @@ export default function ProductManagementPage() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex gap-1 mb-5 bg-surface p-1 rounded border border-border-custom w-fit">
+        <div className="flex gap-1 mb-5 bg-surface p-1 rounded-sm border border-border-custom w-fit">
           <button onClick={() => setActiveTab('products')}
-            className={`px-4 sm:px-6 py-2 rounded text-[11px] font-black transition-all ${activeTab === 'products' ? 'bg-white shadow text-brand' : 'text-text3 hover:text-text'}`}>
+            className={`px-4 sm:px-6 py-2 rounded-sm text-[11px] font-black transition-all ${activeTab === 'products' ? 'bg-white shadow text-brand' : 'text-text3 hover:text-text'}`}>
             Products
           </button>
           <button onClick={() => setActiveTab('combos')}
-            className={`px-4 sm:px-6 py-2 rounded text-[11px] font-black transition-all ${activeTab === 'combos' ? 'bg-white shadow text-brand' : 'text-text3 hover:text-text'}`}>
+            className={`px-4 sm:px-6 py-2 rounded-sm text-[11px] font-black transition-all ${activeTab === 'combos' ? 'bg-white shadow text-brand' : 'text-text3 hover:text-text'}`}>
             Combos
           </button>
         </div>
@@ -128,12 +128,12 @@ export default function ProductManagementPage() {
         ) : activeTab === 'products' ? (
 
           /* ── Products Table ── */
-          <div className="bg-white rounded border border-border-custom shadow-sm overflow-hidden">
+          <div className="bg-white rounded-sm border border-border-custom shadow-sm overflow-hidden">
             {/* Mobile card view */}
             <div className="block sm:hidden divide-y divide-border-custom">
               {products.map(p => (
                 <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded border border-border-custom overflow-hidden bg-surface flex-shrink-0">
+                  <div className="w-10 h-10 rounded-sm border border-border-custom overflow-hidden bg-surface flex-shrink-0">
                     <img src={p.imageUrl || ''} className="w-full h-full object-cover"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
@@ -142,8 +142,8 @@ export default function ProductManagementPage() {
                     <p className="text-[10px] text-text3 font-medium">{p.category} · <span className="text-brand font-black">₹{p.price}</span></p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-1.5 text-brand hover:bg-brand/10 rounded transition-all"><Edit2 size={14} /></button>
-                    <button onClick={() => p.id && handleDeleteProduct(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-all"><Trash2 size={14} /></button>
+                    <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-1.5 text-brand hover:bg-brand/10 rounded-sm transition-all"><Edit2 size={14} /></button>
+                    <button onClick={() => p.id && handleDeleteProduct(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-sm transition-all"><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))}
@@ -163,7 +163,7 @@ export default function ProductManagementPage() {
                   <tr key={p.id} className="hover:bg-surface/50 transition-colors">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded border border-border-custom overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-sm border border-border-custom overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
                           {p.imageUrl ? (
                             <img src={p.imageUrl} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).replaceWith(document.createTextNode('')) }} />
                           ) : <Package size={16} className="text-text3" />}
@@ -171,12 +171,12 @@ export default function ProductManagementPage() {
                         <p className="text-text font-bold text-sm truncate max-w-[200px]">{p.name}</p>
                       </div>
                     </td>
-                    <td className="px-5 py-3"><span className="px-2 py-0.5 bg-surface rounded text-[10px] font-black text-text3 uppercase">{p.category}</span></td>
+                    <td className="px-5 py-3"><span className="px-2 py-0.5 bg-surface rounded-sm text-[10px] font-black text-text3 uppercase">{p.category}</span></td>
                     <td className="px-5 py-3 text-center font-black text-brand">₹{p.price}</td>
                     <td className="px-5 py-3">
                       <div className="flex justify-center gap-1.5">
-                        <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-1.5 text-brand hover:bg-brand/10 rounded transition-all"><Edit2 size={15} /></button>
-                        <button onClick={() => p.id && handleDeleteProduct(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-all"><Trash2 size={15} /></button>
+                        <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-1.5 text-brand hover:bg-brand/10 rounded-sm transition-all"><Edit2 size={15} /></button>
+                        <button onClick={() => p.id && handleDeleteProduct(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-sm transition-all"><Trash2 size={15} /></button>
                       </div>
                     </td>
                   </tr>
@@ -192,7 +192,7 @@ export default function ProductManagementPage() {
           /* ── Combo Cards ── */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {plans.map(plan => (
-              <div key={plan.id} className="bg-white rounded border border-border-custom shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all">
+              <div key={plan.id} className="bg-white rounded-sm border border-border-custom shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all">
                 {/* Image */}
                 <div className="h-28 bg-surface relative overflow-hidden flex items-center justify-center">
                   {plan.imageUrl ? (
@@ -202,7 +202,7 @@ export default function ProductManagementPage() {
                     <ImageIcon size={28} className="text-text3/40" />
                   )}
                   {plan.badgeText && (
-                    <div className="absolute top-2 right-2 bg-brand text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shadow">
+                    <div className="absolute top-2 right-2 bg-brand text-white px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider shadow">
                       {plan.badgeText.replace('???', '₹')}
                     </div>
                   )}
@@ -225,7 +225,7 @@ export default function ProductManagementPage() {
                   </div>
 
                   {/* Items preview */}
-                  <div className="flex-1 bg-surface/40 rounded border border-border-custom p-2 space-y-1">
+                  <div className="flex-1 bg-surface/40 rounded-sm border border-border-custom p-2 space-y-1">
                     {plan.items?.slice(0, 3).map((item, i) => (
                       <div key={i} className="flex items-center justify-between gap-1">
                         <p className="text-[9px] text-text2 font-bold truncate">{item.description}</p>
@@ -241,7 +241,7 @@ export default function ProductManagementPage() {
                   {plan.tiers && plan.tiers.length > 0 && (
                     <div className="flex gap-1 flex-wrap">
                       {plan.tiers.slice(0, 3).map((t, i) => (
-                        <span key={i} className="text-[8px] bg-brand/10 text-brand font-black px-1.5 py-0.5 rounded">
+                        <span key={i} className="text-[8px] bg-brand/10 text-brand font-black px-1.5 py-0.5 rounded-sm">
                           {t.label || `${t.durationMonths}m`}{t.discountPercent > 0 ? ` -${t.discountPercent}%` : ''}
                         </span>
                       ))}
@@ -251,11 +251,11 @@ export default function ProductManagementPage() {
                   {/* Actions */}
                   <div className="flex gap-2 pt-1">
                     <button onClick={() => { setEditingPlan(plan); setShowComboModal(true); }}
-                      className="flex-1 py-2 bg-brand text-white rounded font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 hover:opacity-90 transition-all shadow-sm">
+                      className="flex-1 py-2 bg-brand text-white rounded-sm font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 hover:opacity-90 transition-all shadow-sm">
                       <Edit2 size={11} /> Edit
                     </button>
                     <button onClick={() => plan.id && handleDeletePlan(plan.id)}
-                      className="px-2.5 py-2 text-red-500 border border-red-100 bg-red-50 hover:bg-red-500 hover:text-white rounded transition-all">
+                      className="px-2.5 py-2 text-red-500 border border-red-100 bg-red-50 hover:bg-red-500 hover:text-white rounded-sm transition-all">
                       <Trash2 size={13} />
                     </button>
                   </div>

@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "STHIRVAA FARMS",
   description: "Pure Quality · Rooted in Trust",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 import { NotificationProvider } from "@/components/NotificationContext";

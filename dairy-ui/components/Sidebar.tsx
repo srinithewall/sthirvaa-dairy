@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, X } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, FileText, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
@@ -22,6 +22,7 @@ const sidebarItems = [
   { group: 'Shop', items: [
     { name: 'Sthirvaa Shop', icon: ShoppingCart, path: '/shop' },
     { name: 'My Orders', icon: ClipboardList, path: '/orders' },
+    { name: 'My Invoices', icon: FileText, path: '/invoices' },
     { name: 'Products Admin', icon: Package2, path: '/admin/products' }
   ]},
   { group: 'Operations', items: [
@@ -81,7 +82,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
       )}
 
       <div className={`
-        fixed md:static inset-y-0 left-0 z-[1001] w-[230px] bg-white border-r border-border-custom2 
+        fixed md:static inset-y-0 left-0 z-[1001] w-[230px] bg-white border-r border-gray-100 
         flex flex-col h-screen overflow-y-auto flex-shrink-0 transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'} 
         md:translate-x-0 md:flex md:shadow-none

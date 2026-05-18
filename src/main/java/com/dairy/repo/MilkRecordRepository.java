@@ -11,4 +11,5 @@ public interface MilkRecordRepository extends JpaRepository<MilkRecord, Long> {
     void deleteByDateAndShift(LocalDate date, String shift);
     List<MilkRecord> findByDateAndShift(LocalDate date, String shift);
     List<MilkRecord> findAllByOrderByDateDesc();
+    List<MilkRecord> findByDateBetween(LocalDate startDate, LocalDate endDate);
 }

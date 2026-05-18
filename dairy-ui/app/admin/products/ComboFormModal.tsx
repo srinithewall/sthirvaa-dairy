@@ -65,8 +65,8 @@ const blankPlan = (): SubscriptionPlan => ({
 });
 
 /* ─── Image Upload Input ───────────────────────────────────── */
-function ImageUploadInput({ value, onChange, label = 'Image URL', showToast }: {
-  value?: string; onChange: (v: string) => void; label?: string; showToast: any;
+function ImageUploadInput({ value, onChange, onUploading, label = 'Image URL', showToast }: {
+  value?: string; onChange: (v: string) => void; onUploading: (v: boolean) => void; label?: string; showToast: any;
 }) {
   const [uploading, setUploading] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -82,6 +82,7 @@ function ImageUploadInput({ value, onChange, label = 'Image URL', showToast }: {
     const formData = new FormData();
     formData.append('file', file);
     setUploading(true);
+    onUploading(true);
     try {
       const res = await api.post('/files/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       if (res.data?.url) {
@@ -91,6 +92,7 @@ function ImageUploadInput({ value, onChange, label = 'Image URL', showToast }: {
       showToast('Failed to upload image.', 'error');
     } finally {
       setUploading(false);
+      onUploading(false);
     }
   };
 
@@ -130,7 +132,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const inputCls = 'w-full px-3 py-2.5 bg-white border border-border-custom rounded text-[13px] font-bold outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all shadow-sm min-w-0';
+const inputCls = 'w-full px-3 py-2.5 bg-white border border-border-custom rounded text-base sm:text-[13px] font-bold outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all shadow-sm min-w-0';
 
 /* ─── Main Modal ───────────────────────────────────────────── */
 interface Props {
@@ -144,6 +146,7 @@ interface Props {
 export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPlans }: Props) {
   const [form, setForm] = useState<SubscriptionPlan>(blankPlan());
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const { showToast } = useNotification();
 
@@ -213,37 +216,36 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[2000] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl my-2 sm:my-0 overflow-hidden flex flex-col border border-border-custom">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white rounded-sm shadow-2xl w-full max-w-3xl max-h-[95vh] overflow-hidden flex flex-col border border-border-custom relative">
 
-        {/* ── Header ── */}
+        {/* ── Header (Fixed) ── */}
         <div className="px-4 sm:px-6 py-4 border-b border-border-custom flex justify-between items-center shrink-0 bg-white">
           <div>
             <p className="text-[9px] font-black uppercase text-text3 tracking-[0.2em] mb-0.5">Subscription Engine</p>
             <h2 className="text-lg sm:text-xl font-black text-brand tracking-tight">{plan ? 'Edit Combo Plan' : 'Create New Combo'}</h2>
           </div>
-          <button onClick={onClose} className="p-2 bg-surface border border-border-custom rounded text-text3 hover:text-text transition-all">
+          <button onClick={onClose} className="p-2 bg-surface border border-border-custom rounded-sm text-text3 hover:text-text transition-all">
             <X size={16} />
           </button>
         </div>
 
-        <form onSubmit={handleSave} className="flex-1 overflow-y-auto">
+        {/* ── Form Content (Scrollable) ── */}
+        <form className="flex-1 overflow-y-auto bg-white">
           <div className="p-4 sm:p-6 space-y-5">
 
             {/* ── Section 1: Basic Info ── */}
-            <div className="bg-surface/50 rounded border border-border-custom p-4 space-y-4">
+            <div className="bg-surface/50 rounded-sm border border-border-custom p-4 space-y-4">
               <p className="text-[9px] font-black uppercase text-text3 tracking-[0.2em]">Basic Info</p>
 
-              {/* Name + Image — stacked on mobile, side by side on sm+ */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Combo Display Name">
                   <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder="e.g. Essential Dairy Pack" required className={inputCls} />
                 </Field>
-                <ImageUploadInput value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} label="Combo Visual" showToast={showToast} />
+                <ImageUploadInput value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} onUploading={setUploading} label="Combo Visual" showToast={showToast} />
               </div>
 
-              {/* Tagline + Badge — stacked on mobile */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Marketing Tagline">
                   <input value={form.tagline || ''} onChange={e => setForm({ ...form, tagline: e.target.value })}
@@ -271,8 +273,7 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                 const mMrp = (item.mrp ?? 0) * (item.qty ?? 0) * (FREQ_DAYS[item.frequency] ?? 1);
                 const mOur = (item.sellingPrice ?? 0) * (item.qty ?? 0) * (FREQ_DAYS[item.frequency] ?? 1);
                 return (
-                  <div key={idx} className="bg-white border border-border-custom rounded overflow-hidden">
-                    {/* Item Header */}
+                  <div key={idx} className="bg-white border border-border-custom rounded-sm overflow-hidden">
                     <div className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface/40 transition-colors"
                       onClick={() => setExpanded(p => ({ ...p, [idx]: !p[idx] }))}>
                       <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -295,17 +296,13 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                       </div>
                     </div>
 
-                    {/* Item Body */}
                     {isExp && (
                       <div className="px-4 pb-4 pt-3 border-t border-border-custom bg-surface/20 space-y-3">
-                        {/* Description full width */}
                         <Field label="Item Description">
                           <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)}
                             placeholder="e.g. A2 Gir Milk" className={inputCls} />
                         </Field>
-
-                        {/* Qty + Unit + Frequency in a row */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                           <Field label="Qty">
                             <input type="number" step="0.1" min="0" value={item.qty}
                               onChange={e => updateItem(idx, 'qty', parseFloat(e.target.value) || 0)} className={inputCls} />
@@ -314,18 +311,18 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                             <input value={item.unit} onChange={e => updateItem(idx, 'unit', e.target.value)}
                               placeholder="Litre" className={inputCls} />
                           </Field>
-                          <Field label="Frequency">
-                            <select value={item.frequency} onChange={e => updateItem(idx, 'frequency', e.target.value)}
-                              className={inputCls}>
-                              <option value="DAILY">Daily</option>
-                              <option value="WEEKLY">Weekly</option>
-                              <option value="MONTHLY">Monthly</option>
-                              <option value="ONE_TIME">One-Time</option>
-                            </select>
-                          </Field>
+                          <div className="col-span-2 sm:col-span-1">
+                            <Field label="Frequency">
+                              <select value={item.frequency} onChange={e => updateItem(idx, 'frequency', e.target.value)}
+                                className={inputCls}>
+                                <option value="DAILY">Daily</option>
+                                <option value="WEEKLY">Weekly</option>
+                                <option value="MONTHLY">Monthly</option>
+                                <option value="ONE_TIME">One-Time</option>
+                              </select>
+                            </Field>
+                          </div>
                         </div>
-
-                        {/* MRP + Selling Price in a row */}
                         <div className="grid grid-cols-2 gap-2">
                           <Field label="Market Price (₹)">
                             <input type="number" min="0" value={item.mrp ?? 0}
@@ -336,10 +333,8 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                               onChange={e => updateItem(idx, 'sellingPrice', parseFloat(e.target.value) || 0)} className={inputCls} />
                           </Field>
                         </div>
-
-                        {/* Per-item monthly summary */}
                         {(mMrp > 0 || mOur > 0) && (
-                          <div className="flex items-center gap-2 bg-white border border-border-custom rounded px-3 py-2.5 flex-wrap">
+                          <div className="flex items-center gap-2 bg-white border border-border-custom rounded-sm px-3 py-2.5 flex-wrap">
                             <div className="flex-1 min-w-0">
                               <p className="text-[8px] font-black text-text3 uppercase">Market / mo</p>
                               <p className="text-[12px] font-bold text-text3 line-through">₹{Math.round(mMrp)}</p>
@@ -349,7 +344,7 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                               <p className="text-[13px] font-black text-brand">₹{Math.round(mOur)}</p>
                             </div>
                             {mMrp > mOur && (
-                              <div className="bg-brand/10 px-2 py-1 rounded flex-shrink-0">
+                              <div className="bg-brand/10 px-2 py-1 rounded-sm flex-shrink-0">
                                 <p className="text-[8px] font-black text-brand uppercase">Saving</p>
                                 <p className="text-[12px] font-black text-brand">₹{Math.round(mMrp - mOur)}</p>
                               </div>
@@ -364,7 +359,7 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
             </div>
 
             {/* ── Section 3: Live Price Summary ── */}
-            <div className="rounded border-2 border-brand/20 bg-brand/5 overflow-hidden">
+            <div className="rounded-sm border-2 border-brand/20 bg-brand/5 overflow-hidden">
               <div className="px-4 py-3 bg-brand/10 border-b border-brand/10 flex items-center gap-2">
                 <TrendingDown size={13} className="text-brand flex-shrink-0" />
                 <p className="text-[9px] font-black uppercase text-brand tracking-wider">Monthly Summary (Auto-Calculated)</p>
@@ -401,9 +396,8 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                 </button>
               </div>
 
-              <div className="bg-white border border-border-custom rounded overflow-hidden">
-                {/* Header */}
-                <div className="grid grid-cols-12 px-3 py-2 bg-surface border-b border-border-custom">
+              <div className="bg-white border border-border-custom rounded-sm overflow-hidden">
+                <div className="grid grid-cols-12 px-3 py-2 bg-surface border-b border-border-custom text-left">
                   <span className="col-span-2 text-[8px] font-black uppercase text-text3">Mo</span>
                   <span className="col-span-4 text-[8px] font-black uppercase text-text3">Label</span>
                   <span className="col-span-3 text-[8px] font-black uppercase text-text3">Disc %</span>
@@ -418,19 +412,19 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                       <div className="col-span-2">
                         <input type="number" min="1" value={tier.durationMonths}
                           onChange={e => updateTier(idx, 'durationMonths', parseInt(e.target.value) || 1)}
-                          className="w-full px-2 py-1.5 border border-border-custom rounded text-[11px] font-black text-center outline-none focus:border-brand" />
+                          className="w-full px-2 py-1.5 border border-border-custom rounded-sm text-[11px] font-black text-center outline-none focus:border-brand" />
                       </div>
                       <div className="col-span-4">
                         <input value={tier.label}
                           onChange={e => updateTier(idx, 'label', e.target.value)}
                           placeholder={`${tier.durationMonths}m`}
-                          className="w-full px-2 py-1.5 border border-border-custom rounded text-[11px] font-bold outline-none focus:border-brand" />
+                          className="w-full px-2 py-1.5 border border-border-custom rounded-sm text-[11px] font-bold outline-none focus:border-brand" />
                       </div>
                       <div className="col-span-3">
                         <div className="relative">
                           <input type="number" min="0" max="100" step="0.5" value={tier.discountPercent}
                             onChange={e => updateTier(idx, 'discountPercent', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1.5 pr-5 border border-border-custom rounded text-[11px] font-black outline-none focus:border-brand" />
+                            className="w-full px-2 py-1.5 pr-5 border border-border-custom rounded-sm text-[11px] font-black outline-none focus:border-brand" />
                           <span className="absolute right-1.5 top-2 text-[9px] text-text3 font-bold">%</span>
                         </div>
                       </div>
@@ -450,21 +444,21 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
             </div>
 
           </div>
-
-          {/* ── Footer ── */}
-          <div className="px-4 sm:px-6 py-4 border-t border-border-custom bg-white flex gap-3 shrink-0">
-            <button type="button" onClick={onClose}
-              className="flex-1 py-3 border-2 border-border-custom rounded font-black text-[11px] uppercase tracking-wider text-text2 hover:bg-surface transition-all">
-              Discard
-            </button>
-            <button type="submit" disabled={saving}
-              className="flex-[2] py-3 bg-brand text-white rounded font-black text-[11px] uppercase tracking-wider shadow-lg shadow-brand/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
-              {saving
-                ? <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" /> Saving…</span>
-                : 'Save & Activate'}
-            </button>
-          </div>
         </form>
+
+        {/* ── Footer (Fixed) ── */}
+        <div className="px-4 sm:px-6 py-4 border-t border-border-custom bg-white flex gap-3 shrink-0">
+          <button type="button" onClick={onClose}
+            className="flex-1 py-3 border-2 border-border-custom rounded-sm font-black text-[11px] uppercase tracking-wider text-text2 hover:bg-surface transition-all">
+            Discard
+          </button>
+          <button type="button" onClick={handleSave} disabled={saving || uploading}
+            className="flex-[2] py-3 bg-brand text-white rounded-sm font-black text-[11px] uppercase tracking-wider shadow-lg shadow-brand/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
+            {saving || uploading
+              ? <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" /> {uploading ? 'Uploading…' : 'Saving…'}</span>
+              : 'Save & Activate'}
+          </button>
+        </div>
       </div>
     </div>
   );

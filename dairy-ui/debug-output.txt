@@ -1,0 +1,45 @@
+=== PORTS ===
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 0.0.0.0:8880            0.0.0.0:*               LISTEN      138673/docker-proxy 
+tcp        0      0 127.0.0.53:53           0.0.0.0:*               LISTEN      1004595/systemd-res 
+tcp        0      0 0.0.0.0:3306            0.0.0.0:*               LISTEN      1033543/docker-prox 
+tcp        0      0 0.0.0.0:5678            0.0.0.0:*               LISTEN      374857/docker-proxy 
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      1/systemd           
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      960788/docker-proxy 
+tcp        0      0 0.0.0.0:3001            0.0.0.0:*               LISTEN      277214/docker-proxy 
+tcp        0      0 0.0.0.0:3000            0.0.0.0:*               LISTEN      1179251/next-server 
+tcp        0      0 0.0.0.0:443             0.0.0.0:*               LISTEN      960805/docker-proxy 
+tcp        0      0 0.0.0.0:3002            0.0.0.0:*               LISTEN      416167/docker-proxy 
+tcp        0      0 0.0.0.0:8081            0.0.0.0:*               LISTEN      69255/docker-proxy  
+tcp        0      0 127.0.0.54:53           0.0.0.0:*               LISTEN      1004595/systemd-res 
+tcp6       0      0 :::8880                 :::*                    LISTEN      138680/docker-proxy 
+tcp6       0      0 :::3306                 :::*                    LISTEN      1033547/docker-prox 
+tcp6       0      0 :::5678                 :::*                    LISTEN      374862/docker-proxy 
+tcp6       0      0 :::22                   :::*                    LISTEN      1/systemd           
+tcp6       0      0 :::80                   :::*                    LISTEN      960793/docker-proxy 
+tcp6       0      0 :::3001                 :::*                    LISTEN      277218/docker-proxy 
+tcp6       0      0 :::443                  :::*                    LISTEN      960809/docker-proxy 
+tcp6       0      0 :::3002                 :::*                    LISTEN      416172/docker-proxy 
+tcp6       0      0 :::8081                 :::*                    LISTEN      69259/docker-proxy  
+tcp6       0      0 :::8080                 :::*                    LISTEN      1048498/java        
+udp        0      0 127.0.0.1:323           0.0.0.0:*                           890132/chronyd      
+udp        0      0 127.0.0.54:53           0.0.0.0:*                           1004595/systemd-res 
+udp        0      0 127.0.0.53:53           0.0.0.0:*                           1004595/systemd-res 
+udp        0      0 172.31.4.81:68          0.0.0.0:*                           1004608/systemd-net 
+udp6       0      0 ::1:323                 :::*                                890132/chronyd      
+=== NGINX ===
+=== DOCKER LOGS ===
+   ▲ Next.js 15.1.5
+   - Local:        http://localhost:3000
+   - Network:      http://0.0.0.0:3000
+
+ ✓ Starting...
+ ✓ Ready in 88ms
+=== PROCESSES ===
+root      277185  277161  0 Mar19 ?        00:00:54 node server.js
+ubuntu    374874  374779  0 Mar27 ?        00:54:50 node /usr/local/bin/n8n
+ubuntu    374905  374874  0 Mar27 ?        00:44:15 node --disallow-code-generation-from-strings --disable-proto=delete /usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+task-runner@file+packages+@n8n+task-runner_@opentelemetry+api@1.9.0_@opentelemetry_abc4e288c7f66f0b9b114d073d3c169d/node_modules/@n8n/task-runner/dist/start.js
+root      416127  416104  0 Mar30 ?        00:00:09 node scraper-server.js
+ubuntu   1179875 1179874  0 17:53 ?        00:00:00 bash -c    echo '=== PORTS ==='   sudo netstat -tulpn || netstat -tulpn || ss -tulpn   echo '=== NGINX ==='   sudo cat /etc/nginx/sites-enabled/* || cat /etc/nginx/sites-enabled/*   echo '=== DOCKER LOGS ==='   docker logs dairy-ui --tail=50   echo '=== PROCESSES ==='   ps -ef | grep node 
+ubuntu   1179888 1179875  0 17:53 ?        00:00:00 grep node

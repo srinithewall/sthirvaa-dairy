@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { Plus, X, ChevronDown, ChevronRight, Info, Table as TableIcon, LayoutGrid, Calendar, Activity, Camera } from 'lucide-react';
+import { Plus, X, ChevronDown, ChevronRight, Info, Table as TableIcon, LayoutGrid, Calendar, Activity, Trash2, Edit2 } from 'lucide-react';
 import RegisterAnimalModal from '@/components/RegisterAnimalModal';
+import { useNotification } from '@/components/NotificationContext';
 
 interface Herd {
   id: number;
@@ -30,7 +31,24 @@ export default function HerdsPage() {
   const [selectedHerd, setSelectedHerd] = useState<Herd | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({ 'COW': true });
+  const [userRole, setUserRole] = useState<string>('');
+  const { showToast, confirm } = useNotification();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          setUserRole(u.role || '');
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchHerds();
@@ -46,6 +64,20 @@ export default function HerdsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteHerd = (id: number) => {
+    confirm("Are you sure you want to permanently delete this animal record?", async () => {
+      try {
+        await api.delete(`/herds/${id}`);
+        showToast('Animal record deleted successfully!');
+        setShowModal(false);
+        fetchHerds();
+      } catch (err: any) {
+        console.error(err);
+        showToast(err.response?.data?.message || 'Failed to delete animal record.', 'error');
+      }
+    }, 'danger');
   };
 
   const toggleExpand = (type: string) => {
@@ -278,13 +310,35 @@ export default function HerdsPage() {
                 </div>
               </div>
 
-              <div className="mt-6 sm:mt-8">
+              <div className="mt-6 sm:mt-8 space-y-3">
                 <button 
                   onClick={() => setShowModal(false)}
-                  className="w-full bg-brand-dark text-white py-3 sm:py-4 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl text-[10px] sm:text-[11px] active:scale-[0.98]"
+                  className="w-full bg-brand-dark text-white py-3 sm:py-3.5 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl text-[10px] sm:text-[11px] active:scale-[0.98]"
                 >
                   Close Animal Record
                 </button>
+
+                {userRole === 'ADMIN' && (
+                  <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-bottom-2 duration-300">
+                    <button 
+                      onClick={() => {
+                        setShowModal(false);
+                        setShowEditModal(true);
+                      }}
+                      className="bg-brand/10 text-brand border border-brand/20 py-3 rounded-2xl font-black uppercase tracking-[0.15em] hover:bg-brand/20 transition-all text-[10px] sm:text-[11px] active:scale-[0.98] flex items-center justify-center gap-1.5"
+                    >
+                      <Edit2 size={13} />
+                      Edit Animal
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteHerd(selectedHerd.id)}
+                      className="bg-danger/10 text-danger border border-danger/20 py-3 rounded-2xl font-black uppercase tracking-[0.15em] hover:bg-danger/20 transition-all text-[10px] sm:text-[11px] active:scale-[0.98] flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 size={13} />
+                      Delete Record
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -294,6 +348,16 @@ export default function HerdsPage() {
         <RegisterAnimalModal 
           onClose={() => setShowRegisterModal(false)} 
           onSuccess={fetchHerds} 
+        />
+      )}
+      {showEditModal && selectedHerd && (
+        <RegisterAnimalModal 
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedHerd(null);
+          }}
+          onSuccess={fetchHerds}
+          herdToEdit={selectedHerd}
         />
       )}
     </AppLayout>

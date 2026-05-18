@@ -21,6 +21,22 @@ interface FormData {
   imageUrl: string;
 }
 
+interface Herd {
+  id: number;
+  tagNumber: string;
+  animalType: string;
+  animalName: string;
+  breed: string;
+  milkType: string;
+  healthStatus: string;
+  source: string;
+  birthDate: string;
+  procuredDate: string;
+  age: string;
+  animalStatus: string;
+  imageUrl?: string;
+}
+
 // ─── Reusable styled select dropdown ────────
 function CustomSelect({
   label,
@@ -119,31 +135,45 @@ const INPUT_CLS =
 export default function RegisterAnimalModal({
   onClose,
   onSuccess,
+  herdToEdit,
 }: {
   onClose: () => void;
   onSuccess: () => void;
+  herdToEdit?: Herd;
 }) {
   const [registering, setRegistering] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [ageYears, setAgeYears] = useState('');
-  const [ageMonths, setAgeMonths] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(herdToEdit?.imageUrl || null);
   const { showToast } = useNotification();
 
   const [formData, setFormData] = useState<FormData>({
-    tagNumber: '',
-    animalType: 'COW',
-    animalName: '',
-    breed: '',
-    milkType: 'A2',
-    healthStatus: 'HEALTHY',
-    source: '',
-    birthDate: '',
-    procuredDate: '',
-    age: '',
-    animalStatus: 'HEIFER',
-    imageUrl: '',
+    tagNumber: herdToEdit?.tagNumber || '',
+    animalType: herdToEdit?.animalType || 'COW',
+    animalName: herdToEdit?.animalName || '',
+    breed: herdToEdit?.breed || '',
+    milkType: herdToEdit?.milkType || 'A2',
+    healthStatus: herdToEdit?.healthStatus || 'HEALTHY',
+    source: herdToEdit?.source || '',
+    birthDate: herdToEdit?.birthDate || '',
+    procuredDate: herdToEdit?.procuredDate || '',
+    age: herdToEdit?.age || '',
+    animalStatus: herdToEdit?.animalStatus || 'HEIFER',
+    imageUrl: herdToEdit?.imageUrl || '',
+  });
+
+  const [ageYears, setAgeYears] = useState(() => {
+    if (herdToEdit?.age) {
+      const match = herdToEdit.age.match(/(\d+)y/);
+      return match ? match[1] : '';
+    }
+    return '';
+  });
+  const [ageMonths, setAgeMonths] = useState(() => {
+    if (herdToEdit?.age) {
+      const match = herdToEdit.age.match(/(\d+)m/);
+      return match ? match[1] : '';
+    }
+    return '';
   });
 
   const set = (key: keyof FormData, value: string) =>
@@ -185,28 +215,31 @@ export default function RegisterAnimalModal({
           ? `${ageYears || '0'}y ${ageMonths || '0'}m`
           : formData.age;
 
-      await api.post('/herds', {
+      const payload = {
         ...formData,
-        age: computedAge,
         age: computedAge,
         birthDate: formData.birthDate || null,
         procuredDate: formData.procuredDate || null,
-      });
+      };
+
+      if (herdToEdit) {
+        await api.put(`/herds/${herdToEdit.id}`, payload);
+        showToast('Animal record updated successfully!');
+      } else {
+        await api.post('/herds', payload);
+        showToast('New animal registered successfully!');
+      }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      
-      // Handle the generic 500 error gracefully and explicitly address the likely duplicate tag situation
       const errorMsg = err.response?.data?.message || err.message;
-      showToast(`Registration failed. Backend Error: ${errorMsg}. Most likely cause: The Tag Number you entered might already exist.`, 'error');
+      showToast(`Operation failed: ${errorMsg}`, 'error');
     } finally {
       setRegistering(false);
     }
   };
-
-  const busy = registering || uploadingImage;
 
   return (
     /* ── Overlay ── */
@@ -214,9 +247,9 @@ export default function RegisterAnimalModal({
       className="fixed inset-0 z-[3000] flex items-center justify-center p-4"
       style={{ background: 'rgba(10,27,20,0.55)', backdropFilter: 'blur(6px)' }}
     >
-      {/* ── Modal card: flex-col with fixed height so header stays sticky ── */}
+      {/* ── Modal card ── */}
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl w-full flex flex-col animate-in fade-in zoom-in duration-200"
         style={{ maxWidth: 520, maxHeight: '92vh' }}
       >
         {/* ── Sticky gradient header ── */}
@@ -226,10 +259,10 @@ export default function RegisterAnimalModal({
         >
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight leading-tight">
-              Register new animal
+              {herdToEdit ? 'Edit animal record' : 'Register new animal'}
             </h2>
             <p className="text-xs text-white/70 mt-0.5 italic">
-              Add to Sthirvaa inventory
+              {herdToEdit ? `Updating tag ${herdToEdit.tagNumber}` : 'Add to Sthirvaa inventory'}
             </p>
           </div>
           <button
@@ -400,7 +433,7 @@ export default function RegisterAnimalModal({
               ]}
             />
 
-            {/* Animal Status — full width, custom picker */}
+            {/* Animal Status */}
             <div className="col-span-2">
               <label className="text-[11px] font-bold text-text3 uppercase mb-2 block tracking-wider">
                 Animal Status
@@ -442,7 +475,7 @@ export default function RegisterAnimalModal({
                   : 'linear-gradient(135deg,#2d6a4f 0%,#1b4332 100%)',
               }}
             >
-              {registering ? 'Processing Data…' : uploadingImage ? 'Finishing Upload…' : 'Register Animal'}
+              {registering ? 'Processing Data…' : uploadingImage ? 'Finishing Upload…' : herdToEdit ? 'Save Changes' : 'Register Animal'}
             </button>
           </div>
         </form>

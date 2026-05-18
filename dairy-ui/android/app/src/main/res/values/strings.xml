@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sthirvaa Farms</string>
+    <string name="title_activity_main">Sthirvaa Farms</string>
+    <string name="package_name">com.sthirvaa.dairy</string>
+    <string name="custom_url_scheme">com.sthirvaa.dairy</string>
+</resources>

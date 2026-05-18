@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelogData: ChangelogEntry[] = [
   {
+    version: 'v1.2.2',
+    date: 'May 18, 2026',
+    commit: 'Direct DB Seed',
+    status: 'Verified & Ready for Login Testing',
+    changes: [
+      'Completed Staff User Mappings: Provisioned mapped user login accounts for all active staff members in the users database table (staff_id linked securely).',
+      'Credentials Created: Seeded accounts for Srinivas Babu (srinivas), Bhavya G (bhavya), Saraswathi Muthuvelu (saraswathi), and Gopal Reddy (gopal reddy).',
+      'Testing Security Passwords: Set easy plain-text test credentials (pass123) using the current NoOpPasswordEncoder schema for frictionless validation.'
+    ]
+  },
+  {
     version: 'v1.2.1',
     date: 'May 18, 2026',
     commit: 'Direct DB Update',

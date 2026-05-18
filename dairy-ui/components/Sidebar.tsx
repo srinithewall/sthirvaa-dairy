@@ -219,7 +219,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
           className="flex items-center gap-2 text-text3 hover:text-brand transition-colors text-xs font-semibold w-full border border-gray-100 rounded-lg p-2 bg-surface hover:bg-[#E8F5EE]/40"
         >
           <Info size={14} className="text-brand" />
-          <span>Version v1.2.1</span>
+          <span>Version v1.2.2</span>
         </button>
 
         <button 

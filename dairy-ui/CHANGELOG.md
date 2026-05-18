@@ -4,6 +4,18 @@ This changelog serves as the single source of truth for all versioned releases, 
 
 ---
 
+## 🔑 [v1.2.2] — Staff User Credential Provisioning & Seeding
+> **Release Date:** May 18, 2026  
+> **Target Commit:** Direct Database Provisioning (Live Update)  
+> **Module Status:** Verified & Ready for Login Testing
+
+### 🔑 Provisioned & Seeding
+- **Completed Staff User Mappings:** Provisioned mapped user login accounts for all active staff members in the `users` database table (`staff_id` linked securely).
+- **Credentials Created:** Seeded accounts for Srinivas Babu (`srinivas`), Bhavya G (`bhavya`), Saraswathi Muthuvelu (`saraswathi`), and Gopal Reddy (`gopal reddy`).
+- **Testing Security Passwords:** Set easy plain-text test credentials (`pass123`) using the current NoOpPasswordEncoder schema for frictionless validation.
+
+---
+
 ## ⚡ [v1.2.1] — Database Index Optimization & Speed Polish
 > **Release Date:** May 18, 2026  
 > **Target Commit:** Direct Database Optimization (Live Update)  

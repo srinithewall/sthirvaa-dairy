@@ -1,0 +1,50 @@
+name: Debug AWS Server
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/debug-server.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: SSH and Debug
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 43.204.221.192
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "=== LISTENING PORTS ===" > ~/debug-output.txt
+            sudo netstat -tulpn >> ~/debug-output.txt || netstat -tulpn >> ~/debug-output.txt || ss -tulpn >> ~/debug-output.txt
+            echo "=== NGINX CONFIG ===" >> ~/debug-output.txt
+            sudo cat /etc/nginx/sites-enabled/* >> ~/debug-output.txt || cat /etc/nginx/sites-enabled/* >> ~/debug-output.txt
+            echo "=== DOCKER LOGS ===" >> ~/debug-output.txt
+            docker logs dairy-ui --tail=50 >> ~/debug-output.txt
+            echo "=== LOCAL SYSTEMD OR SERVICE ===" >> ~/debug-output.txt
+            ps -ef | grep node >> ~/debug-output.txt
+
+      - name: Download Debug Output from Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 43.204.221.192
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "debug-output.txt"
+          target: "."
+
+      - name: Commit and Push Debug File
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mv debug-output.txt dairy-ui/debug-output.txt
+          git add dairy-ui/debug-output.txt
+          git commit -m "ci: Update AWS debug logs [skip ci]" || echo "No changes"
+          git push

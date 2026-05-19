@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const changelogData: ChangelogEntry[] = [
   {
+    version: 'v1.3.0',
+    date: 'May 19, 2026',
+    commit: 'a8db4a3',
+    status: 'Deploys Restored & Mobile Optimizations',
+    changes: [
+      'Resolved Production 1003 Login Error: Fixed Next.js rewrite destination to route proxy queries securely to api-origin.sthirvaa.com over HTTPS instead of localhost.',
+      'Cloudflare Pages Auto-Builds: Restored automatic builds by removing output standalone config and exporting edge runtime for dynamic routes.',
+      'Mobile Input UX Fixes: Disabled auto-capitalization/correction on the login username/email fields to prevent bad credentials on Android and iOS.',
+      'Mobile Layout Overflow Fixes: Added vertical scrolling to the herd details card and implemented a stacked single-column layout for the register/edit form on small screens.',
+      'MySQL Herd Cascade Deletion: Added back-end logic to automatically clean up dependent milk records before deleting an animal tag, resolving DB constraint errors.'
+    ]
+  },
+  {
     version: 'v1.2.2',
     date: 'May 18, 2026',
     commit: 'Direct DB Seed',

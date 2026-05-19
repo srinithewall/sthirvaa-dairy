@@ -1,0 +1,122 @@
+[
+  {
+    "version": "v1.3.127",
+    "date": "2026-05-19",
+    "commit": "f4925c4",
+    "changes": [
+      "feat(ui): update changelog with v1.3.0 containing recent production & mobile fixes and dynamically display version in sidebar"
+    ]
+  },
+  {
+    "version": "v1.3.126",
+    "date": "2026-05-19",
+    "commit": "a8db4a3",
+    "changes": [
+      "fix(mobile): resolve layout overflow issues in animal detail modal and register/edit animal modal on mobile devices"
+    ]
+  },
+  {
+    "version": "v1.3.125",
+    "date": "2026-05-19",
+    "commit": "2cb82e4",
+    "changes": [
+      "fix(mobile): Disable keyboard auto-capitalization and auto-correction on login fields"
+    ]
+  },
+  {
+    "version": "v1.3.124",
+    "date": "2026-05-19",
+    "commit": "c7b7f8e",
+    "changes": [
+      "fix(backend): Add cascade delete logic for milk records when deleting a herd"
+    ]
+  },
+  {
+    "version": "v1.3.123",
+    "date": "2026-05-19",
+    "commit": "0a9693a",
+    "changes": [
+      "style: Update login username placeholder to a clean professional string"
+    ]
+  },
+  {
+    "version": "v1.3.122",
+    "date": "2026-05-19",
+    "commit": "b7c8b17",
+    "changes": [
+      "fix(prod): Update Next.js rewrite destination to api-origin.sthirvaa.com to fix 1003 error on Cloudflare Pages"
+    ]
+  },
+  {
+    "version": "v1.3.121",
+    "date": "2026-05-19",
+    "commit": "1d76469",
+    "changes": [
+      "fix(prod): Export edge runtime config for dynamic dynamic invoices route to fix Cloudflare Pages build"
+    ]
+  },
+  {
+    "version": "v1.3.120",
+    "date": "2026-05-18",
+    "commit": "294b06a",
+    "changes": [
+      "fix(prod): Remove output standalone from next.config.ts to restore Cloudflare Pages automatic builds"
+    ]
+  },
+  {
+    "version": "v1.3.119",
+    "date": "2026-05-18",
+    "commit": "a8f7d6b",
+    "changes": [
+      "ci: Dump Nginx container config and compose files [skip ci]"
+    ]
+  },
+  {
+    "version": "v1.3.118",
+    "date": "2026-05-18",
+    "commit": "f5812ea",
+    "changes": [
+      "ci: Dump Nginx container config and compose files"
+    ]
+  },
+  {
+    "version": "v1.3.117",
+    "date": "2026-05-18",
+    "commit": "c8467cb",
+    "changes": [
+      "ci: Deep inspect AWS Nginx Docker config [skip ci]"
+    ]
+  },
+  {
+    "version": "v1.3.116",
+    "date": "2026-05-18",
+    "commit": "cfd6df6",
+    "changes": [
+      "ci: Upgrade server debug to deep inspect running Nginx Docker containers"
+    ]
+  },
+  {
+    "version": "v1.3.115",
+    "date": "2026-05-18",
+    "commit": "84f3892",
+    "changes": [
+      "ci: Update AWS debug logs [skip ci]"
+    ]
+  },
+  {
+    "version": "v1.3.114",
+    "date": "2026-05-18",
+    "commit": "9366f0c",
+    "changes": [
+      "ci: Implement native SSH diagnostics streaming"
+    ]
+  },
+  {
+    "version": "v1.3.113",
+    "date": "2026-05-18",
+    "commit": "03c2e25",
+    "changes": [
+      "ci: Debug AWS ports, Nginx config and Docker logs"
+    ]
+  }
+]

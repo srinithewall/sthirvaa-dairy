@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Camera, ChevronDown } from 'lucide-react';
-import api from '@/lib/api';
+import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -146,11 +146,7 @@ export default function RegisterAnimalModal({
   const [imagePreview, setImagePreview] = useState<string | null>(herdToEdit?.imageUrl || null);
   const { showToast } = useNotification();
 
-  const formatImageUrl = (url?: string | null) => {
-    if (!url) return '';
-    if (url.startsWith('http') || url.startsWith('data:')) return url;
-    return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
-  };
+
 
   const [formData, setFormData] = useState<FormData>({
     tagNumber: herdToEdit?.tagNumber || '',

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
-import api from '@/lib/api';
+import api, { formatImageUrl } from '@/lib/api';
 import { Plus, X, ChevronDown, ChevronRight, Info, Table as TableIcon, LayoutGrid, Calendar, Activity, Trash2, Edit2 } from 'lucide-react';
 import RegisterAnimalModal from '@/components/RegisterAnimalModal';
 import { useNotification } from '@/components/NotificationContext';
@@ -151,11 +151,7 @@ export default function HerdsPage() {
     );
   };
 
-  const formatImageUrl = (url?: string) => {
-    if (!url) return '';
-    if (url.startsWith('http') || url.startsWith('data:')) return url;
-    return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
-  };
+
 
   return (
     <AppLayout>

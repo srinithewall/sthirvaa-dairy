@@ -2,17 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
-import api from '@/lib/api';
+import api, { formatImageUrl } from '@/lib/api';
 import { Plus, Edit2, Trash2, Loader2, RefreshCw, ImageIcon, Package } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import ProductFormModal, { Product } from './ProductFormModal';
 import ComboFormModal, { SubscriptionPlan } from './ComboFormModal';
 
-const formatImageUrl = (url?: string | null) => {
-  if (!url) return '';
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
-  return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
-};
+
 
 export default function ProductManagementPage() {
   const [activeTab, setActiveTab] = useState<'products' | 'combos'>('products');

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, ChevronDown, ChevronUp, Loader2, TrendingDown, PercentIcon, ImageIcon } from 'lucide-react';
-import api from '@/lib/api';
+import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -73,11 +73,7 @@ function ImageUploadInput({ value, onChange, onUploading, label = 'Image URL', s
 
   useEffect(() => { setImgError(false); }, [value]);
 
-  const formatImageUrl = (url?: string | null) => {
-    if (!url) return '';
-    if (url.startsWith('http') || url.startsWith('data:')) return url;
-    return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
-  };
+
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

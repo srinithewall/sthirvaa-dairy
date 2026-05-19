@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.3.135",
+    "date": "2026-05-19",
+    "commit": "c25ed3b",
+    "changes": [
+      "fix(ui): point API_BASE_URL back to api-origin.sthirvaa.com for production stability"
+    ]
+  },
+  {
     "version": "v1.3.134",
     "date": "2026-05-19",
     "commit": "bcfa6fe",
@@ -109,14 +117,6 @@
     "commit": "1d76469",
     "changes": [
       "fix(prod): Export edge runtime config for dynamic dynamic invoices route to fix Cloudflare Pages build"
-    ]
-  },
-  {
-    "version": "v1.3.120",
-    "date": "2026-05-18",
-    "commit": "294b06a",
-    "changes": [
-      "fix(prod): Remove output standalone from next.config.ts to restore Cloudflare Pages automatic builds"
     ]
   }
 ]

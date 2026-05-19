@@ -1,16 +1,12 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import api from '@/lib/api';
+import api, { formatImageUrl } from '@/lib/api';
 import { Plus, Minus, ShoppingCart, Search, X, Loader2, ChevronRight, Star, Clock, CheckCircle2, ShieldCheck, MapPin, Leaf, User } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import AppLayout from '@/components/AppLayout';
 
-const formatImageUrl = (url?: string | null) => {
-  if (!url) return '';
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
-  return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
-};
+
 
 /* ─── Types ─── */
 interface Product {

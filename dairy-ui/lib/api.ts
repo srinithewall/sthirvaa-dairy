@@ -32,4 +32,17 @@ api.interceptors.response.use(
   }
 );
 
+export const formatImageUrl = (url?: string | null) => {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  let cleanUrl = url;
+  if (cleanUrl.startsWith('./')) {
+    cleanUrl = cleanUrl.substring(1);
+  }
+  if (!cleanUrl.startsWith('/')) {
+    cleanUrl = '/' + cleanUrl;
+  }
+  return cleanUrl;
+};
+
 export default api;

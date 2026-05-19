@@ -27,6 +27,22 @@ export default {
             }
         }
 
+        // Intercept requests for images and proxy them to the AWS backend
+        if (url.pathname.startsWith('/images/')) {
+            const targetUrl = `http://43.204.221.192${url.pathname}${url.search}`;
+            const modifiedRequest = new Request(targetUrl, {
+                method: request.method,
+                headers: request.headers,
+            });
+            modifiedRequest.headers.set('Host', '43.204.221.192');
+
+            try {
+                return await fetch(modifiedRequest);
+            } catch (err) {
+                return new Response(`Proxy Error: ${err.message}`, { status: 502 });
+            }
+        }
+
         // Otherwise, fall back to the static site content
         return env.ASSETS.fetch(request);
     }

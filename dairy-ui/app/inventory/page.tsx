@@ -111,7 +111,11 @@ export default function InventoryPage() {
   const filteredAssets = assets.filter(asset => 
     asset.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     asset.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ).sort((a, b) => {
+    const dateA = a.purchaseDate || '';
+    const dateB = b.purchaseDate || '';
+    return dateB.localeCompare(dateA);
+  });
 
   return (
     <AppLayout>
@@ -329,6 +333,7 @@ export default function InventoryPage() {
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Asset Name</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Category</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Status</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Purchase Date</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Value</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Location</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-right">Action</th>
@@ -336,22 +341,14 @@ export default function InventoryPage() {
                   </thead>
                   <tbody>
                     {loading ? (
-                       <tr><td colSpan={6} className="p-8 text-center text-text3">Loading assets...</td></tr>
+                       <tr><td colSpan={7} className="p-8 text-center text-text3">Loading assets...</td></tr>
                     ) : filteredAssets.length === 0 ? (
-                      <tr><td colSpan={6} className="p-8 text-center text-text3 italic">No assets found.</td></tr>
+                       <tr><td colSpan={7} className="p-8 text-center text-text3 italic">No assets found.</td></tr>
                     ) : filteredAssets.map((asset) => (
                       <tr key={asset.id} className="hover:bg-surface2 transition-colors border-b border-border-custom last:border-0">
                         <td className="p-4">
                           <div className="font-bold text-text">{asset.name}</div>
-                          <div className="flex items-center gap-2 text-[11px] text-text3 font-mono">
-                            <span>{asset.serialNumber || 'No Serial'}</span>
-                            {asset.purchaseDate && (
-                              <>
-                                <span>•</span>
-                                <span>Purchased: {formatDate(asset.purchaseDate)}</span>
-                              </>
-                            )}
-                          </div>
+                          <div className="text-[11px] text-text3 font-mono">{asset.serialNumber || 'No Serial'}</div>
                         </td>
                         <td className="p-4">
                           <span className="bg-surface2 px-2 py-1 rounded text-text2 border border-border-custom font-semibold">
@@ -365,6 +362,9 @@ export default function InventoryPage() {
                           }`}>
                             {asset.status}
                           </span>
+                        </td>
+                        <td className="p-4 text-center text-text2 font-medium">
+                          {formatDate(asset.purchaseDate) || 'N/A'}
                         </td>
                         <td className="p-4 text-center font-bold text-brand">₹{asset.value.toLocaleString()}</td>
                         <td className="p-4 text-center text-text2">{asset.location || 'N/A'}</td>

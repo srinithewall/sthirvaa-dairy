@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.3.129",
+    "date": "2026-05-19",
+    "commit": "469e36f",
+    "changes": [
+      "feat(inventory): show purchase date in asset cards and add predefined Halasahalli location option"
+    ]
+  },
+  {
     "version": "v1.3.128",
     "date": "2026-05-19",
     "commit": "f8890fc",
@@ -109,14 +117,6 @@
     "commit": "84f3892",
     "changes": [
       "ci: Update AWS debug logs [skip ci]"
-    ]
-  },
-  {
-    "version": "v1.3.114",
-    "date": "2026-05-18",
-    "commit": "9366f0c",
-    "changes": [
-      "ci: Implement native SSH diagnostics streaming"
     ]
   }
 ]

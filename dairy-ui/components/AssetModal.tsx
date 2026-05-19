@@ -36,12 +36,22 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
     location: '',
   });
 
+  const [customLocation, setCustomLocation] = useState('');
+  const [isCustomLocation, setIsCustomLocation] = useState(false);
+
   useEffect(() => {
     if (asset) {
       setFormData({
         ...asset,
         purchaseDate: asset.purchaseDate ? asset.purchaseDate.split('T')[0] : new Date().toISOString().split('T')[0]
       });
+      if (asset.location && asset.location !== 'Halasahalli' && asset.location !== 'JP Nagar') {
+        setIsCustomLocation(true);
+        setCustomLocation(asset.location);
+      } else {
+        setIsCustomLocation(false);
+        setCustomLocation('');
+      }
     } else {
       setFormData({
         name: '',
@@ -52,6 +62,8 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
         serialNumber: '',
         location: '',
       });
+      setIsCustomLocation(false);
+      setCustomLocation('');
     }
   }, [asset, isOpen]);
 
@@ -159,18 +171,39 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
           </div>
           <div>
             <label className="block text-xs font-bold text-text3 uppercase mb-1">Location</label>
-            <input
-              type="text"
-              list="location-options"
-              className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="Select or enter location"
-            />
-            <datalist id="location-options">
-              <option value="Halasahalli" />
-              <option value="JpNagar" />
-            </datalist>
+            <select
+              className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand mb-2"
+              value={isCustomLocation ? 'OTHER' : (formData.location || '')}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'OTHER') {
+                  setIsCustomLocation(true);
+                  setFormData({ ...formData, location: customLocation });
+                } else {
+                  setIsCustomLocation(false);
+                  setFormData({ ...formData, location: val });
+                }
+              }}
+            >
+              <option value="">Select Location</option>
+              <option value="Halasahalli">Halasahalli</option>
+              <option value="JP Nagar">JP Nagar</option>
+              <option value="OTHER">Other / Custom Location</option>
+            </select>
+
+            {isCustomLocation && (
+              <input
+                type="text"
+                required
+                placeholder="Enter custom location"
+                className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand animate-in slide-in-from-top-1 duration-200"
+                value={customLocation}
+                onChange={(e) => {
+                  setCustomLocation(e.target.value);
+                  setFormData({ ...formData, location: e.target.value });
+                }}
+              />
+            )}
           </div>
           <div className="pt-4 flex gap-3 sticky bottom-0 bg-white">
             <button

@@ -151,6 +151,12 @@ export default function HerdsPage() {
     );
   };
 
+  const formatImageUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   return (
     <AppLayout>
       <div className="flex items-start justify-between mb-6 gap-3 flex-wrap">
@@ -226,7 +232,7 @@ export default function HerdsPage() {
             {/* Left Column: Image Section */}
             <div className="relative w-full md:w-[45%] h-48 sm:h-64 md:h-auto bg-surface2 overflow-hidden border-b md:border-b-0 md:border-r border-black/5 flex-shrink-0">
                 {selectedHerd.imageUrl ? (
-                  <img src={selectedHerd.imageUrl} alt={selectedHerd.animalName} className="w-full h-full object-cover" />
+                  <img src={formatImageUrl(selectedHerd.imageUrl)} alt={selectedHerd.animalName} className="w-full h-full object-cover" />
                 ) : (
                   <div className={`w-full h-full flex items-center justify-center ${getAnimalColor(selectedHerd)}`}>
                     <Activity size={60} className="text-white/20" />

@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: 'https://api-origin.sthirvaa.com/api/:path*',
       },
+      {
+        source: '/images/:path*',
+        destination: 'https://api-origin.sthirvaa.com/images/:path*',
+      },
     ];
   },
 };

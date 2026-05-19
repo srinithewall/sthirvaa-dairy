@@ -73,6 +73,12 @@ function ImageUploadInput({ value, onChange, onUploading, label = 'Image URL', s
 
   useEffect(() => { setImgError(false); }, [value]);
 
+  const formatImageUrl = (url?: string | null) => {
+    if (!url) return '';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -103,7 +109,7 @@ function ImageUploadInput({ value, onChange, onUploading, label = 'Image URL', s
         {/* Image preview */}
         <div className="w-12 h-12 rounded border border-border-custom overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
           {value && !imgError ? (
-            <img src={value} alt="Preview" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            <img src={formatImageUrl(value)} alt="Preview" className="w-full h-full object-cover" onError={() => setImgError(true)} />
           ) : (
             <ImageIcon size={20} className="text-text3" />
           )}

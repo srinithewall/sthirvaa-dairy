@@ -146,6 +146,12 @@ export default function RegisterAnimalModal({
   const [imagePreview, setImagePreview] = useState<string | null>(herdToEdit?.imageUrl || null);
   const { showToast } = useNotification();
 
+  const formatImageUrl = (url?: string | null) => {
+    if (!url) return '';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   const [formData, setFormData] = useState<FormData>({
     tagNumber: herdToEdit?.tagNumber || '',
     animalType: herdToEdit?.animalType || 'COW',
@@ -353,7 +359,7 @@ export default function RegisterAnimalModal({
                 ) : imagePreview ? (
                   <>
                     <img
-                      src={imagePreview}
+                      src={formatImageUrl(imagePreview)}
                       className="w-10 h-10 rounded-lg object-cover shadow-sm"
                       alt="preview"
                     />

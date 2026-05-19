@@ -6,6 +6,12 @@ import { Plus, Minus, ShoppingCart, Search, X, Loader2, ChevronRight, Star, Cloc
 import { useNotification } from '@/components/NotificationContext';
 import AppLayout from '@/components/AppLayout';
 
+const formatImageUrl = (url?: string | null) => {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 /* ─── Types ─── */
 interface Product {
   id: number; name: string; category: string; subcategory: string;
@@ -127,7 +133,7 @@ function SubscriptionCard({ plan, onSubscribe }: { plan: SubscriptionPlan; onSub
     <div className="bg-white rounded-2xl border border-gray-100 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden group">
       {/* Image */}
       <div className="relative h-36 overflow-hidden bg-[#F0F4F1]">
-        <img src={plan.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600'} alt={plan.name}
+        <img src={formatImageUrl(plan.imageUrl) || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600'} alt={plan.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         {badge && (
@@ -218,7 +224,7 @@ function ProductCard({ product, isInCart, cartQuantity, onAddToCart, onRemoveFro
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col group">
       <div className="relative overflow-hidden bg-[#F8F9FA] aspect-[4/3] h-28">
-        <img src={product.imageUrl || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img src={formatImageUrl(product.imageUrl) || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         {discount > 0 && (
           <div className="absolute top-1.5 left-1.5 bg-red-500 text-white px-1.5 py-0.5 rounded text-[9px] font-black shadow-sm">{discount}% OFF</div>
         )}
@@ -467,7 +473,7 @@ export default function ConsumerShopPage() {
                 </div>
               ) : cart.map(item => (
                 <div key={item.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-                  <img src={item.imageUrl} className="w-20 h-20 rounded-xl object-cover bg-gray-50" alt={item.name} />
+                  <img src={formatImageUrl(item.imageUrl)} className="w-20 h-20 rounded-xl object-cover bg-gray-50" alt={item.name} />
                   <div className="flex-1 flex flex-col justify-center">
                     <h3 className="font-bold text-[#1B4332] text-sm leading-tight">{item.name}</h3>
                     <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">₹{item.price} / {item.unit}</p>

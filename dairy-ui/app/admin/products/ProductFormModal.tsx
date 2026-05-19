@@ -43,6 +43,12 @@ function ImageUploadInput({ value, onChange, onUploading, showToast }: { value?:
 
   useEffect(() => { setImgError(false); }, [value]);
 
+  const formatImageUrl = (url?: string | null) => {
+    if (!url) return '';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -69,7 +75,7 @@ function ImageUploadInput({ value, onChange, onUploading, showToast }: { value?:
       <div className="flex gap-3 items-center">
         <div className="w-14 h-14 rounded-sm border border-border-custom overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
           {value && !imgError
-            ? <img src={value} alt="Preview" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            ? <img src={formatImageUrl(value)} alt="Preview" className="w-full h-full object-cover" onError={() => setImgError(true)} />
             : <ImageIcon size={20} className="text-text3" />}
         </div>
         <div className="relative flex-1 min-w-0">

@@ -8,6 +8,12 @@ import { useNotification } from '@/components/NotificationContext';
 import ProductFormModal, { Product } from './ProductFormModal';
 import ComboFormModal, { SubscriptionPlan } from './ComboFormModal';
 
+const formatImageUrl = (url?: string | null) => {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  return `https://api-origin.sthirvaa.com${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export default function ProductManagementPage() {
   const [activeTab, setActiveTab] = useState<'products' | 'combos'>('products');
   const [products, setProducts] = useState<Product[]>([]);
@@ -134,7 +140,7 @@ export default function ProductManagementPage() {
               {products.map(p => (
                 <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="w-10 h-10 rounded-sm border border-border-custom overflow-hidden bg-surface flex-shrink-0">
-                    <img src={p.imageUrl || ''} className="w-full h-full object-cover"
+                    <img src={formatImageUrl(p.imageUrl) || ''} className="w-full h-full object-cover"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -165,7 +171,7 @@ export default function ProductManagementPage() {
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-sm border border-border-custom overflow-hidden bg-surface flex-shrink-0 flex items-center justify-center">
                           {p.imageUrl ? (
-                            <img src={p.imageUrl} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).replaceWith(document.createTextNode('')) }} />
+                            <img src={formatImageUrl(p.imageUrl)} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).replaceWith(document.createTextNode('')) }} />
                           ) : <Package size={16} className="text-text3" />}
                         </div>
                         <p className="text-text font-bold text-sm truncate max-w-[200px]">{p.name}</p>
@@ -196,7 +202,7 @@ export default function ProductManagementPage() {
                 {/* Image */}
                 <div className="h-28 bg-surface relative overflow-hidden flex items-center justify-center">
                   {plan.imageUrl ? (
-                    <img src={plan.imageUrl} className="w-full h-full object-cover"
+                    <img src={formatImageUrl(plan.imageUrl)} className="w-full h-full object-cover"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   ) : (
                     <ImageIcon size={28} className="text-text3/40" />

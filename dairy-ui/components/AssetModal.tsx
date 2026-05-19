@@ -28,7 +28,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Asset>({
     name: '',
-    category: 'Equipment',
+    category: 'Cow',
     purchaseDate: new Date().toISOString().split('T')[0],
     value: 0,
     status: 'ACTIVE',
@@ -55,7 +55,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
     } else {
       setFormData({
         name: '',
-        category: 'Equipment',
+        category: 'Cow',
         purchaseDate: new Date().toISOString().split('T')[0],
         value: 0,
         status: 'ACTIVE',
@@ -118,6 +118,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
+                <option value="Cow">Cow</option>
                 <option value="Equipment">Equipment</option>
                 <option value="Vehicle">Vehicle</option>
                 <option value="Land">Land</option>

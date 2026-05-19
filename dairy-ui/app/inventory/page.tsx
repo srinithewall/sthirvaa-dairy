@@ -51,6 +51,7 @@ export default function InventoryPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
 
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -59,6 +60,8 @@ export default function InventoryPage() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
   useEffect(() => {
+    setSearchQuery('');
+    setCategoryFilter('ALL');
     fetchData();
   }, [activeTab]);
 
@@ -108,10 +111,12 @@ export default function InventoryPage() {
     item.itemName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredAssets = assets.filter(asset => 
-    asset.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    asset.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  ).sort((a, b) => {
+  const filteredAssets = assets.filter(asset => {
+    const matchesSearch = asset.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          asset.category?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === 'ALL' || asset.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  }).sort((a, b) => {
     const dateA = a.purchaseDate || '';
     const dateB = b.purchaseDate || '';
     return dateB.localeCompare(dateA);
@@ -125,6 +130,21 @@ export default function InventoryPage() {
           <p className="text-[13px] text-text3 mt-1">Real-time stock and asset tracking</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
+          {activeTab === 'assets' && (
+            <select
+              className="bg-white border border-border-custom rounded-lg text-sm px-3 py-2 focus:outline-none focus:border-brand"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="ALL">All Categories</option>
+              <option value="Cow">Cow</option>
+              <option value="Equipment">Equipment</option>
+              <option value="Vehicle">Vehicle</option>
+              <option value="Land">Land</option>
+              <option value="Building">Building</option>
+              <option value="Other">Other</option>
+            </select>
+          )}
           <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text3" size={16} />
             <input

@@ -87,6 +87,9 @@ export default function LoginPage() {
                   name="email"
                   required
                   autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your username or email"

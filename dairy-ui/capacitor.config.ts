@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Sthirvaa Farms',
   webDir: 'out',
   server: {
-    url: 'https://farm.sthirvaa.com/',
+    url: 'https://farm.sthirvaa.com',
     cleartext: true
   }
 };

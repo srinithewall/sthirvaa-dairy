@@ -221,10 +221,10 @@ export default function HerdsPage() {
       {/* Animal Detail Modal - SIDE-BY-SIDE VERSION */}
       {showModal && selectedHerd && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[2000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col md:flex-row">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col md:flex-row">
             
-            {/* Left Column: Image Section (Same height as right) */}
-            <div className="relative w-full md:w-[45%] h-64 md:h-auto bg-surface2 overflow-hidden border-r border-black/5">
+            {/* Left Column: Image Section */}
+            <div className="relative w-full md:w-[45%] h-48 sm:h-64 md:h-auto bg-surface2 overflow-hidden border-b md:border-b-0 md:border-r border-black/5 flex-shrink-0">
                 {selectedHerd.imageUrl ? (
                   <img src={selectedHerd.imageUrl} alt={selectedHerd.animalName} className="w-full h-full object-cover" />
                 ) : (
@@ -248,7 +248,7 @@ export default function HerdsPage() {
             </div>
 
             {/* Right Column: Detailed Info Panel */}
-            <div className="flex-1 p-6 sm:p-8 md:p-10 bg-white relative flex flex-col justify-between">
+            <div className="flex-1 p-6 sm:p-8 md:p-10 bg-white relative flex flex-col justify-between overflow-y-auto">
               <button 
                 onClick={() => setShowModal(false)} 
                 className="absolute top-4 right-4 text-text3 hover:text-brand p-2 rounded-xl transition-all z-[10]"

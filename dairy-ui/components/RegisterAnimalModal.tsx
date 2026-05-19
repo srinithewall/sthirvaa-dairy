@@ -56,7 +56,7 @@ function CustomSelect({
   const selected = options.find((o) => o.value === value);
 
   return (
-    <div className={fullWidth ? 'col-span-2' : 'col-span-1'}>
+    <div className={fullWidth ? 'col-span-1 sm:col-span-2' : 'col-span-1'}>
       <label className="text-[11px] font-bold text-text3 uppercase mb-2 block tracking-wider">
         {label}
       </label>
@@ -119,7 +119,7 @@ function Field({
   fullWidth?: boolean;
 }) {
   return (
-    <div className={fullWidth ? 'col-span-2' : 'col-span-1'}>
+    <div className={fullWidth ? 'col-span-1 sm:col-span-2' : 'col-span-1'}>
       <label className="text-[11px] font-bold text-text3 uppercase mb-2 block tracking-wider flex items-center gap-1">
         {label} {required && <span className="text-red-500 text-[14px] leading-none">*</span>}
       </label>
@@ -280,7 +280,7 @@ export default function RegisterAnimalModal({
           className="flex-1 overflow-y-auto px-6 py-5"
           style={{ overscrollBehavior: 'contain' }}
         >
-          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
 
             {/* Tag Number */}
             <Field label="Tag Number" required>
@@ -434,7 +434,7 @@ export default function RegisterAnimalModal({
             />
 
             {/* Animal Status */}
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="text-[11px] font-bold text-text3 uppercase mb-2 block tracking-wider">
                 Animal Status
               </label>

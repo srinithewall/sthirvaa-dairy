@@ -351,24 +351,7 @@ export default function InventoryPage() {
                   <thead>
                     <tr className="bg-surface2 border-b border-border-custom">
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Asset Name</th>
-                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">
-                        <div className="flex items-center gap-2">
-                          <span>Category</span>
-                          <select
-                            className="bg-white border border-border-custom rounded px-2 py-0.5 text-[10px] font-bold text-text2 focus:outline-none focus:border-brand cursor-pointer normal-case"
-                            value={categoryFilter}
-                            onChange={(e) => setCategoryFilter(e.target.value)}
-                          >
-                            <option value="ALL">All</option>
-                            <option value="Cow">Cow</option>
-                            <option value="Equipment">Equipment</option>
-                            <option value="Vehicle">Vehicle</option>
-                            <option value="Land">Land</option>
-                            <option value="Building">Building</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        </div>
-                      </th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Category</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Status</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Purchase Date</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Value</th>

@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.3.132",
+    "date": "2026-05-19",
+    "commit": "4180d22",
+    "changes": [
+      "feat(inventory): add inline category filter dropdown to table Category column header and mobile view"
+    ]
+  },
+  {
     "version": "v1.3.131",
     "date": "2026-05-19",
     "commit": "2c3ec13",
@@ -109,14 +117,6 @@
     "commit": "f5812ea",
     "changes": [
       "ci: Dump Nginx container config and compose files"
-    ]
-  },
-  {
-    "version": "v1.3.117",
-    "date": "2026-05-18",
-    "commit": "c8467cb",
-    "changes": [
-      "ci: Deep inspect AWS Nginx Docker config [skip ci]"
     ]
   }
 ]

@@ -161,10 +161,16 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
             <label className="block text-xs font-bold text-text3 uppercase mb-1">Location</label>
             <input
               type="text"
+              list="location-options"
               className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              placeholder="Select or enter location"
             />
+            <datalist id="location-options">
+              <option value="Halasahalli" />
+              <option value="JpNagar" />
+            </datalist>
           </div>
           <div className="pt-4 flex gap-3 sticky bottom-0 bg-white">
             <button

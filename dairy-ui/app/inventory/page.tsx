@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { Package, Plus, AlertTriangle, CheckCircle2, Pencil, Trash2, Search, Box, Construction } from 'lucide-react';
+import { Package, Plus, AlertTriangle, CheckCircle2, Pencil, Trash2, Search, Box, Construction, Calendar } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import InventoryModal from '@/components/InventoryModal';
 import AssetModal from '@/components/AssetModal';
@@ -26,6 +26,23 @@ interface Asset {
   serialNumber: string;
   location: string;
 }
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  try {
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return dateObj.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch (e) {
+    return dateStr;
+  }
+};
 
 export default function InventoryPage() {
   const { showToast, confirm } = useNotification();
@@ -98,18 +115,18 @@ export default function InventoryPage() {
 
   return (
     <AppLayout>
-      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text tracking-tight">Inventory Management</h1>
           <p className="text-[13px] text-text3 mt-1">Real-time stock and asset tracking</p>
         </div>
-        <div className="flex gap-2">
-          <div className="relative">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text3" size={16} />
             <input
               type="text"
               placeholder={`Search ${activeTab}...`}
-              className="pl-9 pr-4 py-2 bg-white border border-border-custom rounded-lg text-sm focus:outline-none focus:border-brand"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-border-custom rounded-lg text-sm focus:outline-none focus:border-brand"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -124,7 +141,7 @@ export default function InventoryPage() {
                 setIsAssetModalOpen(true);
               }
             }}
-            className="bg-brand text-white flex items-center gap-2 py-2 px-4 rounded-lg font-medium text-[13px] hover:bg-brand-dark transition-all shadow-sm"
+            className="bg-brand text-white flex items-center gap-2 py-2 px-4 rounded-lg font-medium text-[13px] hover:bg-brand-dark transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
             <Plus size={16} />
             <span>Add {activeTab === 'inventory' ? 'Item' : 'Asset'}</span>
@@ -153,6 +170,26 @@ export default function InventoryPage() {
         </button>
       </div>
 
+      {activeTab === 'assets' && (
+        <div className="bg-[#E8F5EE] border border-brand/20 p-4 rounded-xl mb-5 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-brand/10 text-brand rounded-lg">
+              <Construction size={20} />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Asset Value</span>
+              <span className="text-xl font-black text-brand-dark">
+                ₹{filteredAssets.reduce((sum, a) => sum + (a.value || 0), 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] font-bold text-text3 uppercase tracking-widest block">Assets Registered</span>
+            <span className="text-sm font-extrabold text-text mt-0.5 block">{filteredAssets.length} Items</span>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'inventory' && items.some(i => i.quantity < i.reorderLevel) && (
         <div className="bg-[#FEF6E0] border border-orange-200 p-3.5 rounded-lg mb-5 flex gap-3 text-[13px] text-[#7a4e08] animate-in fade-in slide-in-from-top-2">
           <AlertTriangle size={20} className="text-warn flex-shrink-0" />
@@ -163,128 +200,273 @@ export default function InventoryPage() {
       )}
 
       <div className="bg-white rounded-xl border border-border-custom overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        <div>
           {activeTab === 'inventory' ? (
-            <table className="w-full text-left border-collapse text-[13px]">
-              <thead>
-                <tr className="bg-surface2 border-b border-border-custom">
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Item</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Current Stock</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Unit</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Min Level</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Status</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[13px]">
+                  <thead>
+                    <tr className="bg-surface2 border-b border-border-custom">
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Item</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Current Stock</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Unit</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Min Level</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Status</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                       <tr><td colSpan={6} className="p-8 text-center text-text3">Loading inventory...</td></tr>
+                    ) : filteredItems.length === 0 ? (
+                      <tr><td colSpan={6} className="p-8 text-center text-text3 italic">No inventory items found.</td></tr>
+                    ) : filteredItems.map((item) => {
+                      const isLow = item.quantity < item.reorderLevel;
+                      return (
+                        <tr key={item.id} className="hover:bg-surface2 transition-colors border-b border-border-custom last:border-0">
+                          <td className="p-4 font-bold text-text">{item.itemName}</td>
+                          <td className={`p-4 text-center font-bold ${isLow ? 'text-danger' : 'text-text'}`}>
+                            {item.quantity}
+                          </td>
+                          <td className="p-4 text-center text-text2">{item.unit}</td>
+                          <td className="p-4 text-center text-text2">{item.reorderLevel} {item.unit}</td>
+                          <td className="p-4 text-center">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${isLow ? 'bg-red-50 text-danger' : 'bg-green-50 text-brand'}`}>
+                              {isLow ? <><AlertTriangle size={12}/> Low</> : <><CheckCircle2 size={12}/> OK</>}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => {
+                                  setSelectedItem(item);
+                                  setIsInventoryModalOpen(true);
+                                }}
+                                className="p-1.5 text-text3 hover:text-brand transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteInventory(item.id)}
+                                className="p-1.5 text-text3 hover:text-danger transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-border-custom">
                 {loading ? (
-                   <tr><td colSpan={6} className="p-8 text-center text-text3">Loading inventory...</td></tr>
+                  <div className="p-8 text-center text-text3">Loading inventory...</div>
                 ) : filteredItems.length === 0 ? (
-                  <tr><td colSpan={6} className="p-8 text-center text-text3 italic">No inventory items found.</td></tr>
-                ) : filteredItems.map((item) => {
-                  const isLow = item.quantity < item.reorderLevel;
-                  return (
-                    <tr key={item.id} className="hover:bg-surface2 transition-colors border-b border-border-custom last:border-0">
-                      <td className="p-4 font-bold text-text">{item.itemName}</td>
-                      <td className={`p-4 text-center font-bold ${isLow ? 'text-danger' : 'text-text'}`}>
-                        {item.quantity}
-                      </td>
-                      <td className="p-4 text-center text-text2">{item.unit}</td>
-                      <td className="p-4 text-center text-text2">{item.reorderLevel} {item.unit}</td>
-                      <td className="p-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${isLow ? 'bg-red-50 text-danger' : 'bg-green-50 text-brand'}`}>
-                          {isLow ? <><AlertTriangle size={12}/> Low</> : <><CheckCircle2 size={12}/> OK</>}
+                  <div className="p-8 text-center text-text3 italic">No inventory items found.</div>
+                ) : (
+                  filteredItems.map((item) => {
+                    const isLow = item.quantity < item.reorderLevel;
+                    return (
+                      <div key={item.id} className="p-4 flex flex-col gap-3 hover:bg-surface2/30 transition-colors">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-bold text-text text-[14px]">{item.itemName}</div>
+                            <div className="text-[11px] text-text3 mt-0.5">Min level: {item.reorderLevel} {item.unit}</div>
+                          </div>
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${isLow ? 'bg-red-50 text-danger border border-danger/10' : 'bg-green-50 text-brand border border-brand/10'}`}>
+                            {isLow ? <><AlertTriangle size={10}/> Low</> : <><CheckCircle2 size={10}/> OK</>}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center bg-surface p-2.5 rounded-lg border border-border-custom text-[12px]">
+                          <div>
+                            <span className="text-text3 block text-[9px] uppercase font-bold tracking-wider">Current Stock</span>
+                            <span className={`font-black text-sm ${isLow ? 'text-danger' : 'text-text'}`}>
+                              {item.quantity} {item.unit}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => {
+                                setSelectedItem(item);
+                                setIsInventoryModalOpen(true);
+                              }}
+                              className="p-2 text-text3 hover:text-brand bg-white border border-border-custom rounded-lg transition-colors shadow-sm"
+                              title="Edit"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteInventory(item.id)}
+                              className="p-2 text-text3 hover:text-danger bg-white border border-border-custom rounded-lg transition-colors shadow-sm"
+                              title="Delete"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[13px]">
+                  <thead>
+                    <tr className="bg-surface2 border-b border-border-custom">
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Asset Name</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Category</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Status</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Value</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Location</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                       <tr><td colSpan={6} className="p-8 text-center text-text3">Loading assets...</td></tr>
+                    ) : filteredAssets.length === 0 ? (
+                      <tr><td colSpan={6} className="p-8 text-center text-text3 italic">No assets found.</td></tr>
+                    ) : filteredAssets.map((asset) => (
+                      <tr key={asset.id} className="hover:bg-surface2 transition-colors border-b border-border-custom last:border-0">
+                        <td className="p-4">
+                          <div className="font-bold text-text">{asset.name}</div>
+                          <div className="flex items-center gap-2 text-[11px] text-text3 font-mono">
+                            <span>{asset.serialNumber || 'No Serial'}</span>
+                            {asset.purchaseDate && (
+                              <>
+                                <span>•</span>
+                                <span>Purchased: {formatDate(asset.purchaseDate)}</span>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="bg-surface2 px-2 py-1 rounded text-text2 border border-border-custom font-semibold">
+                            {asset.category}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold ${
+                            asset.status === 'ACTIVE' ? 'bg-green-50 text-brand' : 
+                            asset.status === 'MAINTENANCE' ? 'bg-yellow-50 text-warn' : 'bg-red-50 text-danger'
+                          }`}>
+                            {asset.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center font-bold text-brand">₹{asset.value.toLocaleString()}</td>
+                        <td className="p-4 text-center text-text2">{asset.location || 'N/A'}</td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => {
+                                setSelectedAsset(asset);
+                                setIsAssetModalOpen(true);
+                              }}
+                              className="p-1.5 text-text3 hover:text-brand transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteAsset(asset.id)}
+                              className="p-1.5 text-text3 hover:text-danger transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-border-custom">
+                {loading ? (
+                  <div className="p-8 text-center text-text3">Loading assets...</div>
+                ) : filteredAssets.length === 0 ? (
+                  <div className="p-8 text-center text-text3 italic">No assets found.</div>
+                ) : (
+                  filteredAssets.map((asset) => (
+                    <div key={asset.id} className="p-4 flex flex-col gap-3 hover:bg-surface2/30 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-text text-[14px]">{asset.name}</div>
+                          <div className="text-[11px] text-text3 font-mono mt-0.5">{asset.serialNumber || 'No Serial'}</div>
+                        </div>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          asset.status === 'ACTIVE' ? 'bg-green-50 text-brand border border-brand/10' : 
+                          asset.status === 'MAINTENANCE' ? 'bg-yellow-50 text-warn border border-warn/10' : 'bg-red-50 text-danger border border-danger/10'
+                        }`}>
+                          {asset.status}
                         </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      </div>
+
+                      <div className="flex items-center justify-between text-[12px]">
+                        <span className="bg-surface2 px-2 py-0.5 rounded text-text2 border border-border-custom font-semibold">
+                          {asset.category}
+                        </span>
+                        <div className="flex items-center gap-3 text-text3 text-[11px]">
+                          {asset.purchaseDate && (
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} />
+                              {formatDate(asset.purchaseDate)}
+                            </span>
+                          )}
+                          {asset.location && (
+                            <span>📍 {asset.location}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center bg-surface p-2.5 rounded-lg border border-border-custom text-[12px] mt-1">
+                        <div>
+                          <span className="text-text3 block text-[9px] uppercase font-bold tracking-wider">Asset Value</span>
+                          <span className="font-black text-brand text-sm">
+                            ₹{asset.value.toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1">
                           <button 
                             onClick={() => {
-                              setSelectedItem(item);
-                              setIsInventoryModalOpen(true);
+                              setSelectedAsset(asset);
+                              setIsAssetModalOpen(true);
                             }}
-                            className="p-1.5 text-text3 hover:text-brand transition-colors"
+                            className="p-2 text-text3 hover:text-brand bg-white border border-border-custom rounded-lg transition-colors shadow-sm"
                             title="Edit"
                           >
-                            <Pencil size={16} />
+                            <Pencil size={15} />
                           </button>
                           <button 
-                            onClick={() => handleDeleteInventory(item.id)}
-                            className="p-1.5 text-text3 hover:text-danger transition-colors"
+                            onClick={() => handleDeleteAsset(asset.id)}
+                            className="p-2 text-text3 hover:text-danger bg-white border border-border-custom rounded-lg transition-colors shadow-sm"
                             title="Delete"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full text-left border-collapse text-[13px]">
-              <thead>
-                <tr className="bg-surface2 border-b border-border-custom">
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Asset Name</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Category</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Status</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Value</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Location</th>
-                  <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                   <tr><td colSpan={6} className="p-8 text-center text-text3">Loading assets...</td></tr>
-                ) : filteredAssets.length === 0 ? (
-                  <tr><td colSpan={6} className="p-8 text-center text-text3 italic">No assets found.</td></tr>
-                ) : filteredAssets.map((asset) => (
-                  <tr key={asset.id} className="hover:bg-surface2 transition-colors border-b border-border-custom last:border-0">
-                    <td className="p-4">
-                      <div className="font-bold text-text">{asset.name}</div>
-                      <div className="text-[11px] text-text3 font-mono">{asset.serialNumber || 'No Serial'}</div>
-                    </td>
-                    <td className="p-4">
-                      <span className="bg-surface2 px-2 py-1 rounded text-text2 border border-border-custom">
-                        {asset.category}
-                      </span>
-                    </td>
-                    <td className="p-4 text-center">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold ${
-                        asset.status === 'ACTIVE' ? 'bg-green-50 text-brand' : 
-                        asset.status === 'MAINTENANCE' ? 'bg-yellow-50 text-warn' : 'bg-red-50 text-danger'
-                      }`}>
-                        {asset.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-center font-bold text-brand">₹{asset.value.toLocaleString()}</td>
-                    <td className="p-4 text-center text-text2">{asset.location || 'N/A'}</td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => {
-                            setSelectedAsset(asset);
-                            setIsAssetModalOpen(true);
-                          }}
-                          className="p-1.5 text-text3 hover:text-brand transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteAsset(asset.id)}
-                          className="p-1.5 text-text3 hover:text-danger transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

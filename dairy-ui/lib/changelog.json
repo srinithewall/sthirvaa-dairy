@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.3.128",
+    "date": "2026-05-19",
+    "commit": "f8890fc",
+    "changes": [
+      "feat(changelog): automate release history generation from git log at build time"
+    ]
+  },
+  {
     "version": "v1.3.127",
     "date": "2026-05-19",
     "commit": "f4925c4",
@@ -109,14 +117,6 @@
     "commit": "9366f0c",
     "changes": [
       "ci: Implement native SSH diagnostics streaming"
-    ]
-  },
-  {
-    "version": "v1.3.113",
-    "date": "2026-05-18",
-    "commit": "03c2e25",
-    "changes": [
-      "ci: Debug AWS ports, Nginx config and Docker logs"
     ]
   }
 ]

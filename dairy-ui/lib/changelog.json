@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.3.131",
+    "date": "2026-05-19",
+    "commit": "2c3ec13",
+    "changes": [
+      "feat(inventory): add Cow category and column-level category filtering with dynamic total value update"
+    ]
+  },
+  {
     "version": "v1.3.130",
     "date": "2026-05-19",
     "commit": "d0eb644",
@@ -109,14 +117,6 @@
     "commit": "c8467cb",
     "changes": [
       "ci: Deep inspect AWS Nginx Docker config [skip ci]"
-    ]
-  },
-  {
-    "version": "v1.3.116",
-    "date": "2026-05-18",
-    "commit": "cfd6df6",
-    "changes": [
-      "ci: Upgrade server debug to deep inspect running Nginx Docker containers"
     ]
   }
 ]

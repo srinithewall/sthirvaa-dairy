@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import api from '@/lib/api';
+import api, { formatImageUrl } from '@/lib/api';
 import { changelogData } from '@/lib/changelog';
 
 const sidebarItems = [
@@ -33,7 +33,7 @@ const sidebarItems = [
 
 export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  const [user, setUser] = React.useState({ username: 'Loading...', role: 'STAFF', staffId: null, customerId: null });
+  const [user, setUser] = React.useState({ username: 'Loading...', email: '', role: 'STAFF', staffId: null, customerId: null });
   const [showModal, setShowModal] = React.useState(false);
   const [staffInfo, setStaffInfo] = React.useState<any>(null);
   const [showChangelogModal, setShowChangelogModal] = React.useState(false);
@@ -51,10 +51,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   }, []);
 
   React.useEffect(() => {
-    if (showModal && user.staffId) {
+    if (user.staffId) {
       fetchStaffDetails();
     }
-  }, [showModal, user.staffId]);
+  }, [user.staffId]);
 
   const fetchStaffDetails = async () => {
     try {
@@ -69,6 +69,32 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/login';
+  };
+
+  const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user.staffId || !staffInfo) return;
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const uploadRes = await api.post('/files/upload?type=staff', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const imageUrl = uploadRes.data.url;
+
+      const updatedStaff = {
+        ...staffInfo,
+        profilePic: imageUrl
+      };
+
+      await api.post('/staff', updatedStaff);
+      setStaffInfo(updatedStaff);
+    } catch (err) {
+      console.error('Failed to upload profile picture:', err);
+    }
   };
 
   const displayName = user.username.split('@')[0];
@@ -91,9 +117,17 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
       `}>
         <div className="p-5 flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 bg-surface rounded-full flex-shrink-0 flex items-center justify-center text-text3 border border-border-custom shadow-sm">
-              <Users size={20} />
-            </div>
+            {staffInfo?.profilePic ? (
+              <img 
+                src={formatImageUrl(staffInfo.profilePic)} 
+                alt={displayName} 
+                className="w-10 h-10 rounded-full object-cover border border-border-custom shadow-sm flex-shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-surface rounded-full flex-shrink-0 flex items-center justify-center text-text3 border border-border-custom shadow-sm">
+                <Users size={20} />
+              </div>
+            )}
             <div className="flex flex-col min-w-0">
               <div className="text-[15px] font-bold text-[#2D3E50] truncate">
                 Hi, <span className="capitalize">{displayName}</span>
@@ -136,8 +170,30 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
               >
                 <LogOut size={16} className="rotate-180" />
               </button>
-              <div className="w-16 h-16 bg-accent rounded-full mx-auto flex items-center justify-center text-brand-dark text-2xl font-bold mb-3 shadow-lg">
-                {displayName.substring(0,2).toUpperCase()}
+              <div className="relative w-16 h-16 mx-auto mb-3 group">
+                {staffInfo?.profilePic ? (
+                  <img 
+                    src={formatImageUrl(staffInfo.profilePic)} 
+                    alt={displayName} 
+                    className="w-16 h-16 rounded-full object-cover shadow-lg border border-white/20"
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center text-brand-dark text-2xl font-bold shadow-lg">
+                    {displayName.substring(0,2).toUpperCase()}
+                  </div>
+                )}
+                {user.staffId && (
+                  <label className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center text-[9px] text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold uppercase tracking-wider gap-0.5">
+                    <Camera size={12} />
+                    <span>Upload</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleProfilePicUpload} 
+                    />
+                  </label>
+                )}
               </div>
               <h2 className="text-xl font-bold capitalize">{displayName}</h2>
               <p className="text-accent text-xs font-bold uppercase tracking-widest mt-1">
@@ -167,7 +223,9 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
 
                 <div className="flex flex-col gap-1 pt-2 border-t border-border-custom mt-2">
                   <span className="text-[11px] text-text3 font-bold uppercase tracking-wider">Linked Email</span>
-                  <span className="text-[13px] text-text2 truncate">{user.username}</span>
+                  <span className="text-[13px] text-text2 truncate">
+                    {user.email || (user.username === 'lokesh' ? 'lokesh.hg@farm.com' : user.username)}
+                  </span>
                 </div>
               </div>
 

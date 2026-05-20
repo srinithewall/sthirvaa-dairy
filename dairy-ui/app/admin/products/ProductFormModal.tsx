@@ -55,7 +55,7 @@ function ImageUploadInput({ value, onChange, onUploading, showToast }: { value?:
     setUploading(true);
     onUploading(true);
     try {
-      const res = await api.post('/files/upload?type=products', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/files/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       if (res.data?.url) onChange(res.data.url);
     } catch {
       showToast('Failed to upload image.', 'error');

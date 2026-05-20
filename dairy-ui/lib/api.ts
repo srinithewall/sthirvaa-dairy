@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  ? '/api'
-  : '/api/proxy/api';
+const API_BASE_URL = 'https://api-origin.sthirvaa.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

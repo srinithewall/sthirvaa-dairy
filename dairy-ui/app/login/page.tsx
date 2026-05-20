@@ -24,11 +24,11 @@ export default function LoginPage() {
         password: password
       });
 
-      const { token, username, role, staffId, customerId } = response.data;
+      const { token, username, email, role, staffId, customerId } = response.data;
 
       // Store in localStorage
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify({ username, role, staffId, customerId }));
+      localStorage.setItem('user', JSON.stringify({ username, email, role, staffId, customerId }));
 
       // Redirect to dashboard
       router.push('/dashboard');

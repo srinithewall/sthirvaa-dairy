@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.3.136",
+    "date": "2026-05-19",
+    "commit": "97faf7f",
+    "changes": [
+      "fix(ui): use relative paths for images with Cloudflare worker proxy and strip leading dot"
+    ]
+  },
+  {
     "version": "v1.3.135",
     "date": "2026-05-19",
     "commit": "c25ed3b",
@@ -109,14 +117,6 @@
     "commit": "b7c8b17",
     "changes": [
       "fix(prod): Update Next.js rewrite destination to api-origin.sthirvaa.com to fix 1003 error on Cloudflare Pages"
-    ]
-  },
-  {
-    "version": "v1.3.121",
-    "date": "2026-05-19",
-    "commit": "1d76469",
-    "changes": [
-      "fix(prod): Export edge runtime config for dynamic dynamic invoices route to fix Cloudflare Pages build"
     ]
   }
 ]

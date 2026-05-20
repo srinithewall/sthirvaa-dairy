@@ -16,11 +16,11 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://api-origin.sthirvaa.com/api/:path*',
+        destination: 'http://localhost:8082/api/:path*',
       },
       {
         source: '/images/:path*',
-        destination: 'https://api-origin.sthirvaa.com/images/:path*',
+        destination: 'http://localhost:8082/images/:path*',
       },
     ];
   },

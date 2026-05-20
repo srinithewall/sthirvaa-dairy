@@ -195,7 +195,7 @@ export default function RegisterAnimalModal({
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const res = await api.post('/files/upload', fd, {
+      const res = await api.post('/files/upload?type=herds', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       set('imageUrl', res.data.url);
@@ -285,12 +285,11 @@ export default function RegisterAnimalModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
 
             {/* Tag Number */}
-            <Field label="Tag Number" required>
+            <Field label="Tag Number">
               <input
-                required
                 value={formData.tagNumber}
                 onChange={(e) => set('tagNumber', e.target.value)}
-                placeholder="COW-101"
+                placeholder="e.g. COW-101 (optional)"
                 className={INPUT_CLS}
               />
             </Field>
@@ -340,12 +339,12 @@ export default function RegisterAnimalModal({
             />
 
             {/* Photo */}
-            <Field label="Photo">
-              <label 
-                className={`flex items-center justify-center min-h-[50px] gap-3 border-2 border-dashed border-border-custom rounded-xl px-3 py-2 cursor-pointer hover:border-brand hover:bg-surface transition-all ${uploadingImage ? 'opacity-50 cursor-wait pointer-events-none' : ''}`}
+            <Field label="Photo" fullWidth>
+              <label
+                className={`block border-2 border-dashed border-border-custom rounded-xl cursor-pointer hover:border-brand transition-all overflow-hidden ${uploadingImage ? 'opacity-50 cursor-wait pointer-events-none' : ''}`}
               >
                 {uploadingImage ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-2 py-5">
                     <svg className="animate-spin h-4 w-4 text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -353,23 +352,23 @@ export default function RegisterAnimalModal({
                     <span className="text-[11px] font-bold text-brand uppercase tracking-wide">Uploading...</span>
                   </div>
                 ) : imagePreview ? (
-                  <>
+                  <div className="relative">
                     <img
                       src={formatImageUrl(imagePreview)}
-                      className="w-10 h-10 rounded-lg object-cover shadow-sm"
+                      className="w-full max-h-[180px] object-contain bg-gray-50"
                       alt="preview"
                     />
-                    <span className="text-[11px] font-bold text-brand uppercase tracking-wide">
-                      Select Another
-                    </span>
-                  </>
+                    <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 hover:opacity-100 text-[11px] font-bold text-white uppercase tracking-wide bg-black/60 px-3 py-1 rounded-full transition-opacity">
+                        Change Photo
+                      </span>
+                    </div>
+                  </div>
                 ) : (
-                  <>
+                  <div className="flex items-center justify-center gap-3 py-5">
                     <Camera size={18} className="text-text3 flex-shrink-0" />
-                    <span className="text-[11px] font-bold text-text3 uppercase tracking-wide">
-                      Upload photo
-                    </span>
-                  </>
+                    <span className="text-[11px] font-bold text-text3 uppercase tracking-wide">Upload photo</span>
+                  </div>
                 )}
                 <input
                   type="file"
@@ -424,9 +423,19 @@ export default function RegisterAnimalModal({
               />
             </Field>
 
-            {/* Health Status */}
+            {/* Sourced */}
+            <Field label="Sourced">
+              <input
+                value={formData.source}
+                onChange={(e) => set('source', e.target.value)}
+                placeholder="e.g., Purchased, Self-raised"
+                className={INPUT_CLS}
+              />
+            </Field>
+
+            {/* Status */}
             <CustomSelect
-              label="Health Status"
+              label="Status"
               value={formData.healthStatus}
               onChange={(v) => set('healthStatus', v)}
               options={[

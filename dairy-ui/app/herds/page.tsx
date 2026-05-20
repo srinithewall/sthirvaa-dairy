@@ -34,6 +34,7 @@ export default function HerdsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({ 'COW': true });
   const [userRole, setUserRole] = useState<string>('');
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
   const { showToast, confirm } = useNotification();
 
   useEffect(() => {
@@ -109,7 +110,7 @@ export default function HerdsPage() {
     const isExpanded = expandedRows[type];
     
     return (
-      <div className={`flex flex-col md:flex-row border-b border-border-custom transition-colors ${isSub ? 'bg-surface2/10' : 'hover:bg-surface'}`}>
+      <div className={`flex flex-col md:flex-row border-b border-border-custom transition-colors overflow-visible ${isSub ? 'bg-surface2/10' : 'hover:bg-surface'}`}>
         <div className="flex items-center justify-between md:contents">
            <div 
             className={`flex-1 md:flex-none md:w-[220px] py-4 px-4 font-bold text-text md:border-r border-border-custom flex items-center gap-3 ${isSub ? 'pl-8 md:pl-10 text-[12px] md:text-[13px] font-medium' : 'text-[14px]'} ${canExpand ? 'cursor-pointer' : ''}`}
@@ -132,19 +133,48 @@ export default function HerdsPage() {
            </div>
         </div>
 
-        <div className="flex-1 p-3 flex flex-wrap gap-1.5 items-center justify-start bg-white/50">
-          {items.map((item: Herd) => (
-            <div 
-              key={item.id}
-              onClick={() => handleHerdClick(item.id)}
-              className={`w-[45px] md:w-[48px] h-[35px] md:h-[36px] rounded-sm shadow-sm border border-black/10 cursor-pointer transition-transform hover:scale-110 relative group ${getAnimalColor(item)}`}
-            >
-              <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-max px-2 py-1 bg-black text-white text-[10px] font-bold rounded-md z-[100] pointer-events-none whitespace-nowrap shadow-2xl">
-                {item.animalName || item.tagNumber}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-[5px] border-x-transparent border-t-[5px] border-t-black" />
+        <div className="flex-1 p-3 flex flex-wrap gap-2 items-start justify-start bg-white/50 overflow-visible">
+          {items.map((item: Herd) => {
+            const tagColor = getAnimalColor(item);
+            const isImageFailed = failedImages[item.id];
+            const imgUrl = (item.imageUrl && !isImageFailed) ? formatImageUrl(item.imageUrl) : null;
+            const initials = item.animalName 
+              ? item.animalName.trim().substring(0, 2).toUpperCase() 
+              : item.tagNumber 
+                ? item.tagNumber.substring(0, 2).toUpperCase()
+                : '??';
+
+            return (
+              <div
+                key={item.id}
+                onClick={() => handleHerdClick(item.id)}
+                className={`relative w-[48px] md:w-[52px] h-[48px] md:h-[52px] rounded-lg overflow-hidden border border-black/10 shadow-sm cursor-pointer transition-all duration-250 ease-out active:scale-95 group z-0 hover:z-50 hover:scale-[2.4] hover:shadow-2xl flex items-center justify-center select-none ${tagColor}`}
+              >
+                {imgUrl ? (
+                  <img
+                    src={imgUrl}
+                    alt={item.animalName || item.tagNumber}
+                    onError={() => setFailedImages(prev => ({ ...prev, [item.id]: true }))}
+                    className="w-full h-full object-cover transition-transform duration-300"
+                  />
+                ) : (
+                  <span className="text-[12px] md:text-[13px] font-black text-white uppercase drop-shadow tracking-tighter pb-1">
+                    {initials}
+                  </span>
+                )}
+
+                {/* Health status dot - absolute top right */}
+                <div className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full border border-white shadow-sm z-10 ${item.healthStatus === 'HEALTHY' ? 'bg-green-500' : 'bg-red-500'}`} />
+
+                {/* Bottom name overlay */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 py-0.5 px-0.5 text-center z-10 backdrop-blur-[0.5px]">
+                  <div className="text-[7.5px] font-black text-white truncate uppercase tracking-tighter leading-none scale-[0.95] origin-center">
+                    {item.animalName || '—'}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {items.length === 0 && <div className="text-[11px] text-text3 italic py-1 pl-2">No records found</div>}
         </div>
       </div>
@@ -260,14 +290,14 @@ export default function HerdsPage() {
 
               <div className="space-y-5 sm:space-y-6">
                 {/* Status Bar */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-surface rounded-2xl border border-border-custom shadow-sm gap-3 sm:gap-0 mt-4 sm:mt-0">
+                <div className="flex flex-row items-center justify-between p-4 bg-surface rounded-2xl border border-border-custom shadow-sm gap-3 mt-4 sm:mt-0">
                   <div>
                     <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Tag Number</label>
                     <div className="text-lg sm:text-xl font-black text-brand tracking-tight font-mono">{selectedHerd.tagNumber}</div>
                   </div>
-                  <div className="text-left sm:text-right">
-                    <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Health Status</label>
-                    <div className="flex items-center gap-2 sm:justify-end">
+                  <div className="text-right">
+                    <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Status</label>
+                    <div className="flex items-center gap-2 justify-end">
                       <div className={`w-2.5 h-2.5 rounded-full ${selectedHerd.healthStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500'}`} />
                       <span className={`text-[11px] sm:text-[12px] font-black uppercase ${selectedHerd.healthStatus === 'HEALTHY' ? 'text-green-700' : 'text-danger'}`}>
                         {selectedHerd.healthStatus}
@@ -305,7 +335,7 @@ export default function HerdsPage() {
                     <div className="text-[14px] sm:text-[15px] font-bold text-text2">{selectedHerd.procuredDate || '—'}</div>
                   </div>
 
-                  <div className="col-span-2 md:col-span-1">
+                  <div>
                     <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Sourced</label>
                     <div className="text-[14px] sm:text-[15px] font-bold text-text2">{selectedHerd.source || '—'}</div>
                   </div>

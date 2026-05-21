@@ -1,0 +1,85 @@
+[33m9bd205c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Revert "v1.3.137"
+[33mefa6cb7[m v1.3.137
+[33m97faf7f[m fix(ui): use relative paths for images with Cloudflare worker proxy and strip leading dot
+[33mc25ed3b[m fix(ui): point API_BASE_URL back to api-origin.sthirvaa.com for production stability
+[33mbcfa6fe[m fix(images): resolve relative uploaded image paths with helper and rewrites
+[33m2d27cc6[m style(inventory): remove inline category filter dropdown from desktop table category column header
+[33m4180d22[m feat(inventory): add inline category filter dropdown to table Category column header and mobile view
+[33m2c3ec13[m feat(inventory): add Cow category and column-level category filtering with dynamic total value update
+[33md0eb644[m feat(inventory): add separate purchase date column, sort by purchaseDate desc, and replace location suggestions with select dropdown
+[33m469e36f[m feat(inventory): show purchase date in asset cards and add predefined Halasahalli location option
+[33mf8890fc[m feat(changelog): automate release history generation from git log at build time
+[33mf4925c4[m feat(ui): update changelog with v1.3.0 containing recent production & mobile fixes and dynamically display version in sidebar
+[33ma8db4a3[m fix(mobile): resolve layout overflow issues in animal detail modal and register/edit animal modal on mobile devices
+[33m2cb82e4[m fix(mobile): Disable keyboard auto-capitalization and auto-correction on login fields
+[33mc7b7f8e[m fix(backend): Add cascade delete logic for milk records when deleting a herd
+[33m0a9693a[m style: Update login username placeholder to a clean professional string
+[33mb7c8b17[m fix(prod): Update Next.js rewrite destination to api-origin.sthirvaa.com to fix 1003 error on Cloudflare Pages
+[33m1d76469[m fix(prod): Export edge runtime config for dynamic dynamic invoices route to fix Cloudflare Pages build
+[33m294b06a[m fix(prod): Remove output standalone from next.config.ts to restore Cloudflare Pages automatic builds
+[33ma8f7d6b[m ci: Dump Nginx container config and compose files [skip ci]
+[33mf5812ea[m ci: Dump Nginx container config and compose files
+[33mc8467cb[m ci: Deep inspect AWS Nginx Docker config [skip ci]
+[33mcfd6df6[m ci: Upgrade server debug to deep inspect running Nginx Docker containers
+[33m84f3892[m ci: Update AWS debug logs [skip ci]
+[33m9366f0c[m ci: Implement native SSH diagnostics streaming
+[33m03c2e25[m ci: Debug AWS ports, Nginx config and Docker logs
+[33mad357a2[m ci: Force release port 3000 on host and clean up temporary actions
+[33ma950e69[m ci: Upgrade server diagnostics to auto-commit debug-output.txt
+[33m1729fff[m ci: Add temporary AWS server debug workflow
+[33m0e71ccf[m ci: Force frontend re-deploy to flush Docker container cache
+[33m625fd75[m feat: Configure capacitor to wrap live production portal URL, generate and integrate native launcher icons and brand splash screens
+[33m42b542f[m build: Override all Android subprojects and main app Java compile compatibility to JavaVersion.VERSION_17
+[33me34c070[m feat: Initialize Ionic Capacitor and pre-configure Android platform for APK builds
+[33m6b709cd[m style: Match staff management page container size with digital ledger for perfect alignment
+[33m3e18fc6[m style: Align staff details pane in uniform structured grid matching herd panel standard
+[33m83142e5[m style: Reduce dimensions of login card and integrate Sthirvaa leaf SVG logo
+[33m650e6e6[m feat: Allow login using either username or email and update login input labels
+[33m64f2677[m feat: Allow staff logins with ADMIN privileges to edit and delete animal records
+[33mc2a363d[m style: Soften staff details text weights by making only employee name and role bold
+[33m6ff90a6[m style: Wrap invoices in AppLayout for desktop viewport, scale up staff typography to match portal standard
+[33m67c1753[m feat: Increment version to v1.2.2 and document staff credential seeding
+[33m59daf94[m feat: Add active version badge and dynamic scrollable release notes modal to sidebar
+[33m85ddbfb[m docs: Document database index speed optimizations for v1.2.1 in changelog
+[33m6a097a3[m docs: Add unified project-wide version changelog to track all git commits and releases
+[33mbd3b3ab[m UI: Refined Staff Module with split-pane, mobile UX, dynamic IDs, and +91 formatting
+[33medbd4fd[m Refactor: Fix dashboard 500 null pointer exceptions, implement premium leaf emblem branding, and resolve dev server proxy resolution
+[33m05a0b5b[m fix: mobile responsive admin products page and ProductFormModal - fix overflow, corners, broken images, layout
+[33m0fd32b7[m fix: mobile responsive ComboFormModal - reduce corners, fix overflow, fix image preview
+[33m88b9798[m fix: resolve duplicate SubscriptionCard declaration and clean up dead code in shop page
+[33m5a914eb[m feat: subscription module overhaul - dynamic tiers, per-item pricing, professional shop cards, tier checkout modal
+[33ma6fe7d9[m fix: auto-select first customer in DistributeModal and guard against null customerId on backend
+[33m00e51d9[m style: replace production history table with card layout on mobile
+[33ma0968a3[m style: optimize ledger page for mobile responsiveness
+[33m2b43e1d[m fix: comprehensive fix for ByteBuddy serialization errors across all models
+[33m3755d50[m fix: resolve ByteBuddy serialization error in MilkRecord
+[33ma45cce1[m fix: ensure DistributeModal correctly loads existing records in COMBINED view
+[33m24e6257[m fix: resolve distribution serialization exception and integrate milk distribution with sales module
+[33m60d2e60[m feat: implement New Sale functionality with SaleModal and add CRUD to SalesPage
+[33mdcd3e88[m fix: add null checks to inventory and sales filtering to prevent runtime errors
+[33m2b3eac1[m fix: prevent toLowerCase error on null itemName in SalesPage
+[33m22c8168[m fix: change purchaseDate type to LocalDate in Asset model to fix 400 error
+[33mae1a9f5[m feat: backend implementation for Inventory CRUD and Assets
+[33mdefd717[m feat: implement Inventory and Assets CRUD and update brand identity
+[33m60400d1[m fix: redesign notifications to match Sthirvaa brand identity
+[33m4cfa601[m feat: implement global premium notification system for toasts and confirmations
+[33mdc278d7[m Update ledger with balance calculation and success messages
+[33maeb810c[m Sidebar reorganization, permission fixes, and authentication enforcement
+[33m74dcaac[m feat: modernize sthirvaa shop with dynamic subscription combos and admin image support
+[33m534a8fd[m fix: complete backend sales fix and ensure frontend workflow is tracked
+[33mb91cdf9[m fix: resolve syntax error in Sidebar.tsx (unclosed JSX)
+[33m4872777[m fix: mobile hamburger menu and sidebar toggle functionality
+[33mebbe8ed[m feat: restrict yield edits to last 2 days only
+[33m121e97c[m feat: automated frontend deployment with Docker and GitHub Actions
+[33mc4c6f6e[m feat: complete branding updates, ledger organization, and milk yield accumulation fix
+[33m80c5d3a[m feat: sort ledger categories alphabetically and filter transactions by active tab
+[33m275ddc2[m feat: moved income ledger update from yield logging to distribution phase
+[33m60fb7ac[m fix: updated LoginRequest to accept either email or username in the payload to fix 400 Bad Request validation errors
+[33m8146793[m fix: restore standard CorsConfigurationSource for reliable preflight handling in Spring Security 6
+[33m951f9e6[m fix: explicit CorsFilter bean for maximum resilience against proxy-induced CORS failures
+[33m13c8d3e[m debug: temporary plain-text password support to verify user credentials
+[33m7db2476[m fix: explicit origins only without wildcards to bypass Spring Boot OriginPattern conflicts on production domains
+[33mf11d366[m fix: Restore permissive CORS headers to resolve 403 Forbidden
+[33m7fb2787[m fix: CORS policy to allow farm.sthirvaa.com and add JWT safety defaults
+[33mad52686[m fix(prod): implement maximum permissiveness for definitive CORS and Referrer resolution
+[33me65302c[m fix(prod): final comple

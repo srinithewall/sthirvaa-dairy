@@ -56,6 +56,7 @@ public class FileController {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(file.getBytes()));
 
             String imageUrl = publicUrl + (publicUrl.endsWith("/") ? "" : "/") + fileName;
+            System.out.println("R2 UPLOAD API HIT");
             return ResponseEntity.ok(Map.of("url", imageUrl));
         } catch (Exception e) {
             e.printStackTrace();

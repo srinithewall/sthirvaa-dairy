@@ -15,6 +15,7 @@ interface Staff {
   employeeId: string;
   profilePic: string;
   joinDate: string;
+  location?: string;
 }
 
 export default function StaffPage() {

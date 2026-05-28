@@ -9,7 +9,7 @@ import { useNotification } from '@/components/NotificationContext';
 export interface Product {
   id?: number;
   name: string;
-  category: 'dairy' | 'vegetables' | 'divine' | 'meat';
+  category: string;
   subcategory: string;
   price: number;
   unit: string;
@@ -22,15 +22,8 @@ export interface Product {
   slashedPrice?: number;
 }
 
-const CATEGORIES = [
-  { id: 'dairy', label: 'Dairy & Milk', icon: '🥛' },
-  { id: 'vegetables', label: 'Fresh Veggies', icon: '🥬' },
-  { id: 'divine', label: 'Divine Products', icon: '🔥' },
-  { id: 'meat', label: 'Meats', icon: '🍗' },
-] as const;
-
-const blankProduct = (): Product => ({
-  name: '', category: 'dairy', subcategory: 'Milk',
+const blankProduct = (defaultCategory: string = 'dairy'): Product => ({
+  name: '', category: defaultCategory, subcategory: 'Milk',
   price: 0, unit: 'per unit', description: '', inStock: true, imageUrl: ''
 });
 
@@ -99,13 +92,43 @@ export default function ProductFormModal({ isOpen, product, onSave, onClose }: P
   const [errors, setErrors] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; label: string; icon: string }[]>([
+    { id: 'dairy', label: 'Dairy & Milk', icon: '🥛' },
+    { id: 'vegetables', label: 'Fresh Veggies', icon: '🥬' },
+    { id: 'divine', label: 'Divine Products', icon: '🔥' },
+    { id: 'meat', label: 'Meats', icon: '🍗' }
+  ]);
   const { showToast } = useNotification();
 
   useEffect(() => {
     if (product) setForm(product);
-    else setForm(blankProduct());
+    else setForm(blankProduct(categories[0]?.id || 'dairy'));
     setErrors({});
-  }, [product, isOpen]);
+  }, [product, isOpen, categories]);
+
+  useEffect(() => {
+    if (isOpen) {
+      api.get('/settings/product_categories')
+        .then(res => {
+          if (res.data?.settingValue) {
+            try {
+              const parsed = JSON.parse(res.data.settingValue);
+              const mapped = parsed.map((c: any) => ({
+                id: c.id,
+                label: c.name,
+                icon: c.icon
+              }));
+              setCategories(mapped);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        })
+        .catch(err => {
+          console.error('Failed to load categories', err);
+        });
+    }
+  }, [isOpen]);
 
   const validate = () => {
     const e: any = {};
@@ -156,8 +179,8 @@ export default function ProductFormModal({ isOpen, product, onSave, onClose }: P
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-black uppercase text-text3 mb-1.5">Category</label>
-              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value as any })} className={`${inputCls} rounded-sm`}>
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={`${inputCls} rounded-sm`}>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
               </select>
             </div>
             <div>

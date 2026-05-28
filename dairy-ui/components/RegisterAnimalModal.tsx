@@ -19,6 +19,7 @@ interface FormData {
   age: string;
   animalStatus: string;
   imageUrl: string;
+  status: string;
 }
 
 interface Herd {
@@ -35,6 +36,7 @@ interface Herd {
   age: string;
   animalStatus: string;
   imageUrl?: string;
+  status?: string;
 }
 
 // ─── Reusable styled select dropdown ────────
@@ -161,6 +163,7 @@ export default function RegisterAnimalModal({
     age: herdToEdit?.age || '',
     animalStatus: herdToEdit?.animalStatus || 'HEIFER',
     imageUrl: herdToEdit?.imageUrl || '',
+    status: herdToEdit?.status || 'ACTIVE',
   });
 
   const [ageYears, setAgeYears] = useState(() => {
@@ -433,14 +436,25 @@ export default function RegisterAnimalModal({
               />
             </Field>
 
-            {/* Status */}
+            {/* Health Status */}
             <CustomSelect
-              label="Status"
+              label="Health Status"
               value={formData.healthStatus}
               onChange={(v) => set('healthStatus', v)}
               options={[
                 { value: 'HEALTHY', label: 'Healthy' },
                 { value: 'SICK', label: 'Sick / Observation' },
+              ]}
+            />
+
+            {/* Record Status */}
+            <CustomSelect
+              label="Record Status"
+              value={formData.status}
+              onChange={(v) => set('status', v)}
+              options={[
+                { value: 'ACTIVE', label: 'Active' },
+                { value: 'DISPOSED', label: 'Disposed' },
               ]}
             />
 

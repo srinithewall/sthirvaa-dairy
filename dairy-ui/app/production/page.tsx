@@ -15,6 +15,7 @@ interface Herd {
   breed: string;
   animalType: string;
   animalStatus: string;
+  status?: string;
 }
 
 interface DaySummary {
@@ -70,7 +71,11 @@ export default function MilkProductionPage() {
       ]);
       setSummary(summaryRes.data);
       const allHerds: Herd[] = herdRes.data.herds || herdRes.data;
-      setLactating((allHerds || []).filter((h) => h.animalStatus === 'LACTATING'));
+      setLactating(
+        (allHerds || []).filter(
+          (h) => h.animalStatus === 'LACTATING' && h.status !== 'DISPOSED'
+        )
+      );
     } catch (err) {
       console.error(err);
     } finally {

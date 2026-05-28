@@ -8,7 +8,14 @@ import { MapPin, Phone, Mail, Clock, ChevronRight, CheckCircle, AlertCircle, Tru
 /* ─── Types ──────────────────────────────────────────── */
 interface OrderItem {
   id: number;
-  name: string;
+  name?: string;
+  product?: {
+    id: number;
+    name: string;
+    description?: string;
+    imageUrl?: string;
+    unit?: string;
+  };
   price: number;
   quantity: number;
   category?: string;
@@ -62,7 +69,7 @@ function OrderCard({ order, onViewDetails }: { order: Order; onViewDetails: (o: 
         <div className="space-y-1">
           {(order.items ?? []).slice(0, 3).map((item, idx) => (
             <div key={idx} className="flex items-center justify-between text-[11px]">
-              <span className="text-text">{item.name}</span>
+              <span className="text-text font-semibold">{item.product?.name || item.name || 'Unknown Product'}</span>
               <span className="text-text3">₹{item.price} × {item.quantity}</span>
             </div>
           ))}
@@ -145,7 +152,7 @@ function OrderDetailModal({ order, onClose }: { order?: Order; onClose: () => vo
               {(order.items ?? []).map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between py-2 border-b border-border-custom last:border-0">
                   <div>
-                    <p className="font-bold text-[12px] text-text">{item.name}</p>
+                    <p className="font-bold text-[12px] text-text">{item.product?.name || item.name || 'Unknown Product'}</p>
                     <p className="text-[10px] text-text3">Qty: {item.quantity}</p>
                   </div>
                   <p className="font-black text-[12px] text-text">₹{(item.price * item.quantity).toFixed(0)}</p>

@@ -21,14 +21,15 @@ function StatusBadge({ status }: { status: string }) {
 
 export const runtime = 'edge';
 
-export default function InvoicePage({ params }: { params: { id: string } }) {
+export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
   const [inv, setInv] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
-        const res = await api.get(`/orders/invoice/${params.id}`);
+        const res = await api.get(`/orders/invoice/${id}`);
         setInv(res.data);
       } catch (e) {
         console.error(e);
@@ -37,7 +38,7 @@ export default function InvoicePage({ params }: { params: { id: string } }) {
       }
     };
     fetchInvoice();
-  }, [params.id]);
+  }, [id]);
 
   if (loading) {
     return (

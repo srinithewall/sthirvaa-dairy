@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 
-// @Component("sampleDataInitializer")
+@Component("sampleDataInitializer")
 public class SampleDataInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(SampleDataInitializer.class);
@@ -32,6 +32,7 @@ public class SampleDataInitializer implements CommandLineRunner {
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private ProductRepository productRepository;
     @Autowired private SubscriptionPlanRepository planRepository;
+    @Autowired private ApartmentRepository apartmentRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -44,6 +45,7 @@ public class SampleDataInitializer implements CommandLineRunner {
         seedInventory();
         seedProducts();
         seedSubscriptionPlans();
+        seedApartments();
         seedTransactions(herds, customers);
         seedUsers(staffList, customers);
         
@@ -351,5 +353,17 @@ public class SampleDataInitializer implements CommandLineRunner {
         chickenCombo.addItem(cItem);
 
         planRepository.save(chickenCombo);
+    }
+
+    private void seedApartments() {
+        if (apartmentRepository.count() > 0) return;
+        apartmentRepository.saveAll(Arrays.asList(
+            new Apartment("Prestige Shantiniketan", "Whitefield Road, Hoodi, Bengaluru - 560048"),
+            new Apartment("Brigade Metropolis", "Whitefield Main Rd, Garudachar Palya, Mahadevapura, Bengaluru - 560048"),
+            new Apartment("Sobha Carnation", "Green Glen Layout, Bellandur, Bengaluru - 560103"),
+            new Apartment("Sherwood Apartments", "Basavanagar Main Rd, Vignana Nagar, Bengaluru - 560037"),
+            new Apartment("Rohan Iksha", "Marathahalli - Sarjapur Outer Ring Rd, Bhoganhalli, Bengaluru - 560103"),
+            new Apartment("Sthirvaa Meadows", "Hoskote Main Road, Bengaluru - 562114")
+        ));
     }
 }

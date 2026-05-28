@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api, { formatImageUrl } from '@/lib/api';
-import { Plus, X, ChevronDown, ChevronRight, Info, Table as TableIcon, LayoutGrid, Calendar, Activity, Trash2, Edit2 } from 'lucide-react';
+import { Plus, X, ChevronDown, ChevronRight, Info, Table as TableIcon, LayoutGrid, Calendar, Activity, Trash2, Edit2, Archive } from 'lucide-react';
 import RegisterAnimalModal from '@/components/RegisterAnimalModal';
 import { useNotification } from '@/components/NotificationContext';
 
@@ -32,6 +32,7 @@ export default function HerdsPage() {
   const [showModal, setShowModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDisposedModal, setShowDisposedModal] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({ 'COW': true });
   const [userRole, setUserRole] = useState<string>('');
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
@@ -183,6 +184,8 @@ export default function HerdsPage() {
 
 
 
+  const activeHerds = herds.filter(h => h.status !== 'DISPOSED');
+
   return (
     <AppLayout>
       <div className="flex items-start justify-between mb-6 gap-3 flex-wrap">
@@ -191,13 +194,24 @@ export default function HerdsPage() {
           <p className="text-[12px] text-text3 mt-0.5 underline font-medium">Sthirvaa Farms Dashboard</p>
         </div>
         
-        <button 
-          onClick={() => setShowRegisterModal(true)}
-          className="bg-brand text-white flex items-center gap-2 py-2 px-3 md:px-5 rounded-xl font-black text-[11px] md:text-[13px] hover:bg-brand-dark transition-all shadow-md active:scale-95"
-        >
-          <Plus size={16} />
-          <span className="hidden md:inline">Register Animal</span>
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button 
+            onClick={() => setShowDisposedModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 border border-border-custom bg-white hover:bg-surface text-text3 hover:text-brand rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm"
+            title="View Disposed Animals Archive"
+          >
+            <Archive size={14} />
+            <span>Disposed ({herds.filter(h => h.status === 'DISPOSED').length})</span>
+          </button>
+          
+          <button 
+            onClick={() => setShowRegisterModal(true)}
+            className="bg-brand text-white flex items-center gap-2 py-2 px-3 md:px-5 rounded-xl font-black text-[11px] md:text-[13px] hover:bg-brand-dark transition-all shadow-md active:scale-95"
+          >
+            <Plus size={16} />
+            <span className="hidden md:inline">Register Animal</span>
+          </button>
+        </div>
       </div>
 
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -208,32 +222,32 @@ export default function HerdsPage() {
           </div>
           <div className="bg-white border border-border-custom rounded-b-xl shadow-xl">
             <CategoryRow 
-              title="Cows" 
+              title="Lactation Cows" 
               type="COW"
               canExpand={true}
-              count={counts['COW'] || 0} 
-              items={herds.filter(h => h.animalType === 'COW')} 
+              count={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'LACTATING').length} 
+              items={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'LACTATING')} 
             />
             
             {expandedRows['COW'] && (
               <>
                 <CategoryRow 
-                  title="Lactation Cows" 
+                  title="Remaining Cows" 
                   isSub={true}
-                  count={herds.filter(h => h.animalType === 'COW' && h.animalStatus === 'LACTATING').length} 
-                  items={herds.filter(h => h.animalType === 'COW' && h.animalStatus === 'LACTATING')} 
+                  count={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus !== 'LACTATING' && h.animalStatus !== 'CALF').length} 
+                  items={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus !== 'LACTATING' && h.animalStatus !== 'CALF')} 
                 />
                 <CategoryRow 
                   title="Calf" 
                   isSub={true}
-                  count={herds.filter(h => h.animalType === 'COW' && h.animalStatus === 'CALF').length} 
-                  items={herds.filter(h => h.animalType === 'COW' && h.animalStatus === 'CALF')} 
+                  count={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'CALF').length} 
+                  items={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'CALF')} 
                 />
               </>
             )}
             
-            <CategoryRow title="Buffalo" count={counts['BUFFALO']} items={herds.filter(h => h.animalType === 'BUFFALO')} />
-            <CategoryRow title="Goat" count={counts['GOAT']} items={herds.filter(h => h.animalType === 'GOAT')} />
+            <CategoryRow title="Buffalo" count={activeHerds.filter(h => h.animalType === 'BUFFALO').length} items={activeHerds.filter(h => h.animalType === 'BUFFALO')} />
+            <CategoryRow title="Goat" count={activeHerds.filter(h => h.animalType === 'GOAT').length} items={activeHerds.filter(h => h.animalType === 'GOAT')} />
           </div>
         </div>
 
@@ -243,9 +257,9 @@ export default function HerdsPage() {
             Meat / Poultry Section
           </div>
           <div className="bg-white border border-border-custom rounded-b-xl shadow-xl">
-            <CategoryRow title="Chicken" count={counts['CHICKEN']} items={herds.filter(h => h.animalType === 'CHICKEN')} />
-            <CategoryRow title="Fishes" count={counts['FISH']} items={herds.filter(h => h.animalType === 'FISH')} />
-            <CategoryRow title="Duck" count={counts['DUCK']} items={herds.filter(h => h.animalType === 'DUCK')} />
+            <CategoryRow title="Chicken" count={activeHerds.filter(h => h.animalType === 'CHICKEN').length} items={activeHerds.filter(h => h.animalType === 'CHICKEN')} />
+            <CategoryRow title="Fishes" count={activeHerds.filter(h => h.animalType === 'FISH').length} items={activeHerds.filter(h => h.animalType === 'FISH')} />
+            <CategoryRow title="Duck" count={activeHerds.filter(h => h.animalType === 'DUCK').length} items={activeHerds.filter(h => h.animalType === 'DUCK')} />
           </div>
         </div>
       </div>
@@ -339,6 +353,15 @@ export default function HerdsPage() {
                     <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Sourced</label>
                     <div className="text-[14px] sm:text-[15px] font-bold text-text2">{selectedHerd.source || '—'}</div>
                   </div>
+
+                  <div>
+                    <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Record Status</label>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      selectedHerd.status === 'DISPOSED' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-green-100 text-brand border border-green-200'
+                    }`}>
+                      {selectedHerd.status || 'ACTIVE'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -392,6 +415,84 @@ export default function HerdsPage() {
           herdToEdit={selectedHerd}
         />
       )}
+      {showDisposedModal && (
+        <DisposedAnimalsModal
+          isOpen={showDisposedModal}
+          onClose={() => setShowDisposedModal(false)}
+          herds={herds}
+          onAnimalClick={handleHerdClick}
+        />
+      )}
     </AppLayout>
+  );
+}
+
+/* ─── Disposed Animals Archive Modal ─── */
+function DisposedAnimalsModal({ isOpen, onClose, herds, onAnimalClick }: {
+  isOpen: boolean;
+  onClose: () => void;
+  herds: any[];
+  onAnimalClick: (id: number) => void;
+}) {
+  if (!isOpen) return null;
+  const disposed = herds.filter(h => h.status === 'DISPOSED');
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-border-custom" style={{ background: 'linear-gradient(135deg,#5c677d 0%,#334155 100%)' }}>
+          <div>
+            <h2 className="text-[15px] font-black text-white tracking-tight uppercase">Disposed Animals Archive</h2>
+            <p className="text-[10px] text-white/70 font-semibold uppercase mt-0.5">Inactive / sold / archived records</p>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {disposed.length === 0 ? (
+            <div className="py-16 text-center text-text3 italic">No disposed animal records found.</div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {disposed.map((item) => {
+                const initials = item.animalName ? item.animalName.substring(0, 2).toUpperCase() : '??';
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      onAnimalClick(item.id);
+                      onClose();
+                    }}
+                    className="bg-surface hover:bg-[#F1F5F9] border border-border-custom rounded-xl p-4 cursor-pointer transition-all hover:shadow text-center flex flex-col items-center gap-2 group relative"
+                  >
+                    {item.imageUrl ? (
+                      <img src={formatImageUrl(item.imageUrl)} alt={item.animalName} className="w-12 h-12 rounded-lg object-cover border" />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-300 rounded-lg flex items-center justify-center text-white font-black text-sm uppercase">
+                        {initials}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-bold text-text text-[13px] truncate max-w-[120px]">{item.animalName || 'Unnamed'}</p>
+                      <p className="text-[10px] text-text3 font-mono mt-0.5">{item.tagNumber}</p>
+                    </div>
+                    <span className="text-[8px] font-black uppercase bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
+                      {item.animalType}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t bg-slate-50 flex justify-end">
+          <button onClick={onClose} className="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors shadow-md">
+            Close Archive
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

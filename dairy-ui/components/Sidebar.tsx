@@ -7,7 +7,19 @@ import { usePathname } from 'next/navigation';
 import api, { formatImageUrl } from '@/lib/api';
 import { changelogData } from '@/lib/changelog';
 
-const sidebarItems = [
+interface SidebarItem {
+  name: string;
+  icon: any;
+  path: string;
+  badge?: string | number;
+}
+
+interface SidebarSection {
+  group: string;
+  items: SidebarItem[];
+}
+
+const sidebarItems: SidebarSection[] = [
   { group: 'Overview', items: [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' }
   ]},
@@ -292,17 +304,17 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
 
     {/* Changelog & Release Notes Modal */}
     {showChangelogModal && (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 border border-brand/20 flex flex-col max-h-[80vh]">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-brand/20 flex flex-col max-h-[90vh] sm:max-h-[80vh]">
           {/* Header */}
-          <div className="bg-brand-dark p-5 text-white flex items-center justify-between flex-shrink-0">
+          <div className="bg-brand-dark p-4 sm:p-5 text-white flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-1.5 bg-white/10 rounded-lg">
                 <Info size={20} className="text-accent" />
               </div>
               <div className="text-left">
-                <h2 className="text-lg font-bold">System Changelog</h2>
-                <p className="text-[10px] text-accent font-semibold tracking-wider uppercase">Sthirvaa Farms • Release History</p>
+                <h2 className="text-base sm:text-lg font-bold">System Changelog</h2>
+                <p className="text-[9px] sm:text-[10px] text-accent font-semibold tracking-wider uppercase">Sthirvaa Farms • Release History</p>
               </div>
             </div>
             <button 
@@ -314,9 +326,9 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
           </div>
           
           {/* Body (Scrollable) */}
-          <div className="p-6 overflow-y-auto space-y-5 bg-surface/30 flex-1 text-left">
+          <div className="p-4 sm:p-6 overflow-y-auto space-y-5 bg-surface/30 flex-1 text-left">
             {changelogData.map((entry, index) => (
-              <div key={index} className="relative pl-6 border-l border-gray-200 last:border-transparent pb-3">
+              <div key={index} className="relative pl-5 sm:pl-6 border-l border-gray-200 last:border-transparent pb-3">
                 {/* Dot on Timeline */}
                 <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 bg-brand rounded-full ring-4 ring-white" />
                 
@@ -335,7 +347,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                   <span className="text-[10px] text-text3 font-bold">{entry.date}</span>
                 </div>
                 
-                <div className="text-[9px] text-text2 font-bold mb-2.5 flex items-center gap-1">
+                <div className="text-[9px] text-text2 font-bold mb-2 flex items-center gap-1">
                   <GitCommit size={10} className="text-text3" />
                   <span>Commit:</span>
                   <span className="bg-surface2 px-1 py-0.2 rounded font-mono text-[9px] border border-border-custom">{entry.commit}</span>
@@ -354,7 +366,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
           </div>
           
           {/* Footer */}
-          <div className="p-4 border-t border-border-custom bg-white flex justify-end flex-shrink-0">
+          <div className="p-3 sm:p-4 border-t border-border-custom bg-white flex justify-end flex-shrink-0">
             <button 
               onClick={() => setShowChangelogModal(false)}
               className="bg-brand text-white px-5 py-2 rounded-lg font-bold hover:bg-brand-dark transition-colors text-xs shadow-md"

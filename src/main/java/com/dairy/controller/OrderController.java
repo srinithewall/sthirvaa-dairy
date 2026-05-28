@@ -98,12 +98,14 @@ public class OrderController {
 
     @PostMapping("/checkout-flow")
     public ResponseEntity<com.dairy.dto.OrderResponseDTO> processCheckoutFlow(@RequestBody com.dairy.dto.CheckoutRequestDTO request) {
-        return ResponseEntity.ok(orderService.processCheckout(request));
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(orderService.processCheckout(request, email));
     }
 
     @GetMapping("/invoices")
     public ResponseEntity<List<com.dairy.dto.OrderResponseDTO>> getMyInvoices() {
-        return ResponseEntity.ok(orderService.getMyOrders());
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(orderService.getMyOrders(email));
     }
 
     @GetMapping("/invoice/{id}")

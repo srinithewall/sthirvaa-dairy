@@ -1,5 +1,21 @@
 [
   {
+    "version": "v1.3.148",
+    "date": "2026-05-29",
+    "commit": "30be557",
+    "changes": [
+      "feat: improve mobile UX of shop and navbar, add disposed cows filter, fix user brand displays, optimize changelog responsiveness on small screens"
+    ]
+  },
+  {
+    "version": "v1.3.147",
+    "date": "2026-05-21",
+    "commit": "6376e54",
+    "changes": [
+      "Fixing UI in Distribute Milk Screen"
+    ]
+  },
+  {
     "version": "v1.3.146",
     "date": "2026-05-21",
     "commit": "4eed42e",
@@ -101,22 +117,6 @@
     "commit": "bcfa6fe",
     "changes": [
       "fix(images): resolve relative uploaded image paths with helper and rewrites"
-    ]
-  },
-  {
-    "version": "v1.3.133",
-    "date": "2026-05-19",
-    "commit": "2d27cc6",
-    "changes": [
-      "style(inventory): remove inline category filter dropdown from desktop table category column header"
-    ]
-  },
-  {
-    "version": "v1.3.132",
-    "date": "2026-05-19",
-    "commit": "4180d22",
-    "changes": [
-      "feat(inventory): add inline category filter dropdown to table Category column header and mobile view"
     ]
   }
 ]

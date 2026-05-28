@@ -31,6 +31,18 @@ public class User {
 
     private LocalDateTime createdAt;
 
+    @Column(name = "apartment_name")
+    private String apartmentName;
+
+    @Column(name = "tower_number")
+    private String towerNumber;
+
+    @Column(name = "door_number")
+    private String doorNumber;
+
+    @Column(name = "delivery_address")
+    private String deliveryAddress;
+
     public User() {}
 
     public User(String username, String email, String password, Role role) {
@@ -69,4 +81,16 @@ public class User {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getApartmentName() { return apartmentName; }
+    public void setApartmentName(String apartmentName) { this.apartmentName = apartmentName; }
+
+    public String getTowerNumber() { return towerNumber; }
+    public void setTowerNumber(String towerNumber) { this.towerNumber = towerNumber; }
+
+    public String getDoorNumber() { return doorNumber; }
+    public void setDoorNumber(String doorNumber) { this.doorNumber = doorNumber; }
+
+    public String getDeliveryAddress() { return deliveryAddress; }
+    public void setDeliveryAddress(String deliveryAddress) { this.deliveryAddress = deliveryAddress; }
 }

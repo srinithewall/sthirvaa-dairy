@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://api-origin.sthirvaa.com/api';
+const API_BASE_URL = process.env.NODE_ENV === 'development'
+  ? 'http://localhost:8080/api'
+  : 'https://api-origin.sthirvaa.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

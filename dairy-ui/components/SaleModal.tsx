@@ -18,7 +18,7 @@ interface Sale {
   totalAmount: number;
   date: string;
   paymentStatus: string;
-  customer: { id: number };
+  customer?: { id: number; name?: string };
 }
 
 interface SaleModalProps {

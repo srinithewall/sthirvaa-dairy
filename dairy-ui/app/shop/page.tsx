@@ -205,7 +205,7 @@ function SubscriptionCard({ plan, onSubscribe }: { plan: SubscriptionPlan; onSub
 }
 
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { id: 'all', name: 'All Products', icon: '🛍️' },
   { id: 'dairy', name: 'Dairy & Milk', icon: '🥛' },
   { id: 'vegetables', name: 'Fresh Veggies', icon: '🥬' },
@@ -216,39 +216,72 @@ const CATEGORIES = [
 function ProductCard({ product, isInCart, cartQuantity, onAddToCart, onRemoveFromCart }:
   { product: Product; isInCart: boolean; cartQuantity: number; onAddToCart: (p: Product) => void; onRemoveFromCart: (id: number) => void }) {
   const discount = product.slashedPrice ? Math.round(((product.slashedPrice - product.price) / product.slashedPrice) * 100) : 0;
+  const isOutOfStock = !product.inStock && product.inStock !== undefined;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col group">
-      <div className="relative overflow-hidden bg-[#F8F9FA] aspect-[4/3] h-28">
-        <img src={formatImageUrl(product.imageUrl) || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        {discount > 0 && (
-          <div className="absolute top-1.5 left-1.5 bg-red-500 text-white px-1.5 py-0.5 rounded text-[9px] font-black shadow-sm">{discount}% OFF</div>
+    <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col group ${isOutOfStock ? 'opacity-75' : ''}`}>
+      {/* Product Image */}
+      <div className="relative overflow-hidden bg-gray-50" style={{aspectRatio: '4/3'}}>
+        <img
+          src={formatImageUrl(product.imageUrl) || 'https://via.placeholder.com/300'}
+          alt={product.name}
+          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${isOutOfStock ? 'grayscale' : ''}`}
+        />
+        {discount > 0 && !isOutOfStock && (
+          <span className="absolute top-2 left-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black shadow">{discount}% OFF</span>
+        )}
+        {isOutOfStock && (
+          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+            <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-lg uppercase tracking-wide border-2 border-white/60 -rotate-6 block">
+              Out of Stock
+            </span>
+          </div>
         )}
       </div>
-      <div className="p-3 flex-1 flex flex-col">
-        <p className="text-[9px] font-black text-[#C5A059] uppercase tracking-widest mb-0.5">{product.subcategory || product.category}</p>
-        <h3 className="font-bold text-xs text-gray-900 leading-tight mb-2 line-clamp-2">{product.name}</h3>
-        <div className="mt-auto flex items-end justify-between">
+
+      {/* Card Body */}
+      <div className="flex flex-col flex-1 p-3">
+        <p className="text-[9px] font-extrabold text-[#C5A059] uppercase tracking-widest mb-0.5">{product.subcategory || product.category}</p>
+        <h3 className="font-semibold text-[13px] text-gray-800 leading-snug mb-2 line-clamp-2 flex-1">{product.name}</h3>
+
+        {/* Price Row */}
+        <div className="flex flex-col justify-between mt-auto gap-2 pt-1">
           <div>
-            {product.slashedPrice ? (
-              <p className="text-[10px] text-gray-400 line-through leading-none">₹{product.slashedPrice}</p>
-            ) : null}
-            <p className="text-sm font-black text-[#1B4332] leading-none">
+            {product.slashedPrice && !isOutOfStock && (
+              <p className="text-[10px] text-gray-400 line-through leading-none mb-0.5">₹{product.slashedPrice}</p>
+            )}
+            <p className="text-[15px] font-black text-[#1B4332] leading-tight">
               ₹{product.price || 0}
-              <span className="text-[9px] font-bold text-gray-400">/{product.unit || 'unit'}</span>
+              <span className="text-[10px] font-medium text-gray-400 ml-0.5">/{product.unit || 'unit'}</span>
             </p>
           </div>
 
-
-          {isInCart ? (
-            <div className="flex items-center gap-1.5 bg-[#F0F4F1] rounded-lg p-0.5 shadow-inner">
-              <button onClick={() => onRemoveFromCart(product.id)} className="w-6 h-6 flex items-center justify-center bg-white rounded flex-shrink-0 shadow-sm text-[#1B4332] hover:bg-gray-50 transition-all"><Minus size={12} /></button>
-              <span className="font-black text-xs text-[#1B4332] w-4 text-center">{cartQuantity}</span>
-              <button onClick={() => onAddToCart(product)} className="w-6 h-6 flex items-center justify-center bg-[#1B4332] rounded flex-shrink-0 text-white hover:bg-[#081C15] transition-all shadow-sm"><Plus size={12} /></button>
-            </div>
-          ) : (
-            <button onClick={() => onAddToCart(product)} className="w-7 h-7 flex items-center justify-center bg-[#1B4332] text-white rounded-lg hover:bg-[#081C15] transition-all active:scale-95 shadow-sm group-hover:shadow-md"><Plus size={14} /></button>
-          )}
+          <div className="flex w-full">
+            {!isOutOfStock ? (
+              isInCart ? (
+                <div className="flex items-center justify-between w-full bg-[#EAF2ED] rounded-xl px-2 py-1.5 border border-[#1B4332]/10">
+                  <button
+                    onClick={() => onRemoveFromCart(product.id)}
+                    className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm text-[#1B4332] hover:text-red-600 transition-colors"
+                  ><Minus size={14} /></button>
+                  <span className="font-black text-sm text-[#1B4332]">{cartQuantity}</span>
+                  <button
+                    onClick={() => onAddToCart(product)}
+                    className="w-7 h-7 flex items-center justify-center bg-[#1B4332] rounded-lg text-white hover:bg-[#081C15] transition-colors shadow-sm"
+                  ><Plus size={14} /></button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => onAddToCart(product)}
+                  className="w-full py-2 flex items-center justify-center gap-1.5 bg-[#1B4332] text-white rounded-xl hover:bg-[#081C15] active:scale-95 transition-all shadow-sm font-bold text-xs"
+                ><Plus size={14} /> Add</button>
+              )
+            ) : (
+              <div className="w-full text-[11px] font-black text-orange-600 bg-orange-50 border border-orange-200 rounded-xl py-2 text-center uppercase tracking-wider">
+                Out of Stock
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -260,29 +293,71 @@ export default function ConsumerShopPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartLoaded, setIsCartLoaded] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCart, setShowCart] = useState(false);
   const [subscribingPlan, setSubscribingPlan] = useState<SubscriptionPlan | null>(null);
+  const [categories, setCategories] = useState<{ id: string; name: string; icon: string }[]>(DEFAULT_CATEGORIES);
   const { showToast } = useNotification();
 
   useEffect(() => {
+    const savedCart = localStorage.getItem('checkout_cart');
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch(e) {}
+    }
+    setIsCartLoaded(true);
+
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [plansRes, productsRes] = await Promise.all([api.get('/subscription-plans'), api.get('/products')]);
-        setPlans(plansRes.data || []);
-        setProducts(productsRes.data || []);
+        const [plansRes, productsRes, catRes] = await Promise.allSettled([
+          api.get('/subscription-plans'),
+          api.get('/products'),
+          api.get('/settings/product_categories')
+        ]);
+        
+        if (plansRes.status === 'fulfilled') {
+          setPlans(plansRes.value.data || []);
+        } else {
+          setPlans([]);
+        }
+        
+        if (productsRes.status === 'fulfilled') {
+          setProducts(productsRes.value.data || []);
+        } else {
+          setProducts([]);
+        }
+        
+        if (catRes.status === 'fulfilled' && catRes.value.data?.settingValue) {
+          try {
+            const parsed = JSON.parse(catRes.value.data.settingValue);
+            setCategories([{ id: 'all', name: 'All Products', icon: '🛍️' }, ...parsed]);
+          } catch {
+            setCategories(DEFAULT_CATEGORIES);
+          }
+        } else {
+          setCategories(DEFAULT_CATEGORIES);
+        }
       } catch (e) { 
         console.error(e); 
         setPlans([]); 
         setProducts([]);
+        setCategories(DEFAULT_CATEGORIES);
       } finally { 
         setLoading(false); 
       }
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (isCartLoaded) {
+      localStorage.setItem('checkout_cart', JSON.stringify(cart));
+    }
+  }, [cart, isCartLoaded]);
 
   const filteredProducts = useMemo(() => products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -303,18 +378,24 @@ export default function ConsumerShopPage() {
   });
 
   return (
-    <AppLayout>
+    <AppLayout headerAction={
+      <button onClick={() => setShowCart(true)} className="flex bg-[#C5A059] hover:bg-[#EADAB8] border-none text-brand-dark py-1.5 px-3 rounded-md cursor-pointer text-[13px] items-center gap-2 transition-all font-bold shadow-sm relative">
+        <ShoppingCart size={14} />
+        <span>{cartCount > 0 ? `${cartCount} item${cartCount > 1 ? 's' : ''} · ₹${cartTotal}` : 'Cart'}</span>
+        {cartCount > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black">{cartCount}</span>}
+      </button>
+    }>
       <div className="flex flex-col font-sans w-full max-w-7xl mx-auto">
         
         {/* ── Shop Header ── */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-5">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div className="flex-shrink-0">
             <h1 className="text-xl font-black text-[#1B4332] tracking-tight">Sthirvaa Shop</h1>
             <p className="text-[11px] font-bold text-[#C5A059] uppercase tracking-widest mt-0.5">Farm Fresh Essentials</p>
           </div>
 
           {/* Search */}
-          <div className="flex-1 w-full max-w-md relative group">
+          <div className="w-full sm:flex-1 sm:max-w-md relative group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search size={14} className="text-gray-400 group-focus-within:text-[#1B4332] transition-colors" />
             </div>
@@ -323,43 +404,33 @@ export default function ConsumerShopPage() {
               placeholder="Search milk, veggies, eggs..." 
               value={searchQuery} 
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-white border-2 border-transparent rounded-xl text-xs focus:border-[#1B4332]/20 focus:ring-0 outline-none transition-all shadow-sm" 
+              className="w-full pl-9 pr-3 py-2.5 bg-white border-2 border-transparent rounded-xl text-xs focus:border-[#1B4332]/20 focus:ring-0 outline-none transition-all shadow-sm" 
             />
           </div>
-
-          {/* Cart Action */}
-          <button onClick={() => setShowCart(true)} className="w-full sm:w-auto relative flex items-center justify-center gap-2 bg-[#1B4332] text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider shadow hover:bg-[#081C15] transition-all active:translate-y-0">
-            <ShoppingCart size={14} />
-            <span>₹{cartTotal}</span>
-            {cartCount > 0 && <span className="absolute -top-1.5 -right-1.5 bg-[#C5A059] text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shadow-sm border-2 border-[#1B4332]">{cartCount}</span>}
-          </button>
         </div>
         
         {/* ── Hero Section ── */}
-        <section className="relative w-full rounded-2xl overflow-hidden mb-8 shadow-lg group min-h-[160px] flex items-center bg-[#1B4332]">
+        <section className="relative w-full rounded-2xl overflow-hidden mb-8 shadow-lg group min-h-[180px] sm:min-h-[200px] flex items-end sm:items-center bg-[#1B4332]">
           <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600" className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:scale-105 transition-transform duration-[3s] ease-out" alt="Farm Fresh Basket" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#1B4332] via-[#1B4332]/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-[#1B4332] via-[#1B4332]/80 to-transparent" />
           
-          <div className="relative z-10 p-6 md:p-8 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 bg-[#C5A059] text-white px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest mb-3 shadow-sm">
-              <Leaf size={10} /> 100% Organic & Fresh
+          <div className="relative z-10 p-5 sm:p-6 md:p-8 w-full sm:max-w-xl">
+            {/* Top row: badge + delivery slot */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="inline-flex items-center gap-1.5 bg-[#C5A059] text-white px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest shadow-sm">
+                <Leaf size={10} /> 100% Organic & Fresh
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-2.5 py-1 rounded-md border border-white/20 shadow">
+                <Clock size={11} className="text-[#C5A059]" />
+                <span className="text-white text-[9px] font-black">6 AM – 8 AM Delivery</span>
+              </div>
             </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight mb-2 drop-shadow-md">
-              Fresh Daily Deliveries <br/><span className="text-[#EADAB8] font-serif italic font-medium text-xl sm:text-2xl">to your doorstep.</span>
+            <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-white leading-tight mb-2 drop-shadow-md">
+              Fresh Daily Deliveries <br/><span className="text-[#EADAB8] font-serif italic font-medium text-base sm:text-2xl">to your doorstep.</span>
             </h2>
-            <p className="text-white/80 text-xs sm:text-sm font-medium max-w-md line-clamp-2">
+            <p className="text-white/75 text-[11px] sm:text-sm font-medium max-w-md line-clamp-2">
               Subscribe to pure A2 milk, farm-fresh eggs, and chemical-free vegetables. Sourced directly from our Hoskote farms.
             </p>
-          </div>
-
-          <div className="absolute top-4 right-4 flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg border border-white/20 shadow-lg">
-            <div className="w-7 h-7 rounded-md bg-[#C5A059] flex items-center justify-center shadow-inner">
-              <Clock size={14} className="text-white" />
-            </div>
-            <div>
-              <p className="text-white/60 text-[9px] font-black uppercase tracking-widest leading-none mb-0.5">Guaranteed</p>
-              <p className="text-white text-[11px] font-black">6 AM – 8 AM Delivery</p>
-            </div>
           </div>
         </section>
 
@@ -373,7 +444,7 @@ export default function ConsumerShopPage() {
           {loading ? (
             <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#1B4332]" size={30} /></div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
               {plans.map((plan) => <SubscriptionCard key={plan.id} plan={plan} onSubscribe={p => setSubscribingPlan(p)} />)}
             </div>
           )}
@@ -393,15 +464,15 @@ export default function ConsumerShopPage() {
           </div>
 
           {/* Enhanced Category Pills */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-4">
-            {CATEGORIES.map(cat => (
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-4 -mx-1 px-1">
+            {categories.map(cat => (
               <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm flex-shrink-0 ${
                   activeCategory === cat.id 
                     ? 'bg-[#1B4332] text-white ring-2 ring-[#1B4332]/20' 
                     : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-[#1B4332] border border-gray-200'
                 }`}>
-                <span className="text-base">{cat.icon}</span> {cat.name}
+                <span className="text-sm">{cat.icon}</span> {cat.name}
               </button>
             ))}
           </div>
@@ -411,7 +482,7 @@ export default function ConsumerShopPage() {
             {loading ? (
               <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[#1B4332]" size={30} /></div>
             ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {filteredProducts.map(p => (
                   <ProductCard key={p.id} product={p} isInCart={cart.some(i => i.id === p.id)}
                     cartQuantity={cart.find(i => i.id === p.id)?.cartQuantity ?? 0}
@@ -429,7 +500,7 @@ export default function ConsumerShopPage() {
         </section>
 
         {/* ── Trust Signals ── */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-8">
           {[
             { icon: <CheckCircle2 size={16} className="text-[#1B4332]" />, title: 'Direct from Farm', desc: 'Harvested daily.' },
             { icon: <Leaf size={16} className="text-green-600" />, title: '100% Natural', desc: 'Chemical-free & pure.' },
@@ -450,7 +521,7 @@ export default function ConsumerShopPage() {
       {/* ── Cart Drawer ── */}
       {showCart && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[5000] flex justify-end transition-opacity" onClick={e => e.target === e.currentTarget && setShowCart(false)}>
-          <div className="bg-white w-full max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+          <div className="bg-white w-full max-w-md h-full h-[100dvh] flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50">
               <h2 className="font-black text-[#1B4332] text-lg flex items-center gap-3"><ShoppingCart size={20} /> Your Cart</h2>
               <button onClick={() => setShowCart(false)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl text-gray-500 hover:bg-gray-100 hover:text-red-500 shadow-sm transition-all"><X size={20} /></button>
@@ -473,7 +544,10 @@ export default function ConsumerShopPage() {
                   <div className="flex-1 flex flex-col justify-center">
                     <h3 className="font-bold text-[#1B4332] text-sm leading-tight">{item.name}</h3>
                     <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">₹{item.price} / {item.unit}</p>
-                    <div className="flex items-center gap-3 mt-3 bg-gray-50 w-fit rounded-lg p-1 border border-gray-200">
+                    {item.description && (
+                      <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-tight">{item.description}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-2 bg-gray-50 w-fit rounded-lg p-1 border border-gray-200">
                       <button onClick={() => removeFromCart(item.id)} className="w-7 h-7 bg-white rounded-md shadow-sm flex items-center justify-center text-gray-600 hover:text-red-500"><Minus size={12} /></button>
                       <span className="font-black text-sm text-[#1B4332] w-4 text-center">{item.cartQuantity}</span>
                       <button onClick={() => addToCart(item)} className="w-7 h-7 bg-[#1B4332] rounded-md shadow-sm flex items-center justify-center text-white hover:bg-[#081C15]"><Plus size={12} /></button>

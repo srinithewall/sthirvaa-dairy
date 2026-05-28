@@ -11,9 +11,13 @@ import ComboFormModal, { SubscriptionPlan } from './ComboFormModal';
 
 
 export default function ProductManagementPage() {
-  const [activeTab, setActiveTab] = useState<'products' | 'combos'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'combos' | 'categories'>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; icon: string }[]>([]);
+  const [newCatId, setNewCatId] = useState('');
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('🥛');
   const [loading, setLoading] = useState(true);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showComboModal, setShowComboModal] = useState(false);
@@ -43,7 +47,8 @@ export default function ProductManagementPage() {
 
   useEffect(() => {
     if (activeTab === 'products') fetchProducts();
-    else fetchPlans();
+    else if (activeTab === 'combos') fetchPlans();
+    else fetchCategories();
   }, [activeTab]);
 
   const fetchProducts = async () => {
@@ -56,6 +61,71 @@ export default function ProductManagementPage() {
     setLoading(true);
     try { const res = await api.get('/subscription-plans'); setPlans(res.data); }
     catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/settings/product_categories');
+      if (res.data?.settingValue) {
+        setCategories(JSON.parse(res.data.settingValue));
+      } else {
+        setCategories([
+          { id: 'dairy', name: 'Dairy & Milk', icon: '🥛' },
+          { id: 'vegetables', name: 'Fresh Veggies', icon: '🥬' },
+          { id: 'divine', name: 'Divine Products', icon: '🔥' },
+          { id: 'meat', name: 'Meats', icon: '🍗' }
+        ]);
+      }
+    } catch (e) {
+      console.error(e);
+      setCategories([
+        { id: 'dairy', name: 'Dairy & Milk', icon: '🥛' },
+        { id: 'vegetables', name: 'Fresh Veggies', icon: '🥬' },
+        { id: 'divine', name: 'Divine Products', icon: '🔥' },
+        { id: 'meat', name: 'Meats', icon: '🍗' }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveCategoriesList = async (updated: { id: string; name: string; icon: string }[]) => {
+    try {
+      await api.post('/settings', {
+        settingKey: 'product_categories',
+        settingValue: JSON.stringify(updated),
+        description: 'Dynamic list of product categories'
+      });
+      setCategories(updated);
+      showToast('Categories updated successfully!');
+    } catch (e: any) {
+      showToast('Failed to save categories: ' + (e.response?.data?.message || e.message), 'error');
+    }
+  };
+
+  const handleAddCategory = () => {
+    if (!newCatId.trim() || !newCatName.trim()) {
+      showToast('Category ID and Name are required', 'error');
+      return;
+    }
+    const cleanId = newCatId.trim().toLowerCase().replace(/\s+/g, '-');
+    if (categories.some(c => c.id === cleanId)) {
+      showToast('Category with this ID already exists', 'error');
+      return;
+    }
+    const updated = [...categories, { id: cleanId, name: newCatName.trim(), icon: newCatIcon.trim() }];
+    saveCategoriesList(updated);
+    setNewCatId('');
+    setNewCatName('');
+    setNewCatIcon('🥛');
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    confirm(`Delete category "${id}"? Products in this category will not filter correctly until updated.`, () => {
+      const updated = categories.filter(c => c.id !== id);
+      saveCategoriesList(updated);
+    }, 'danger');
   };
 
   const handleProductSave = async (p: Product) => {
@@ -95,17 +165,21 @@ export default function ProductManagementPage() {
             <p className="text-[10px] text-text3 font-bold uppercase tracking-wider mt-0.5">Inventory & Subscription Engine</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <button onClick={seedData} disabled={seeding}
-              className="bg-white text-text2 border border-border-custom px-3 sm:px-4 py-2 rounded-sm font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5 hover:bg-surface transition-all">
-              {seeding ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              <span className="hidden sm:inline">Sync</span>
-            </button>
-            <button
-              onClick={() => activeTab === 'products' ? setShowProductModal(true) : setShowComboModal(true)}
-              className="bg-brand text-white px-3 sm:px-5 py-2 rounded-sm font-black text-[11px] uppercase tracking-wide shadow-lg shadow-brand/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5">
-              <Plus size={15} />
-              <span>{activeTab === 'products' ? 'Add Product' : 'Add Combo'}</span>
-            </button>
+            {activeTab !== 'categories' && (
+              <>
+                <button onClick={seedData} disabled={seeding}
+                  className="bg-white text-text2 border border-border-custom px-3 sm:px-4 py-2 rounded-sm font-bold text-[11px] uppercase tracking-wide flex items-center gap-1.5 hover:bg-surface transition-all">
+                  {seeding ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span className="hidden sm:inline">Sync</span>
+                </button>
+                <button
+                  onClick={() => activeTab === 'products' ? setShowProductModal(true) : setShowComboModal(true)}
+                  className="bg-brand text-white px-3 sm:px-5 py-2 rounded-sm font-black text-[11px] uppercase tracking-wide shadow-lg shadow-brand/20 hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5">
+                  <Plus size={15} />
+                  <span>{activeTab === 'products' ? 'Add Product' : 'Add Combo'}</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -118,6 +192,10 @@ export default function ProductManagementPage() {
           <button onClick={() => setActiveTab('combos')}
             className={`px-4 sm:px-6 py-2 rounded-sm text-[11px] font-black transition-all ${activeTab === 'combos' ? 'bg-white shadow text-brand' : 'text-text3 hover:text-text'}`}>
             Combos
+          </button>
+          <button onClick={() => setActiveTab('categories')}
+            className={`px-4 sm:px-6 py-2 rounded-sm text-[11px] font-black transition-all ${activeTab === 'categories' ? 'bg-white shadow text-brand' : 'text-text3 hover:text-text'}`}>
+            Categories
           </button>
         </div>
 
@@ -143,7 +221,11 @@ export default function ProductManagementPage() {
                     <p className="text-[12px] font-bold text-text truncate">{p.name}</p>
                     <p className="text-[10px] text-text3 font-medium">{p.category} · <span className="text-brand font-black">₹{p.price}</span></p>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
+                  <div className="flex gap-2 items-center flex-shrink-0">
+                    <button onClick={() => handleProductSave({ ...p, inStock: !p.inStock })} className={`w-8 h-4 rounded-full relative transition-all ${p.inStock ? 'bg-brand' : 'bg-gray-300'}`}>
+                       <span className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${p.inStock ? 'left-4' : 'left-1'}`} />
+                    </button>
+                    <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
                     <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-1.5 text-brand hover:bg-brand/10 rounded-sm transition-all"><Edit2 size={14} /></button>
                     <button onClick={() => p.id && handleDeleteProduct(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-sm transition-all"><Trash2 size={14} /></button>
                   </div>
@@ -157,6 +239,7 @@ export default function ProductManagementPage() {
                   <th className="px-5 py-3">Product</th>
                   <th className="px-5 py-3">Category</th>
                   <th className="px-5 py-3 text-center">Price</th>
+                  <th className="px-5 py-3 text-center">In Stock</th>
                   <th className="px-5 py-3 text-center">Actions</th>
                 </tr>
               </thead>
@@ -175,6 +258,11 @@ export default function ProductManagementPage() {
                     </td>
                     <td className="px-5 py-3"><span className="px-2 py-0.5 bg-surface rounded-sm text-[10px] font-black text-text3 uppercase">{p.category}</span></td>
                     <td className="px-5 py-3 text-center font-black text-brand">₹{p.price}</td>
+                    <td className="px-5 py-3 text-center">
+                       <button onClick={() => handleProductSave({ ...p, inStock: !p.inStock })} className={`w-8 h-4 rounded-full relative transition-all inline-block align-middle ${p.inStock ? 'bg-brand' : 'bg-gray-300'}`}>
+                         <span className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${p.inStock ? 'left-4' : 'left-1'}`} />
+                       </button>
+                    </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-center gap-1.5">
                         <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-1.5 text-brand hover:bg-brand/10 rounded-sm transition-all"><Edit2 size={15} /></button>
@@ -190,7 +278,7 @@ export default function ProductManagementPage() {
             )}
           </div>
 
-        ) : (
+        ) : activeTab === 'combos' ? (
           /* ── Combo Cards ── */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {plans.map(plan => (
@@ -267,6 +355,76 @@ export default function ProductManagementPage() {
             {plans.length === 0 && (
               <div className="col-span-full py-16 text-center text-text3 text-sm font-medium">No combos yet. Click "Add Combo" to create one.</div>
             )}
+          </div>
+        ) : (
+          /* ── Category Management ── */
+          <div className="space-y-6">
+            {/* Add Category Form */}
+            <div className="bg-white rounded-sm border border-border-custom p-4 shadow-sm max-w-xl">
+              <h3 className="text-xs font-black text-text uppercase tracking-wider mb-3">Add New Category</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-text3 mb-1">Emoji / Icon</label>
+                  <input type="text" value={newCatIcon} onChange={e => setNewCatIcon(e.target.value)} placeholder="e.g. 🥛" className="w-full px-3 py-2 border border-border-custom text-sm outline-none focus:border-brand bg-white" />
+                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                    {['🥛', '🥬', '🍗', '🍎', '🍯', '🧀', '🍞', '🍳', '🥩', '🧈', '🌻', '🔥'].map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setNewCatIcon(emoji)}
+                        className={`w-6.5 h-6.5 flex items-center justify-center rounded border text-sm hover:bg-surface transition-all ${newCatIcon === emoji ? 'border-brand bg-brand/5 ring-1 ring-brand' : 'border-border-custom'}`}
+                        title="Click to select"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[8px] text-text3 block mt-1">Tip: Press <kbd className="bg-gray-100 px-1 rounded font-sans font-bold">Win + .</kbd> for more emojis</span>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-text3 mb-1">Category Name</label>
+                  <input type="text" value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="e.g. Dairy & Milk" className="w-full px-3 py-2 border border-border-custom text-sm outline-none focus:border-brand bg-white" />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-text3 mb-1">Category ID (URL safe)</label>
+                  <input type="text" value={newCatId} onChange={e => setNewCatId(e.target.value)} placeholder="e.g. dairy" className="w-full px-3 py-2 border border-border-custom text-sm outline-none focus:border-brand bg-white" />
+                </div>
+              </div>
+              <button onClick={handleAddCategory} className="mt-4 bg-brand text-white px-5 py-2.5 rounded-sm font-black text-[11px] uppercase tracking-wider shadow-sm hover:opacity-90">
+                Create Category
+              </button>
+            </div>
+
+            {/* Categories List */}
+            <div className="bg-white rounded-sm border border-border-custom shadow-sm overflow-hidden max-w-3xl">
+              <table className="w-full text-left">
+                <thead className="bg-surface text-[10px] font-black uppercase text-text3 border-b border-border-custom">
+                  <tr>
+                    <th className="px-5 py-3">Icon</th>
+                    <th className="px-5 py-3">Name</th>
+                    <th className="px-5 py-3">ID</th>
+                    <th className="px-5 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[13px] font-bold divide-y divide-border-custom">
+                  {categories.map(cat => (
+                    <tr key={cat.id} className="hover:bg-surface/50 transition-colors">
+                      <td className="px-5 py-3 text-xl">{cat.icon}</td>
+                      <td className="px-5 py-3 text-text font-bold">{cat.name}</td>
+                      <td className="px-5 py-3 text-text3 font-mono">{cat.id}</td>
+                      <td className="px-5 py-3 text-center">
+                        <button onClick={() => handleDeleteCategory(cat.id)} className="p-1.5 text-red-500 hover:bg-red-55 rounded-sm transition-all"><Trash2 size={15} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {categories.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-text3 text-sm">No categories configured yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

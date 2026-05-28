@@ -28,8 +28,8 @@ public class OrderService {
     // Hardcoding a user ID for demo purposes if not using JWT parsing here
     private final Long DEMO_USER_ID = 1L;
 
-    public OrderResponseDTO processCheckout(CheckoutRequestDTO request) {
-        User user = userRepository.findById(DEMO_USER_ID).orElseThrow(() -> new RuntimeException("User not found"));
+    public OrderResponseDTO processCheckout(CheckoutRequestDTO request, String email) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
 
         Order order = new Order();
         // Generate a random ID like INV-2026-000125
@@ -54,8 +54,9 @@ public class OrderService {
         return mapToResponseDTO(order);
     }
 
-    public List<OrderResponseDTO> getMyOrders() {
-        List<Order> orders = orderRepository.findByUserId(DEMO_USER_ID);
+    public List<OrderResponseDTO> getMyOrders(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        List<Order> orders = orderRepository.findByUserId(user.getId());
         // Sort by created at desc
         orders.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         return orders.stream().map(this::mapToResponseDTO).collect(Collectors.toList());

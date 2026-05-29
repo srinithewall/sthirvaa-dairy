@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "290980647745",
+    "project_id": "farms-b241e",
+    "storage_bucket": "farms-b241e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:290980647745:android:8b3e0a06a84730365b87c0",
+        "android_client_info": {
+          "package_name": "com.sthir.dairy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJV9oeOQJ_ZVREWEfHjT_LbMm5HHNuad4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:290980647745:android:4d15ebd4613eb7175b87c0",
+        "android_client_info": {
+          "package_name": "com.sthirvaa.dairy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJV9oeOQJ_ZVREWEfHjT_LbMm5HHNuad4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

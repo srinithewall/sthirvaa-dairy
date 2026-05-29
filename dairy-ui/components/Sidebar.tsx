@@ -49,6 +49,45 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   const [showModal, setShowModal] = React.useState(false);
   const [staffInfo, setStaffInfo] = React.useState<any>(null);
   const [showChangelogModal, setShowChangelogModal] = React.useState(false);
+  const [showSettingsModal, setShowSettingsModal] = React.useState(false);
+  const [reminderTime, setReminderTime] = React.useState('18:00');
+  const [reminderStaffs, setReminderStaffs] = React.useState('');
+  const [isSavingSettings, setIsSavingSettings] = React.useState(false);
+
+  const fetchNotificationSettings = async () => {
+    try {
+      const timeRes = await api.get('/settings/milk_production_reminder_time').catch(() => null);
+      if (timeRes) setReminderTime(timeRes.data.settingValue);
+      
+      const staffsRes = await api.get('/settings/milk_production_reminder_staffs').catch(() => null);
+      if (staffsRes) setReminderStaffs(staffsRes.data.settingValue);
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await api.post('/settings', {
+        settingKey: 'milk_production_reminder_time',
+        settingValue: reminderTime,
+        description: 'Time of day to check and send daily milk production entry reminders (HH:mm)'
+      });
+      await api.post('/settings', {
+        settingKey: 'milk_production_reminder_staffs',
+        settingValue: reminderStaffs,
+        description: 'Comma-separated usernames/employee IDs of staff members who should receive notifications'
+      });
+      alert('Notification settings saved successfully!');
+      setShowSettingsModal(false);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   // Close sidebar when pathname changes (on mobile)
   React.useEffect(() => {
@@ -284,6 +323,19 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
       ))}
 
       <div className="mt-auto p-4 flex flex-col gap-2">
+        {user.role === 'ADMIN' && (
+          <button 
+            onClick={() => {
+              fetchNotificationSettings();
+              setShowSettingsModal(true);
+            }}
+            className="flex items-center gap-2 text-text3 hover:text-brand transition-colors text-xs font-semibold w-full border border-gray-100 rounded-lg p-2 bg-surface hover:bg-[#E8F5EE]/40"
+          >
+            <Settings size={14} className="text-brand" />
+            <span>Notification Settings</span>
+          </button>
+        )}
+
         <button 
           onClick={() => setShowChangelogModal(true)}
           className="flex items-center gap-2 text-text3 hover:text-brand transition-colors text-xs font-semibold w-full border border-gray-100 rounded-lg p-2 bg-surface hover:bg-[#E8F5EE]/40"
@@ -372,6 +424,83 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
               className="bg-brand text-white px-5 py-2 rounded-lg font-bold hover:bg-brand-dark transition-colors text-xs shadow-md"
             >
               Close Version Info
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Notification Settings Modal */}
+    {showSettingsModal && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-brand/20 flex flex-col">
+          {/* Header */}
+          <div className="bg-brand-dark p-4 sm:p-5 text-white flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-white/10 rounded-lg">
+                <Settings size={20} className="text-accent" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-base sm:text-lg font-bold">Notification Settings</h2>
+                <p className="text-[9px] sm:text-[10px] text-accent font-semibold tracking-wider uppercase">Sthirvaa Farms • Configurations</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowSettingsModal(false)}
+              className="text-white/50 hover:text-white transition-colors p-1"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          {/* Body */}
+          <div className="p-5 space-y-4 text-left">
+            <div>
+              <label className="block text-xs font-bold text-text2 uppercase tracking-wide mb-1">
+                Reminder Time (HH:mm)
+              </label>
+              <input
+                type="time"
+                value={reminderTime}
+                onChange={(e) => setReminderTime(e.target.value)}
+                className="w-full px-3 py-2 border border-border-custom rounded-lg text-sm focus:outline-none focus:border-brand"
+              />
+              <p className="text-[10px] text-text3 mt-1 leading-relaxed">
+                The time of day when the system checks if the milk production record is missing, and triggers reminders.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-text2 uppercase tracking-wide mb-1">
+                Target Staff Usernames (Comma separated)
+              </label>
+              <input
+                type="text"
+                placeholder="srinivas, bhavya"
+                value={reminderStaffs}
+                onChange={(e) => setReminderStaffs(e.target.value)}
+                className="w-full px-3 py-2 border border-border-custom rounded-lg text-sm focus:outline-none focus:border-brand"
+              />
+              <p className="text-[10px] text-text3 mt-1 leading-relaxed">
+                Enter usernames or emails of staff members who should receive this push notification.
+              </p>
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="p-3 sm:p-4 border-t border-border-custom bg-white flex justify-end gap-2 flex-shrink-0">
+            <button 
+              onClick={() => setShowSettingsModal(false)}
+              className="px-4 py-2 border border-border-custom rounded-lg font-bold text-text2 hover:bg-surface transition-colors text-xs"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleSaveSettings}
+              disabled={isSavingSettings}
+              className="bg-brand text-white px-5 py-2 rounded-lg font-bold hover:bg-brand-dark transition-colors text-xs shadow-md disabled:opacity-50"
+            >
+              {isSavingSettings ? 'Saving...' : 'Save Settings'}
             </button>
           </div>
         </div>

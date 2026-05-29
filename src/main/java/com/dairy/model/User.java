@@ -43,6 +43,9 @@ public class User {
     @Column(name = "delivery_address")
     private String deliveryAddress;
 
+    @Column(name = "fcm_token", length = 512)
+    private String fcmToken;
+
     public User() {}
 
     public User(String username, String email, String password, Role role) {
@@ -93,4 +96,7 @@ public class User {
 
     public String getDeliveryAddress() { return deliveryAddress; }
     public void setDeliveryAddress(String deliveryAddress) { this.deliveryAddress = deliveryAddress; }
+
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 }

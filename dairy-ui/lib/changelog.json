@@ -1,8 +1,16 @@
 [
   {
+    "version": "v1.3.149",
+    "date": "2026-05-29",
+    "commit": "4355e01",
+    "changes": [
+      "feat: implement daily milk production push notification reminders, add mobile FCM token registration, fix linked email state bug"
+    ]
+  },
+  {
     "version": "v1.3.148",
     "date": "2026-05-29",
-    "commit": "30be557",
+    "commit": "312cc66",
     "changes": [
       "feat: improve mobile UX of shop and navbar, add disposed cows filter, fix user brand displays, optimize changelog responsiveness on small screens"
     ]
@@ -109,14 +117,6 @@
     "commit": "c25ed3b",
     "changes": [
       "fix(ui): point API_BASE_URL back to api-origin.sthirvaa.com for production stability"
-    ]
-  },
-  {
-    "version": "v1.3.134",
-    "date": "2026-05-19",
-    "commit": "bcfa6fe",
-    "changes": [
-      "fix(images): resolve relative uploaded image paths with helper and rewrites"
     ]
   }
 ]

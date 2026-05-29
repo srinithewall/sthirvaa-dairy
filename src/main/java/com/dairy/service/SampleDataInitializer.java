@@ -33,6 +33,7 @@ public class SampleDataInitializer implements CommandLineRunner {
     @Autowired private ProductRepository productRepository;
     @Autowired private SubscriptionPlanRepository planRepository;
     @Autowired private ApartmentRepository apartmentRepository;
+    @Autowired private com.dairy.repository.SettingRepository settingRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -46,6 +47,7 @@ public class SampleDataInitializer implements CommandLineRunner {
         seedProducts();
         seedSubscriptionPlans();
         seedApartments();
+        seedSettings();
         seedTransactions(herds, customers);
         seedUsers(staffList, customers);
         
@@ -365,5 +367,14 @@ public class SampleDataInitializer implements CommandLineRunner {
             new Apartment("Rohan Iksha", "Marathahalli - Sarjapur Outer Ring Rd, Bhoganhalli, Bengaluru - 560103"),
             new Apartment("Sthirvaa Meadows", "Hoskote Main Road, Bengaluru - 562114")
         ));
+    }
+
+    private void seedSettings() {
+        if (!settingRepository.existsById("milk_production_reminder_time")) {
+            settingRepository.save(new Setting("milk_production_reminder_time", "18:00", "Time of day to check and send daily milk production entry reminders (HH:mm)"));
+        }
+        if (!settingRepository.existsById("milk_production_reminder_staffs")) {
+            settingRepository.save(new Setting("milk_production_reminder_staffs", "srinivas,bhavya", "Comma-separated usernames/employee IDs of staff members who should receive notifications"));
+        }
     }
 }

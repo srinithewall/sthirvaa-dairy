@@ -68,4 +68,13 @@ public class UserController {
         response.put("deliveryAddress", fullAddress);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/me/fcm-token")
+    public ResponseEntity<?> updateFcmToken(@RequestBody Map<String, String> payload) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setFcmToken(payload.get("token"));
+        userRepository.save(user);
+        return ResponseEntity.ok().build();
+    }
 }

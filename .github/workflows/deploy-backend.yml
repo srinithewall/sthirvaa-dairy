@@ -69,6 +69,8 @@ jobs:
               app:
                 image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
                 container_name: dairy-backend
+                volumes:
+                  - ./resources/service-account.json:/app/firebase-service-account.json
                 environment:
                   - DB_URL=${{ secrets.DB_URL }}
                   - DB_USER=${{ secrets.DB_USER }}

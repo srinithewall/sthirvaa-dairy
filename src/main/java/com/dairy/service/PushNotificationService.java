@@ -14,6 +14,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.Notification;
+
 @Service
 public class PushNotificationService {
 
@@ -78,16 +83,29 @@ public class PushNotificationService {
     private void sendMobilePush(String token, String title, String message, String username) {
         // Log the push payload prominently
         logger.info("==========================================================================");
-        logger.info("SENDING PUSH NOTIFICATION OVER THE PHONE TO: {} ({})", username, token);
+        logger.info("PREPARING PUSH NOTIFICATION FOR USER: {} ({})", username, token);
         logger.info("Title: {}", title);
         logger.info("Body: {}", message);
         logger.info("==========================================================================");
 
-        // Here you would integrate Firebase Admin SDK:
-        // Message fcmMessage = Message.builder()
-        //     .setToken(token)
-        //     .setNotification(Notification.builder().setTitle(title).setBody(message).build())
-        //     .build();
-        // FirebaseMessaging.getInstance().send(fcmMessage);
+        if (FirebaseApp.getApps().isEmpty()) {
+            logger.warn("Firebase App is not initialized! Skipping network dispatch for push notification.");
+            return;
+        }
+
+        try {
+            Message fcmMessage = Message.builder()
+                    .setToken(token)
+                    .setNotification(Notification.builder()
+                            .setTitle(title)
+                            .setBody(message)
+                            .build())
+                    .build();
+
+            String response = FirebaseMessaging.getInstance().send(fcmMessage);
+            logger.info("Successfully sent push notification to {}. Message ID: {}", username, response);
+        } catch (Exception e) {
+            logger.error("Failed to send push notification to " + username, e);
+        }
     }
 }

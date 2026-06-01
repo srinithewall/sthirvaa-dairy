@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -37,7 +38,7 @@ public class PushNotificationService {
         logger.info("Executing scheduled daily milk production record check...");
 
         // 1. Check if any milk records have been entered for today
-        long recordsToday = milkRecordRepository.findByDate(LocalDate.now()).size();
+        long recordsToday = milkRecordRepository.findByDate(LocalDate.now(ZoneId.of("Asia/Kolkata"))).size();
         if (recordsToday > 0) {
             logger.info("Milk production has already been entered for today (Count: {}). No reminder needed.", recordsToday);
             return;

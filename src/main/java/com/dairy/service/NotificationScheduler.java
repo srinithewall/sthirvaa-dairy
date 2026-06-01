@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
@@ -31,7 +32,7 @@ public class NotificationScheduler {
         }
 
         String targetTimeStr = reminderTimeSetting.get().getSettingValue().trim();
-        String currentTimeStr = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+        String currentTimeStr = LocalTime.now(ZoneId.of("Asia/Kolkata")).format(DateTimeFormatter.ofPattern("HH:mm"));
 
         if (currentTimeStr.equals(targetTimeStr)) {
             logger.info("Scheduler matched reminder time ({}). Triggering check...", targetTimeStr);

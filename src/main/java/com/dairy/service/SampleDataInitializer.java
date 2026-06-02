@@ -384,7 +384,7 @@ public class SampleDataInitializer implements CommandLineRunner {
         if (herdEventRepository.count() > 0) return;
 
         for (Herd herd : herds) {
-            if ("COW-A2-101".equals(herd.getTagNumber())) {
+            if ("Lakshmi".equalsIgnoreCase(herd.getAnimalName())) {
                 // Lakshmi historical events
                 herdEventRepository.save(new HerdEvent(herd.getId(), LocalDate.now().minusMonths(9), "SEMEN_GIVEN", "Semen Given (AI)", "Artificial Insemination successful on attempt #1. Bull ID: GIR-402. Technician: Dr. Kumar."));
                 herdEventRepository.save(new HerdEvent(herd.getId(), LocalDate.now().minusMonths(6), "PREGNANCY_CONFIRMED", "Pregnancy Confirmed (PD)", "Palpation check confirmed pregnancy. Expected delivery date: " + LocalDate.now().plusMonths(1) + "."));
@@ -392,7 +392,7 @@ public class SampleDataInitializer implements CommandLineRunner {
                 // Reminders
                 herdEventRepository.save(new HerdEvent(herd.getId(), LocalDate.now().plusDays(2), "DEWORMING_DUE", "Deworming Reminder", "Routine pre-calving deworming scheduled. Dose: 10ml Fenbendazole."));
                 herdEventRepository.save(new HerdEvent(herd.getId(), LocalDate.now().plusDays(10), "VACCINATION_DUE", "FMD Vaccination", "Foot & Mouth Disease vaccine booster scheduled."));
-            } else if ("COW-A2-102".equals(herd.getTagNumber())) {
+            } else if ("Meenakshi".equalsIgnoreCase(herd.getAnimalName())) {
                 // Meenakshi historical events
                 herdEventRepository.save(new HerdEvent(herd.getId(), LocalDate.now().minusMonths(12), "CALF_DELIVERED", "Calf Delivered", "Healthy male calf born. Weight: 26kg. Delivery: Normal."));
                 herdEventRepository.save(new HerdEvent(herd.getId(), LocalDate.now().minusMonths(11), "LACTATION_STARTED", "Lactation Started", "Milking started. Initial yield: 14 Liters/day."));

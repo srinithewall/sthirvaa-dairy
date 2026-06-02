@@ -408,39 +408,41 @@ export default function HerdsPage() {
               {/* Close Button */}
               <button 
                 onClick={() => setShowModal(false)} 
-                className="absolute top-4 right-4 text-text3 hover:text-brand p-2 rounded-xl transition-all z-[30] bg-surface/50 backdrop-blur-sm"
+                className="absolute top-3.5 right-3.5 text-text3 hover:text-brand p-2 rounded-xl transition-all z-[30] bg-surface/50 backdrop-blur-sm"
               >
                 <X size={18} />
               </button>
 
               {/* Tabs Navigation Bar */}
-              <div className="flex border-b border-border-custom bg-surface/50 p-2 gap-1 z-20 flex-shrink-0">
+              <div className="flex border-b border-border-custom bg-surface/50 p-2 gap-1 z-20 flex-shrink-0 pr-14">
                 <button
                   onClick={() => setActiveTab('info')}
-                  className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center ${
                     activeTab === 'info' ? 'bg-white text-brand shadow-sm border border-border-custom' : 'text-text3 hover:text-text'
                   }`}
                 >
-                  <Info size={14} />
-                  Info
+                  General
                 </button>
                 <button
                   onClick={() => setActiveTab('repro')}
-                  className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center ${
                     activeTab === 'repro' ? 'bg-white text-brand shadow-sm border border-border-custom' : 'text-text3 hover:text-text'
                   }`}
                 >
-                  <Calendar size={14} />
                   Reproduction
                 </button>
                 <button
                   onClick={() => setActiveTab('timeline')}
-                  className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
                     activeTab === 'timeline' ? 'bg-white text-brand shadow-sm border border-border-custom' : 'text-text3 hover:text-text'
                   }`}
                 >
-                  <Activity size={14} />
-                  Timeline ({events.length})
+                  <span>Timeline</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                    activeTab === 'timeline' ? 'bg-brand/10 text-brand' : 'bg-black/5 text-text3'
+                  }`}>
+                    {events.length}
+                  </span>
                 </button>
               </div>
 
@@ -514,40 +516,40 @@ export default function HerdsPage() {
                   return (
                     <div className="space-y-6 animate-in fade-in duration-200">
                       {/* Reproduction stats */}
-                      <div className="bg-surface/40 border border-border-custom p-6 rounded-3xl space-y-4">
-                        <h3 className="text-xs font-black uppercase text-brand tracking-widest flex items-center gap-2">
-                          <Activity size={14} />
-                          Reproduction Card
+                      <div className="bg-surface/40 border border-border-custom p-5 rounded-3xl space-y-3">
+                        <h3 className="text-[11px] font-black uppercase text-brand tracking-widest flex items-center gap-2 mb-2">
+                          <Activity size={12} className="text-brand" />
+                          Reproduction Status
                         </h3>
                         
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-white p-4 rounded-2xl border border-border-custom shadow-sm">
-                            <label className="text-[8px] font-black text-text3 uppercase tracking-wider block mb-1">Pregnancy Status</label>
-                            <span className={`text-sm font-black uppercase ${stats.isPregnant ? 'text-purple-600' : 'text-text3'}`}>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 bg-white p-5 rounded-2xl border border-border-custom shadow-sm">
+                          <div>
+                            <label className="text-[8px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Pregnancy Status</label>
+                            <span className={`text-[13px] font-black uppercase ${stats.isPregnant ? 'text-purple-600' : 'text-text3'}`}>
                               {stats.isPregnant ? 'Pregnant' : 'Not Pregnant'}
                             </span>
                           </div>
                           
-                          <div className="bg-white p-4 rounded-2xl border border-border-custom shadow-sm">
-                            <label className="text-[8px] font-black text-text3 uppercase tracking-wider block mb-1">AI Attempts</label>
-                            <span className="text-sm font-black text-text">{stats.aiAttempts}</span>
+                          <div>
+                            <label className="text-[8px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">AI Attempts</label>
+                            <span className="text-[13px] font-black text-text">{stats.aiAttempts}</span>
                           </div>
 
-                          <div className="bg-white p-4 rounded-2xl border border-border-custom shadow-sm">
-                            <label className="text-[8px] font-black text-text3 uppercase tracking-wider block mb-1">Last AI Date</label>
-                            <span className="text-sm font-semibold text-text2">{stats.lastAi || 'N/A'}</span>
+                          <div>
+                            <label className="text-[8px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Last AI Date</label>
+                            <span className="text-[13px] font-semibold text-text2">{stats.lastAi || 'N/A'}</span>
                           </div>
 
                           {stats.isPregnant && (
                             <>
-                              <div className="bg-white p-4 rounded-2xl border border-border-custom shadow-sm">
-                                <label className="text-[8px] font-black text-text3 uppercase tracking-wider block mb-1">Days Pregnant</label>
-                                <span className="text-sm font-black text-purple-700">{stats.daysPregnant} Days</span>
+                              <div>
+                                <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Days Pregnant</label>
+                                <span className="text-[13px] font-black text-purple-700">{stats.daysPregnant} Days</span>
                               </div>
-                              <div className="bg-white p-4 rounded-2xl border border-border-custom shadow-sm col-span-2">
-                                <label className="text-[8px] font-black text-text3 uppercase tracking-wider block mb-1">Expected Delivery Date (Calving)</label>
-                                <span className="text-sm font-black text-brand-dark flex items-center gap-1.5">
-                                  <Calendar size={14} className="text-brand" />
+                              <div className="col-span-2">
+                                <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">Expected Delivery Date (Calving)</label>
+                                <span className="text-[13px] font-black text-brand-dark flex items-center gap-1">
+                                  <Calendar size={12} className="text-brand" />
                                   {stats.expectedDelivery}
                                 </span>
                               </div>

@@ -1,8 +1,40 @@
 [
   {
+    "version": "v1.3.153",
+    "date": "2026-06-01",
+    "commit": "d7f5102",
+    "changes": [
+      "feat: implement Herd Reproduction, Timeline Events, and Upcoming Reminders system"
+    ]
+  },
+  {
+    "version": "v1.3.152",
+    "date": "2026-06-01",
+    "commit": "f146d94",
+    "changes": [
+      "fix: force notification scheduler and milk record check to use Asia/Kolkata (IST) timezone"
+    ]
+  },
+  {
+    "version": "v1.3.151",
+    "date": "2026-05-29",
+    "commit": "40b9f02",
+    "changes": [
+      "ci: add volumes mount for firebase service account in deploy-backend.yml"
+    ]
+  },
+  {
+    "version": "v1.3.150",
+    "date": "2026-05-29",
+    "commit": "de8739b",
+    "changes": [
+      "feat: initialize Firebase Admin SDK and activate mobile push dispatch"
+    ]
+  },
+  {
     "version": "v1.3.149",
     "date": "2026-05-29",
-    "commit": "4355e01",
+    "commit": "336174f",
     "changes": [
       "feat: implement daily milk production push notification reminders, add mobile FCM token registration, fix linked email state bug"
     ]
@@ -85,38 +117,6 @@
     "commit": "bd70ff4",
     "changes": [
       "ui: improve herd management dashboard"
-    ]
-  },
-  {
-    "version": "v1.3.138",
-    "date": "2026-05-21",
-    "commit": "9bd205c",
-    "changes": [
-      "Revert \"v1.3.137\""
-    ]
-  },
-  {
-    "version": "v1.3.137",
-    "date": "2026-05-20",
-    "commit": "efa6cb7",
-    "changes": [
-      "v1.3.137"
-    ]
-  },
-  {
-    "version": "v1.3.136",
-    "date": "2026-05-19",
-    "commit": "97faf7f",
-    "changes": [
-      "fix(ui): use relative paths for images with Cloudflare worker proxy and strip leading dot"
-    ]
-  },
-  {
-    "version": "v1.3.135",
-    "date": "2026-05-19",
-    "commit": "c25ed3b",
-    "changes": [
-      "fix(ui): point API_BASE_URL back to api-origin.sthirvaa.com for production stability"
     ]
   }
 ]

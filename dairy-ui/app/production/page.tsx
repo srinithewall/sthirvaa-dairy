@@ -27,7 +27,14 @@ interface DaySummary {
   cowCount: number;
 }
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+// Use local date (not UTC) to avoid IST users getting tomorrow's date
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 const fmt = (n: number) => n % 1 === 0 ? `${n}` : n.toFixed(1);
 
@@ -165,9 +172,11 @@ export default function MilkProductionPage() {
             paged.map((day) => {
               const isFullyDistributed = day.distributed >= day.total && day.total > 0;
               const today = new Date(); today.setHours(0,0,0,0);
-              const target = new Date(day.date); target.setHours(0,0,0,0);
+              // Parse date parts directly to avoid UTC-vs-local timezone shifting
+              const [y, m, d] = day.date.split('-').map(Number);
+              const target = new Date(y, m - 1, d);
               const diff = (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24);
-              const canEdit = diff <= 1;
+              const canEdit = diff < 15;
               return (
                 <div key={day.date} className="p-4 hover:bg-surface/40 transition-colors">
                   {/* Card Header: Date + Distribution Badge */}
@@ -299,10 +308,11 @@ export default function MilkProductionPage() {
                           {(() => {
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
-                            const target = new Date(day.date);
-                            target.setHours(0, 0, 0, 0);
+                            // Parse date parts directly to avoid UTC-vs-local timezone shifting
+                            const [y, m, d] = day.date.split('-').map(Number);
+                            const target = new Date(y, m - 1, d);
                             const diff = (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24);
-                            return diff <= 1 && (
+                            return diff < 15 && (
                               <button
                                 onClick={() => { setEditTarget({ date: day.date }); setShowModal(true); }}
                                 title="Edit yield entry"

@@ -1,5 +1,13 @@
 [
   {
+    "version": "v1.3.154",
+    "date": "2026-06-02",
+    "commit": "aab50f5",
+    "changes": [
+      "fix: adjust detail modal layout spacing to prevent overlaps and use animalName matching for database seeding"
+    ]
+  },
+  {
     "version": "v1.3.153",
     "date": "2026-06-01",
     "commit": "d7f5102",
@@ -109,14 +117,6 @@
     "commit": "7ef07f2",
     "changes": [
       "ui: improve sidebar navigation"
-    ]
-  },
-  {
-    "version": "v1.3.139",
-    "date": "2026-05-21",
-    "commit": "bd70ff4",
-    "changes": [
-      "ui: improve herd management dashboard"
     ]
   }
 ]

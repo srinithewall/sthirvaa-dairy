@@ -23,11 +23,21 @@ interface CowEntry {
   evening: string;
 }
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+// Use local date (not UTC) so IST users don't get tomorrow's date
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 const twoWeeksAgoStr = () => {
   const d = new Date();
-  d.setDate(d.getDate() - 14);
-  return d.toISOString().split('T')[0];
+  d.setDate(d.getDate() - 15);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 };
 
 const fmt = (n: number) => n % 1 === 0 ? `${n}` : n.toFixed(1);

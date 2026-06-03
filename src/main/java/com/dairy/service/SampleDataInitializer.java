@@ -97,10 +97,19 @@ public class SampleDataInitializer implements CommandLineRunner {
     }
 
     private void seedUsers(List<Staff> staffList, List<Customer> customerList) {
+        // Fix lokesh username if it was previously set incorrectly
+        Optional<User> lokeshHg = userRepository.findByEmail("lokesh.hg@farm.com");
+        if (lokeshHg.isPresent() && "lokesh_hg".equals(lokeshHg.get().getUsername())) {
+            User u = lokeshHg.get();
+            u.setUsername("lokesh");
+            userRepository.save(u);
+        }
+
+        if (userRepository.count() > 0) return; // Prevent repeated seeding/updates
         createOrUpdateUser("srini", "srini.thewall@gmail.com", "admin123", Role.ADMIN, findStaffId(staffList, "Srinivas"), null);
         createOrUpdateUser("admin", "admin@sthirvaa.com", "admin123", Role.ADMIN, null, null);
         // User specific from screenshot
-        createOrUpdateUser("lokesh_hg", "lokesh.hg@farm.com", "pass123", Role.STAFF, findStaffId(staffList, "Lokesh"), null);
+        createOrUpdateUser("lokesh", "lokesh.hg@farm.com", "pass123", Role.STAFF, findStaffId(staffList, "Lokesh"), null);
         
         for (Staff s : staffList) {
             String email = s.getName().toLowerCase().replace(" ", ".") + "@farm.com";

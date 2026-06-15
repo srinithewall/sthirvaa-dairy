@@ -1,6 +1,14 @@
 [
   {
-    "version": "v1.3.155",
+    "version": "v0.1.1",
+    "date": "2026-06-15",
+    "commit": "c500ee6",
+    "changes": [
+      "UI enhancements: Gallery improvements, animal avatars in yield table, styling fixes"
+    ]
+  },
+  {
+    "version": "v0.1.0",
     "date": "2026-06-03",
     "commit": "c82a163",
     "changes": [
@@ -8,7 +16,7 @@
     ]
   },
   {
-    "version": "v1.3.154",
+    "version": "v0.1.0",
     "date": "2026-06-02",
     "commit": "aab50f5",
     "changes": [
@@ -16,7 +24,7 @@
     ]
   },
   {
-    "version": "v1.3.153",
+    "version": "v0.1.0",
     "date": "2026-06-01",
     "commit": "d7f5102",
     "changes": [
@@ -24,7 +32,7 @@
     ]
   },
   {
-    "version": "v1.3.152",
+    "version": "v0.1.0",
     "date": "2026-06-01",
     "commit": "f146d94",
     "changes": [
@@ -32,7 +40,7 @@
     ]
   },
   {
-    "version": "v1.3.151",
+    "version": "v0.1.0",
     "date": "2026-05-29",
     "commit": "40b9f02",
     "changes": [
@@ -40,7 +48,7 @@
     ]
   },
   {
-    "version": "v1.3.150",
+    "version": "v0.1.0",
     "date": "2026-05-29",
     "commit": "de8739b",
     "changes": [
@@ -48,7 +56,7 @@
     ]
   },
   {
-    "version": "v1.3.149",
+    "version": "v0.1.0",
     "date": "2026-05-29",
     "commit": "336174f",
     "changes": [
@@ -56,7 +64,7 @@
     ]
   },
   {
-    "version": "v1.3.148",
+    "version": "v0.1.0",
     "date": "2026-05-29",
     "commit": "312cc66",
     "changes": [
@@ -64,7 +72,7 @@
     ]
   },
   {
-    "version": "v1.3.147",
+    "version": "v0.1.0",
     "date": "2026-05-21",
     "commit": "6376e54",
     "changes": [
@@ -72,7 +80,7 @@
     ]
   },
   {
-    "version": "v1.3.146",
+    "version": "v0.1.0",
     "date": "2026-05-21",
     "commit": "4eed42e",
     "changes": [
@@ -80,7 +88,7 @@
     ]
   },
   {
-    "version": "v1.3.145",
+    "version": "v0.1.0",
     "date": "2026-05-21",
     "commit": "8ec6aea",
     "changes": [
@@ -88,7 +96,7 @@
     ]
   },
   {
-    "version": "v1.3.144",
+    "version": "v0.1.0",
     "date": "2026-05-21",
     "commit": "dc95855",
     "changes": [
@@ -96,7 +104,7 @@
     ]
   },
   {
-    "version": "v1.3.143",
+    "version": "v0.1.0",
     "date": "2026-05-21",
     "commit": "ffbb486",
     "changes": [
@@ -104,19 +112,11 @@
     ]
   },
   {
-    "version": "v1.3.142",
+    "version": "v0.1.0",
     "date": "2026-05-21",
     "commit": "9a785d8",
     "changes": [
       "Revert \"ui: include email in login session data\""
-    ]
-  },
-  {
-    "version": "v1.3.141",
-    "date": "2026-05-21",
-    "commit": "f7ec54f",
-    "changes": [
-      "ui: include email in login session data"
     ]
   }
 ]

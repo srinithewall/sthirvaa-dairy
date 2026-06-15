@@ -9,12 +9,19 @@ try {
   const entries = gitLog.split('\n').filter(Boolean).map((line, index) => {
     const [hash, date, message] = line.split('|');
     
-    // We can extract/mock version based on commit count index
-    // e.g., if there are 200 commits, index 0 is latest, version v1.3.<index>
-    const revCount = parseInt(execSync('git rev-list --count HEAD').toString().trim(), 10);
-    const major = 1;
-    const minor = 3;
-    const patch = revCount - index;
+    // Read version from package.json
+    const pkgPath = path.join(__dirname, '../package.json');
+    let major = 1, minor = 3, basePatch = 0;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      const parts = pkg.version.split('.');
+      major = parseInt(parts[0], 10) || 0;
+      minor = parseInt(parts[1], 10) || 1;
+      basePatch = parseInt(parts[2], 10) || 0;
+    } catch (e) {}
+    
+    // Use basePatch for the latest commit, and decrement for older ones
+    const patch = basePatch - index;
 
     return {
       version: `v${major}.${minor}.${patch >= 0 ? patch : 0}`,

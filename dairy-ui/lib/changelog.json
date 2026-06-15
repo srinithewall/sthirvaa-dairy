@@ -1,6 +1,14 @@
 [
   {
     "version": "v0.1.1",
+    "date": "2026-06-16",
+    "commit": "b6511a6",
+    "changes": [
+      "feat(inventory): link asset Category Cow to herds and implement automatic disposal sales/assets update"
+    ]
+  },
+  {
+    "version": "v0.1.0",
     "date": "2026-06-15",
     "commit": "71353cd",
     "changes": [
@@ -109,14 +117,6 @@
     "commit": "312cc66",
     "changes": [
       "feat: improve mobile UX of shop and navbar, add disposed cows filter, fix user brand displays, optimize changelog responsiveness on small screens"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-21",
-    "commit": "6376e54",
-    "changes": [
-      "Fixing UI in Distribute Milk Screen"
     ]
   }
 ]

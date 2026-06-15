@@ -160,6 +160,7 @@ export default function RegisterAnimalModal({
   const [customers, setCustomers] = useState<any[]>([]);
   const [saleAmount, setSaleAmount] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [purchaseAmount, setPurchaseAmount] = useState('');
 
   React.useEffect(() => {
     api.get('/customers').then(res => {
@@ -283,6 +284,25 @@ export default function RegisterAnimalModal({
           customer: { id: parseInt(selectedCustomerId) }
         };
         await api.post('/sales', salePayload);
+      }
+
+      // If registering a new cow and purchaseAmount is provided, automatically create a linked asset
+      if (!herdToEdit && parseFloat(purchaseAmount) > 0) {
+        try {
+          const assetPayload = {
+            name: `${payload.animalName || 'Cow'} (${payload.tagNumber})`,
+            category: 'Cow',
+            purchaseDate: payload.procuredDate || new Date().toISOString().split('T')[0],
+            value: parseFloat(purchaseAmount),
+            marketValue: parseFloat(purchaseAmount),
+            status: 'ACTIVE',
+            serialNumber: payload.tagNumber,
+            location: 'Halasahalli'
+          };
+          await api.post('/assets', assetPayload);
+        } catch (assetErr) {
+          console.error("Failed to automatically create linked asset:", assetErr);
+        }
       }
 
       // Find and update corresponding asset status to DISPOSED if it exists
@@ -537,6 +557,19 @@ export default function RegisterAnimalModal({
               />
             </Field>
 
+            {!herdToEdit && (
+              <Field label="Purchase Amount (₹)">
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 35000"
+                  value={purchaseAmount}
+                  onChange={(e) => setPurchaseAmount(e.target.value)}
+                  className={INPUT_CLS}
+                />
+              </Field>
+            )}
+
             {/* Health Status */}
             <CustomSelect
               label="Health Status"
@@ -545,7 +578,7 @@ export default function RegisterAnimalModal({
               options={[
                 { value: 'HEALTHY', label: 'Healthy' },
                 { value: 'SICK', label: 'Sick / Observation' },
-              ]}
+                ]}
             />
 
             {/* Record Status */}
@@ -560,36 +593,16 @@ export default function RegisterAnimalModal({
             />
 
             {formData.status === 'DISPOSED' && (
-              <>
-                <Field label="Sale Amount (₹)">
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="e.g. 25000"
-                    value={saleAmount}
-                    onChange={(e) => setSaleAmount(e.target.value)}
-                    className={INPUT_CLS}
-                  />
-                </Field>
-                <div className="col-span-1">
-                  <label className="text-[11px] font-bold text-text3 uppercase mb-2 block tracking-wider">
-                    Sold To (Customer)
-                  </label>
-                  <div className="relative">
-                    <select
-                      className="w-full bg-white border border-border-custom rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-brand focus:ring-1 focus:ring-brand/10 transition-all appearance-none"
-                      value={selectedCustomerId}
-                      onChange={(e) => setSelectedCustomerId(e.target.value)}
-                    >
-                      <option value="">Select Customer...</option>
-                      {customers.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-text3 pointer-events-none" />
-                  </div>
-                </div>
-              </>
+              <Field label="Sale Amount (₹)">
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 25000"
+                  value={saleAmount}
+                  onChange={(e) => setSaleAmount(e.target.value)}
+                  className={INPUT_CLS}
+                />
+              </Field>
             )}
 
             {/* Animal Status */}

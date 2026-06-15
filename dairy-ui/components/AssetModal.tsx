@@ -11,6 +11,7 @@ interface Asset {
   category: string;
   purchaseDate: string;
   value: number;
+  marketValue?: number;
   status: string;
   serialNumber: string;
   location: string;
@@ -32,6 +33,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
     category: 'Cow',
     purchaseDate: new Date().toISOString().split('T')[0],
     value: 0,
+    marketValue: 0,
     status: 'ACTIVE',
     serialNumber: '',
     location: '',
@@ -53,7 +55,8 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
     if (asset) {
       setFormData({
         ...asset,
-        purchaseDate: asset.purchaseDate ? asset.purchaseDate.split('T')[0] : new Date().toISOString().split('T')[0]
+        purchaseDate: asset.purchaseDate ? asset.purchaseDate.split('T')[0] : new Date().toISOString().split('T')[0],
+        marketValue: asset.marketValue ?? asset.value
       });
       if (asset.location && asset.location !== 'Halasahalli' && asset.location !== 'JP Nagar') {
         setIsCustomLocation(true);
@@ -68,6 +71,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
         category: 'Cow',
         purchaseDate: new Date().toISOString().split('T')[0],
         value: 0,
+        marketValue: 0,
         status: 'ACTIVE',
         serialNumber: '',
         location: '',
@@ -176,15 +180,27 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-text3 uppercase mb-1">Value (₹)</label>
+              <label className="block text-xs font-bold text-text3 uppercase mb-1">Purchase Cost (₹)</label>
               <input
                 type="number"
                 required
                 className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
                 value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
               />
             </div>
+            <div>
+              <label className="block text-xs font-bold text-text3 uppercase mb-1">Market Value (₹)</label>
+              <input
+                type="number"
+                required
+                className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                value={formData.marketValue}
+                onChange={(e) => setFormData({ ...formData, marketValue: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-text3 uppercase mb-1">Purchase Date</label>
               <input
@@ -195,15 +211,15 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
                 onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-text3 uppercase mb-1">Serial Number</label>
-            <input
-              type="text"
-              className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
-              value={formData.serialNumber}
-              onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-bold text-text3 uppercase mb-1">Serial Number</label>
+              <input
+                type="text"
+                className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                value={formData.serialNumber}
+                onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+              />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-bold text-text3 uppercase mb-1">Location</label>

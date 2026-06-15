@@ -218,9 +218,9 @@ export default function InventoryPage() {
               <Construction size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Asset Value</span>
+              <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Market Value</span>
               <span className="text-xl font-black text-brand-dark">
-                ₹{filteredAssets.reduce((sum, a) => sum + (a.value || 0), 0).toLocaleString()}
+                ₹{filteredAssets.reduce((sum, a) => sum + (a.marketValue ?? a.value || 0), 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -371,16 +371,17 @@ export default function InventoryPage() {
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Category</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Status</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Purchase Date</th>
-                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Value</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Purchase Cost</th>
+                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Market Value</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Location</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                       <tr><td colSpan={7} className="p-8 text-center text-text3">Loading assets...</td></tr>
+                       <tr><td colSpan={8} className="p-8 text-center text-text3">Loading assets...</td></tr>
                     ) : filteredAssets.length === 0 ? (
-                       <tr><td colSpan={7} className="p-8 text-center text-text3 italic">No assets found.</td></tr>
+                       <tr><td colSpan={8} className="p-8 text-center text-text3 italic">No assets found.</td></tr>
                     ) : filteredAssets.map((asset) => (
                       <tr key={asset.id} className="hover:bg-surface2 transition-colors border-b border-border-custom last:border-0">
                         <td className="p-4">
@@ -403,7 +404,8 @@ export default function InventoryPage() {
                         <td className="p-4 text-center text-text2 font-medium">
                           {formatDate(asset.purchaseDate) || 'N/A'}
                         </td>
-                        <td className="p-4 text-center font-bold text-brand">₹{asset.value.toLocaleString()}</td>
+                        <td className="p-4 text-center font-bold text-text2">₹{asset.value.toLocaleString()}</td>
+                        <td className="p-4 text-center font-bold text-brand">₹{(asset.marketValue ?? asset.value).toLocaleString()}</td>
                         <td className="p-4 text-center text-text2">{asset.location || 'N/A'}</td>
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -490,11 +492,19 @@ export default function InventoryPage() {
                       </div>
                       
                       <div className="flex justify-between items-center bg-surface p-2.5 rounded-lg border border-border-custom text-[12px] mt-1">
-                        <div>
-                          <span className="text-text3 block text-[9px] uppercase font-bold tracking-wider">Asset Value</span>
-                          <span className="font-black text-brand text-sm">
-                            ₹{asset.value.toLocaleString()}
-                          </span>
+                        <div className="flex gap-4">
+                          <div>
+                            <span className="text-text3 block text-[9px] uppercase font-bold tracking-wider">Purchase Cost</span>
+                            <span className="font-bold text-text2 text-xs">
+                              ₹{asset.value.toLocaleString()}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-text3 block text-[9px] uppercase font-bold tracking-wider">Market Value</span>
+                            <span className="font-black text-brand text-xs">
+                              ₹{(asset.marketValue ?? asset.value).toLocaleString()}
+                            </span>
+                          </div>
                         </div>
                         
                         <div className="flex items-center gap-1">

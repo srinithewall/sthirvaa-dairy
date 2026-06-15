@@ -2,6 +2,22 @@
   {
     "version": "v0.1.1",
     "date": "2026-06-15",
+    "commit": "2e8f789",
+    "changes": [
+      "fix: add edge runtime config to api route for cloudflare pages build"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-15",
+    "commit": "9b1deb9",
+    "changes": [
+      "fix: sync changelog generator with package.json versions"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-15",
     "commit": "c500ee6",
     "changes": [
       "UI enhancements: Gallery improvements, animal avatars in yield table, styling fixes"
@@ -101,22 +117,6 @@
     "commit": "dc95855",
     "changes": [
       "fix: restore Cloudflare R2 upload support"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-21",
-    "commit": "ffbb486",
-    "changes": [
-      "fix: restore product image upload endpoint"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-21",
-    "commit": "9a785d8",
-    "changes": [
-      "Revert \"ui: include email in login session data\""
     ]
   }
 ]

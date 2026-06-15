@@ -219,11 +219,11 @@ export default function LogYieldModal({
         )}
 
         {/* High Density Table */}
-        <div className="flex-1 overflow-y-auto max-h-[400px]">
-          <table className="w-full text-[11px]">
+        <div className="flex-1 overflow-x-auto overflow-y-auto max-h-[400px]">
+          <table className="w-full text-[11px] min-w-[340px]">
             <thead className="sticky top-0 bg-white shadow-sm z-10 border-b border-border-custom">
               <tr>
-                <th className="text-left px-5 py-2.5 text-[9px] font-black text-text3 uppercase tracking-[0.15em] bg-surface/80">Cow Identity</th>
+                <th className="text-left px-3 sm:px-5 py-2.5 text-[9px] font-black text-text3 uppercase tracking-[0.15em] bg-surface/80">Cow Identity</th>
                 <th className="text-center px-1 py-2.5 bg-amber-50/50">
                   <div className="flex items-center justify-center gap-1.5 text-amber-600">
                     <Sun size={10} strokeWidth={3} /> <span className="text-[9px] font-black uppercase tracking-wider">Morning</span>
@@ -234,7 +234,7 @@ export default function LogYieldModal({
                     <Moon size={10} strokeWidth={3} /> <span className="text-[9px] font-black uppercase tracking-wider">Evening</span>
                   </div>
                 </th>
-                <th className="text-right px-5 py-2.5 text-[9px] font-black text-brand uppercase tracking-[0.15em] bg-surface/80">Total</th>
+                <th className="text-right px-3 sm:px-5 py-2.5 text-[9px] font-black text-brand uppercase tracking-[0.15em] bg-surface/80">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -247,9 +247,9 @@ export default function LogYieldModal({
                   const rowTotal = (parseFloat(entry.morning) || 0) + (parseFloat(entry.evening) || 0);
                   return (
                     <tr key={entry.herdId} className="border-b border-border-custom/30 hover:bg-surface/30 transition-colors">
-                      <td className="px-5 py-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-200 flex items-center justify-center">
+                      <td className="px-3 sm:px-5 py-2">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-200 flex items-center justify-center">
                             {entry.imageUrl ? (
                               <img src={formatImageUrl(entry.imageUrl)} alt={entry.name} className="w-full h-full object-cover" />
                             ) : (
@@ -268,7 +268,7 @@ export default function LogYieldModal({
                             type="number" step="0.1" value={entry.morning}
                             onChange={(e) => update(idx, 'morning', e.target.value)}
                             placeholder="0.0"
-                            className="w-16 text-center border border-border-custom rounded-lg px-1.5 py-1 text-[12px] font-bold text-text focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            className="w-16 text-center border border-border-custom rounded-lg px-1.5 py-2 text-[12px] font-bold text-text focus:outline-none focus:ring-1 focus:ring-amber-400"
                           />
                         </div>
                       </td>
@@ -278,11 +278,11 @@ export default function LogYieldModal({
                             type="number" step="0.1" value={entry.evening}
                             onChange={(e) => update(idx, 'evening', e.target.value)}
                             placeholder="0.0"
-                            className="w-16 text-center border border-border-custom rounded-lg px-1.5 py-1 text-[12px] font-bold text-text focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                            className="w-16 text-center border border-border-custom rounded-lg px-1.5 py-2 text-[12px] font-bold text-text focus:outline-none focus:ring-1 focus:ring-indigo-400"
                           />
                         </div>
                       </td>
-                      <td className="px-5 py-2 text-right">
+                      <td className="px-3 sm:px-5 py-2 text-right">
                         <span className={`font-black text-[12px] ${rowTotal > 0 ? 'text-brand-dark' : 'text-text3 opacity-30'}`}>
                           {rowTotal > 0 ? `${fmt(rowTotal)}L` : '—'}
                         </span>

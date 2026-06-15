@@ -106,9 +106,9 @@ export default function DashboardPage() {
     );
   }
 
-  const productionTrend = data.todayMilkProduction - data.yesterdayMilkProduction;
-  const revenueTrend = data.todayRevenue - data.yesterdayRevenue;
-  const expenseTrend = data.todayExpense - data.yesterdayExpense;
+  const productionTrend = Math.round((data.todayMilkProduction - data.yesterdayMilkProduction) * 100) / 100;
+  const revenueTrend = Math.round((data.todayRevenue - data.yesterdayRevenue) * 100) / 100;
+  const expenseTrend = Math.round((data.todayExpense - data.yesterdayExpense) * 100) / 100;
 
   const prodChartData = {
     labels: Object.keys(data.productionChartData),
@@ -166,7 +166,7 @@ export default function DashboardPage() {
         <StatCard 
           label="Milk Production" 
           value={`${data.todayMilkProduction} L`} 
-          trend={`${Math.abs(productionTrend)}L vs yesterday`} 
+          trend={`${parseFloat(Math.abs(productionTrend).toFixed(1))}L vs yesterday`} 
           trendType={productionTrend >= 0 ? "up" : "down"} 
           icon="🥛" 
           variant={productionTrend >= 0 ? "green" : "red"}
@@ -174,7 +174,7 @@ export default function DashboardPage() {
         <StatCard 
           label="Today Revenue" 
           value={`₹${data.todayRevenue}`} 
-          trend={`₹${Math.abs(revenueTrend)} ${revenueTrend >= 0 ? 'more' : 'less'}`} 
+          trend={`₹${parseFloat(Math.abs(revenueTrend).toFixed(2))} ${revenueTrend >= 0 ? 'more' : 'less'}`} 
           trendType={revenueTrend >= 0 ? "up" : "down"} 
           icon="💵" 
           variant="blue"
@@ -182,7 +182,7 @@ export default function DashboardPage() {
         <StatCard 
           label="Today Expense" 
           value={`₹${data.todayExpense}`} 
-          trend={`₹${Math.abs(expenseTrend)} vs yesterday`} 
+          trend={`₹${parseFloat(Math.abs(expenseTrend).toFixed(2))} vs yesterday`} 
           trendType={expenseTrend <= 0 ? "down" : "up"} 
           icon="💸" 
           variant="amber"

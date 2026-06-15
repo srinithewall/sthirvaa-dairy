@@ -1,18 +1,30 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const nextConfig: NextConfig = {
-  /* config options here */
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has type errors.
     ignoreBuildErrors: true,
   },
   async rewrites() {
+    if (isDev) {
+      // In development: proxy /api/* → local Spring Boot on port 8080
+      // This avoids CORS issues and direct localhost:8080 calls from the browser
+      return [
+        {
+          source: '/api/:path*',
+          destination: 'http://localhost:8080/api/:path*',
+        },
+        {
+          source: '/images/:path*',
+          destination: 'http://localhost:8080/images/:path*',
+        },
+      ];
+    }
+    // In production: proxy /api/* → remote backend
     return [
       {
         source: '/api/:path*',

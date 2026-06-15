@@ -47,6 +47,12 @@ public class Herd {
 
     private String age;
 
+    @Column(name = "mother_name")
+    private String motherName;
+
+    @Column(name = "father_semen")
+    private String fatherSemen;
+
     @Column(nullable = false)
     private String status = "ACTIVE";
 
@@ -131,6 +137,12 @@ public class Herd {
 
     public String getAge() { return age; }
     public void setAge(String age) { this.age = age; }
+
+    public String getMotherName() { return motherName; }
+    public void setMotherName(String motherName) { this.motherName = motherName; }
+
+    public String getFatherSemen() { return fatherSemen; }
+    public void setFatherSemen(String fatherSemen) { this.fatherSemen = fatherSemen; }
 
     @Transient
     @com.fasterxml.jackson.annotation.JsonProperty("calculatedAge")

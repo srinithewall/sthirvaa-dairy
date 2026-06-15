@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { X, Sun, Moon, Calendar, MessageSquare, Droplets, Check } from 'lucide-react';
-import api from '@/lib/api';
+import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 
 /* ─── Types ──────────────────────────────────────────── */
@@ -13,6 +13,7 @@ interface Herd {
   breed: string;
   animalType: string;
   animalStatus: string;
+  imageUrl?: string;
 }
 
 interface CowEntry {
@@ -21,6 +22,7 @@ interface CowEntry {
   name: string;
   morning: string;
   evening: string;
+  imageUrl?: string;
 }
 
 // Use local date (not UTC) so IST users don't get tomorrow's date
@@ -72,6 +74,7 @@ export default function LogYieldModal({
         name: h.animalName || h.tagNumber,
         morning: '',
         evening: '',
+        imageUrl: h.imageUrl,
       }))
     );
   }, [lactatingCows]);
@@ -245,8 +248,19 @@ export default function LogYieldModal({
                   return (
                     <tr key={entry.herdId} className="border-b border-border-custom/30 hover:bg-surface/30 transition-colors">
                       <td className="px-5 py-2">
-                        <div className="font-bold text-text text-[12px]">{entry.name}</div>
-                        <div className="text-[9px] text-text3 font-mono opacity-80">{entry.tag}</div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-200 flex items-center justify-center">
+                            {entry.imageUrl ? (
+                              <img src={formatImageUrl(entry.imageUrl)} alt={entry.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400">{entry.name.substring(0, 2).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-bold text-text text-[12px] leading-tight">{entry.name}</div>
+                            <div className="text-[9px] text-text3 font-mono opacity-80 mt-0.5">{entry.tag}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-1 py-2">
                         <div className="flex items-center gap-1 justify-center">

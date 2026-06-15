@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NODE_ENV === 'development'
-  ? 'http://localhost:8080/api'
-  : 'https://api-origin.sthirvaa.com/api';
-
+// Always use relative /api — Next.js rewrites proxy this to:
+//   dev:  http://localhost:8080/api
+//   prod: https://api-origin.sthirvaa.com/api
+// This prevents CORS errors and direct browser→backend calls.
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/api',
 });
 
 // Interceptor to add JWT token to every request

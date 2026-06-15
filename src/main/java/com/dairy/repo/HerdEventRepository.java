@@ -8,4 +8,6 @@ import java.util.List;
 @Repository
 public interface HerdEventRepository extends JpaRepository<HerdEvent, Long> {
     List<HerdEvent> findByHerdIdOrderByEventDateDesc(Long herdId);
+    List<HerdEvent> findByEventDate(java.time.LocalDate eventDate);
+    List<HerdEvent> findAllByOrderByEventDateDesc();
 }

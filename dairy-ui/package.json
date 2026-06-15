@@ -1,6 +1,6 @@
 {
   "name": "dairy-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-changelog.js && next dev -p 9000 -H 0.0.0.0",

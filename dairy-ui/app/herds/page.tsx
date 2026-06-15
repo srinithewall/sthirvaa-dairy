@@ -7,9 +7,10 @@ import {
   Plus, X, Activity, Calendar, Trash2, Edit2, Archive, Clock,
   CheckCircle, AlertTriangle, Syringe, Baby, Droplets, Leaf,
   ChevronRight, ShieldCheck, Heart, TrendingUp, AlarmClock,
-  PlusCircle, Info
+  PlusCircle, Info, ShieldAlert, AlertCircle
 } from 'lucide-react';
 import RegisterAnimalModal from '@/components/RegisterAnimalModal';
+import AnimalWorkspace from '@/components/AnimalWorkspace';
 import { useNotification } from '@/components/NotificationContext';
 
 interface Herd {
@@ -60,6 +61,7 @@ export default function HerdsPage() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDisposedModal, setShowDisposedModal] = useState(false);
+  const [showAllEventsModal, setShowAllEventsModal] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({ 'COW': true });
   const [userRole, setUserRole] = useState<string>('');
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
@@ -67,8 +69,9 @@ export default function HerdsPage() {
 
   // Events & Timeline
   const [events, setEvents] = useState<HerdEvent[]>([]);
+  const [allGlobalEvents, setAllGlobalEvents] = useState<HerdEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'repro' | 'timeline'>('info');
+  const [activeTab, setActiveTab] = useState<'overview' | 'breeding' | 'health' | 'history' | 'details'>('overview');
 
   // Add Event Modal
   const [showAddEventModal, setShowAddEventModal] = useState(false);
@@ -106,6 +109,8 @@ export default function HerdsPage() {
     try {
       const res = await api.get('/herds');
       setHerds(res.data.herds || []);
+      const eventsRes = await api.get('/herds/events/all');
+      setAllGlobalEvents(eventsRes.data || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -141,7 +146,7 @@ export default function HerdsPage() {
     try {
       const res = await api.get(`/herds/${id}`);
       setSelectedHerd(res.data);
-      setActiveTab('info');
+      setActiveTab('overview');
       setShowModal(true);
       setLoadingEvents(true);
       const eventsRes = await api.get(`/herds/${id}/events`);
@@ -208,7 +213,7 @@ export default function HerdsPage() {
     return { lastAi, isPregnant, daysPregnant, expectedDelivery, aiAttempts: aiAttempts || aiEvents.length, gestationPct };
   };
 
-  /* ─────────────────────────── CATEGORY ROW ─────────────────────────── */
+  /* ─────────────────────────────── CATEGORY ROW ─────────────────────────────── */
   const CategoryRow = ({ title, count, items, isSub = false, canExpand = false, type = '' }: any) => {
     const isExpanded = expandedRows[type];
     return (
@@ -265,9 +270,38 @@ export default function HerdsPage() {
 
   const activeHerds = herds.filter(h => h.status !== 'DISPOSED');
 
-  /* ─────────────────────────── MAIN RENDER ─────────────────────────── */
+  /* ──────────────────────────────── MAIN RENDER ──────────────────────────────── */
   return (
-    <AppLayout>
+    <AppLayout noPadding={showModal && !!selectedHerd}>
+      {/* ══ ANIMAL WORKSPACE (replaces herd list when animal is selected) ══ */}
+      {showModal && selectedHerd ? (
+        <AnimalWorkspace
+          herd={selectedHerd}
+          events={events}
+          loadingEvents={loadingEvents}
+          userRole={userRole}
+          failedImages={failedImages}
+          onBack={() => { setShowModal(false); setSelectedHerd(null); }}
+          onEdit={() => { setShowModal(false); setShowEditModal(true); }}
+          onDelete={() => handleDeleteHerd(selectedHerd.id)}
+          onEventAdded={(evt) => {
+            setEvents(prev => [evt, ...prev]);
+            fetchHerds();
+            if (selectedHerd) {
+              api.get(`/herds/${selectedHerd.id}`).then(res => setSelectedHerd(res.data)).catch(console.error);
+            }
+          }}
+          onEventDeleted={(id) => {
+            setEvents(prev => prev.filter(e => e.id !== id));
+            fetchHerds();
+            if (selectedHerd) {
+              api.get(`/herds/${selectedHerd.id}`).then(res => setSelectedHerd(res.data)).catch(console.error);
+            }
+          }}
+          onImageError={(id) => setFailedImages(prev => ({ ...prev, [id]: true }))}
+        />
+      ) : (
+      <>
       <div className="flex items-start justify-between mb-6 gap-3 flex-wrap">
         <div className="px-1">
           <h1 className="text-xl md:text-2xl font-black text-text tracking-tight uppercase">Herd Management</h1>
@@ -281,6 +315,10 @@ export default function HerdsPage() {
           >
             <Archive size={14} />
             <span>Disposed ({herds.filter(h => h.status === 'DISPOSED').length})</span>
+          </button>
+          <button onClick={() => setShowAllEventsModal(true)} className="flex items-center gap-1.5 px-3 py-2 border border-brand/20 bg-brand/5 hover:bg-brand/10 text-brand rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm">
+            <Calendar size={14} />
+            <span className="hidden md:inline">All Events</span>
           </button>
           <button
             onClick={() => setShowRegisterModal(true)}
@@ -333,373 +371,9 @@ export default function HerdsPage() {
           </div>
         </div>
       </div>
-
-      {/* ═══════════════════ ANIMAL DETAIL MODAL ═══════════════════ */}
-      {showModal && selectedHerd && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[2000] flex items-end sm:items-center justify-center">
-          <div className="bg-white w-full sm:rounded-[2rem] shadow-2xl sm:max-w-4xl sm:mx-4 flex flex-col sm:flex-row animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300 overflow-hidden"
-               style={{ maxHeight: '96dvh' }}>
-
-            {/* ── Left: Animal Hero Panel ── */}
-            <div className={`relative w-full sm:w-[38%] sm:flex-shrink-0 flex flex-col justify-end bg-slate-900 overflow-hidden`}
-                 style={{ minHeight: '200px', maxHeight: '280px' }}>
-              {/* Background image or color */}
-              {selectedHerd.imageUrl && !failedImages[selectedHerd.id]
-                ? <img src={formatImageUrl(selectedHerd.imageUrl)} alt={selectedHerd.animalName}
-                       onError={() => setFailedImages(prev => ({ ...prev, [selectedHerd.id]: true }))}
-                       className="absolute inset-0 w-full h-full object-cover opacity-80" />
-                : <div className={`absolute inset-0 flex items-center justify-center ${getAnimalColor(selectedHerd)}`}>
-                    <Activity size={72} className="text-white/20 animate-pulse" />
-                  </div>}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-              {/* Hero text */}
-              <div className="relative z-10 p-5 sm:p-7 text-white">
-                <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                  <span className="px-2.5 py-0.5 bg-brand text-white text-[9px] font-black rounded-full uppercase tracking-widest shadow-md">
-                    {selectedHerd.animalType}
-                  </span>
-                  <span className={`px-2.5 py-0.5 text-white text-[9px] font-black rounded-full uppercase tracking-widest backdrop-blur-sm ${
-                    selectedHerd.animalStatus === 'LACTATING' ? 'bg-blue-500/70'
-                    : selectedHerd.animalStatus === 'CALF'    ? 'bg-green-500/70'
-                    : 'bg-white/25'
-                  }`}>
-                    {selectedHerd.animalStatus}
-                  </span>
-                  <span className={`px-2 py-0.5 text-[9px] font-black rounded-full uppercase tracking-widest ${
-                    selectedHerd.healthStatus === 'HEALTHY' ? 'bg-green-500/70 text-white' : 'bg-red-500/70 text-white'
-                  }`}>
-                    {selectedHerd.healthStatus}
-                  </span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight drop-shadow-lg">
-                  {selectedHerd.animalName || 'Unnamed'}
-                </h2>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-[11px] text-white/60 font-mono">{selectedHerd.tagNumber}</span>
-                  {selectedHerd.breed && <span className="text-[10px] text-white/50">• {selectedHerd.breed} {selectedHerd.milkType && selectedHerd.milkType !== 'N/A' ? `(${selectedHerd.milkType})` : ''}</span>}
-                </div>
-                {selectedHerd.age && (
-                  <div className="mt-2 text-[11px] text-white/70 font-semibold">🎂 {selectedHerd.age}</div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Right: Tabbed Content ── */}
-            <div className="flex-1 flex flex-col overflow-hidden sm:h-auto" style={{ maxHeight: 'calc(96dvh - 200px)', minHeight: 0 }}>
-              {/* Close button */}
-              <button
-                onClick={() => setShowModal(false)}
-                className="absolute top-3 right-3 z-[50] sm:z-[30] bg-black/40 sm:bg-surface/80 text-white sm:text-text3 hover:text-brand p-2 rounded-xl transition-all backdrop-blur-sm"
-              >
-                <X size={16} />
-              </button>
-
-              {/* Tabs */}
-              <div className="flex border-b border-border-custom bg-surface/60 gap-0.5 p-1.5 flex-shrink-0">
-                {(['info', 'repro', 'timeline'] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`flex-1 py-2 px-2 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
-                      activeTab === tab ? 'bg-white text-brand shadow-sm border border-border-custom' : 'text-text3 hover:text-text'
-                    }`}
-                  >
-                    {tab === 'info'     && <Info size={11} />}
-                    {tab === 'repro'    && <Heart size={11} />}
-                    {tab === 'timeline' && <Activity size={11} />}
-                    <span>{tab === 'info' ? 'General' : tab === 'repro' ? 'Repro' : 'Timeline'}</span>
-                    {tab === 'timeline' && events.length > 0 && (
-                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${activeTab === 'timeline' ? 'bg-brand/10 text-brand' : 'bg-black/5 text-text3'}`}>
-                        {events.length}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab content - scrollable */}
-              <div className="flex-1 overflow-y-auto min-h-0">
-
-                {/* ── TAB: General Info ── */}
-                {activeTab === 'info' && (
-                  <div className="p-4 sm:p-6 space-y-4 animate-in fade-in duration-200">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5 bg-surface/50 p-5 rounded-2xl border border-border-custom">
-                      {[
-                        { label: 'Animal Name',  value: selectedHerd.animalName || 'N/A' },
-                        { label: 'Breed',        value: `${selectedHerd.breed || 'N/A'} ${selectedHerd.milkType && selectedHerd.milkType !== 'N/A' ? `(${selectedHerd.milkType})` : ''}`.trim() },
-                        { label: 'Age',          value: selectedHerd.age || 'N/A', highlight: true },
-                        { label: 'Birth Date',   value: selectedHerd.birthDate || 'N/A' },
-                        { label: 'Procured Date',value: selectedHerd.procuredDate || '—' },
-                        { label: 'Source',       value: selectedHerd.source || '—' },
-                      ].map(({ label, value, highlight }) => (
-                        <div key={label}>
-                          <label className="text-[8px] sm:text-[9px] font-black text-text3 uppercase tracking-[0.2em] block mb-1">{label}</label>
-                          <div className={`text-[13px] sm:text-[14px] font-${highlight ? 'extrabold text-brand-dark' : 'semibold text-text2'}`}>{value}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Status badges */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-white border border-border-custom rounded-2xl p-4 flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${selectedHerd.healthStatus === 'HEALTHY' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`} />
-                        <div>
-                          <div className="text-[8px] font-black text-text3 uppercase tracking-widest">Health</div>
-                          <div className={`text-[12px] font-black uppercase ${selectedHerd.healthStatus === 'HEALTHY' ? 'text-green-700' : 'text-danger'}`}>{selectedHerd.healthStatus}</div>
-                        </div>
-                      </div>
-                      <div className="bg-white border border-border-custom rounded-2xl p-4 flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${selectedHerd.status !== 'DISPOSED' ? 'bg-brand' : 'bg-amber-400'}`} />
-                        <div>
-                          <div className="text-[8px] font-black text-text3 uppercase tracking-widest">Record</div>
-                          <div className="text-[12px] font-black uppercase text-text">{selectedHerd.status || 'ACTIVE'}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Admin Actions */}
-                    {userRole === 'ADMIN' && (
-                      <div className="grid grid-cols-2 gap-3 pt-2">
-                        <button
-                          onClick={() => { setShowModal(false); setShowEditModal(true); }}
-                          className="bg-brand/10 text-brand border border-brand/20 py-3 rounded-2xl font-black uppercase tracking-wider hover:bg-brand/20 transition-all text-[10px] sm:text-[11px] active:scale-[0.98] flex items-center justify-center gap-1.5"
-                        >
-                          <Edit2 size={13} /> Edit Animal
-                        </button>
-                        <button
-                          onClick={() => handleDeleteHerd(selectedHerd.id)}
-                          className="bg-danger/10 text-danger border border-danger/20 py-3 rounded-2xl font-black uppercase tracking-wider hover:bg-danger/20 transition-all text-[10px] sm:text-[11px] active:scale-[0.98] flex items-center justify-center gap-1.5"
-                        >
-                          <Trash2 size={13} /> Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── TAB: Reproduction ── */}
-                {activeTab === 'repro' && (() => {
-                  const stats = getReproductionStats();
-                  const reminders = events.filter(e => REMINDER_TYPES.includes(e.eventType));
-                  const gestation = selectedHerd.animalType === 'BUFFALO' ? 310 : 283;
-
-                  return (
-                    <div className="p-4 sm:p-6 space-y-4 animate-in fade-in duration-200">
-                      {/* Pregnancy Status Card */}
-                      <div className={`rounded-2xl p-5 border ${stats.isPregnant ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200' : 'bg-surface/50 border-border-custom'}`}>
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2 text-text2">
-                            <Heart size={13} className={stats.isPregnant ? 'text-pink-500' : 'text-text3'} />
-                            Reproduction Status
-                          </h3>
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                            stats.isPregnant ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-gray-100 text-gray-500 border border-gray-200'
-                          }`}>
-                            {stats.isPregnant ? '🤰 Pregnant' : 'Not Pregnant'}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                          <div className="bg-white/70 rounded-xl p-3 border border-black/5">
-                            <div className="text-[8px] font-black text-text3 uppercase tracking-widest mb-1">AI Attempts</div>
-                            <div className="text-[20px] font-black text-text">{stats.aiAttempts}</div>
-                            <div className="text-[9px] text-text3">since last calving</div>
-                          </div>
-                          <div className="bg-white/70 rounded-xl p-3 border border-black/5">
-                            <div className="text-[8px] font-black text-text3 uppercase tracking-widest mb-1">Last AI Date</div>
-                            <div className="text-[13px] font-bold text-text2">{stats.lastAi || '—'}</div>
-                            <div className="text-[9px] text-text3">insemination</div>
-                          </div>
-                          {stats.isPregnant && stats.expectedDelivery && (
-                            <div className="bg-purple-100/60 rounded-xl p-3 border border-purple-200/50 col-span-2 sm:col-span-1">
-                              <div className="text-[8px] font-black text-purple-500 uppercase tracking-widest mb-1">Expected Calving</div>
-                              <div className="text-[13px] font-bold text-purple-700">{stats.expectedDelivery}</div>
-                              <div className="text-[9px] text-purple-400">{stats.daysPregnant} days pregnant</div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Gestation progress bar */}
-                        {stats.isPregnant && (
-                          <div className="mt-4">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[9px] font-black text-text3 uppercase tracking-widest">Gestation Progress</span>
-                              <span className="text-[10px] font-black text-purple-600">{stats.gestationPct}%</span>
-                            </div>
-                            <div className="h-3 bg-white/60 rounded-full border border-purple-200 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-700 relative"
-                                style={{ width: `${stats.gestationPct}%` }}
-                              >
-                                <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full" />
-                              </div>
-                            </div>
-                            <div className="flex justify-between mt-1 text-[8px] text-text3">
-                              <span>Insemination</span>
-                              <span>{gestation} days total</span>
-                              <span>Calving</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Upcoming Reminders */}
-                      <div>
-                        <h3 className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2 text-text2 mb-3">
-                          <AlarmClock size={13} className="text-amber-500" />
-                          Upcoming Reminders
-                          {reminders.length > 0 && (
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold border border-amber-200">{reminders.length}</span>
-                          )}
-                        </h3>
-                        {reminders.length === 0 ? (
-                          <div className="p-5 text-center text-xs text-text3 italic bg-surface/30 rounded-2xl border border-dashed border-border-custom">
-                            No upcoming reminders scheduled for this animal.
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {reminders.map(rem => {
-                              const cfg = EVENT_CONFIG[rem.eventType] || EVENT_CONFIG.VACCINATION_DUE;
-                              const Icon = cfg.icon;
-                              const isPast = new Date(rem.eventDate) < new Date();
-                              return (
-                                <div key={rem.id} className={`rounded-2xl p-4 flex items-start gap-3 relative group border ${
-                                  isPast ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
-                                }`}>
-                                  <div className={`p-2 rounded-xl flex-shrink-0 ${isPast ? 'bg-red-100 text-red-600' : `${cfg.bg} ${cfg.color}`}`}>
-                                    <Icon size={15} />
-                                  </div>
-                                  <div className="flex-1 min-w-0 pr-8">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-extrabold text-[13px] text-text">{rem.title}</span>
-                                      {isPast && <span className="text-[9px] font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full border border-red-200 uppercase tracking-wider">Overdue</span>}
-                                    </div>
-                                    <div className="text-[11px] text-text3 font-semibold mt-0.5">📅 {rem.eventDate}</div>
-                                    {rem.details && <div className="text-[11px] text-text2 mt-1.5 bg-white/60 p-2 rounded-xl leading-relaxed">{rem.details}</div>}
-                                  </div>
-                                  {userRole === 'ADMIN' && (
-                                    <button
-                                      onClick={() => handleDeleteEvent(rem.id)}
-                                      className="absolute right-3 top-3 p-1.5 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                    >
-                                      <Trash2 size={13} />
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* ── TAB: Timeline ── */}
-                {activeTab === 'timeline' && (
-                  <div className="p-4 sm:p-6 space-y-4 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2 text-text2">
-                        <Activity size={13} className="text-brand" />
-                        Events Timeline
-                        <span className="text-[9px] text-text3 font-semibold normal-case tracking-normal">(newest first)</span>
-                      </h3>
-                      {userRole === 'ADMIN' && (
-                        <button
-                          onClick={() => {
-                            setEventDate(new Date().toISOString().split('T')[0]);
-                            setEventType('SEMEN_GIVEN');
-                            setEventDetailsText('');
-                            setShowAddEventModal(true);
-                          }}
-                          className="bg-brand text-white flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl font-bold text-xs uppercase tracking-wide hover:bg-brand-dark transition-all shadow active:scale-95"
-                        >
-                          <Plus size={12} /> Add Event
-                        </button>
-                      )}
-                    </div>
-
-                    {loadingEvents ? (
-                      <div className="py-10 text-center">
-                        <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                        <div className="text-xs text-text3">Loading events...</div>
-                      </div>
-                    ) : events.length === 0 ? (
-                      <div className="py-10 text-center">
-                        <Activity size={32} className="text-border-custom mx-auto mb-2" />
-                        <div className="text-xs text-text3 font-semibold">No timeline events logged yet.</div>
-                        {userRole === 'ADMIN' && (
-                          <button
-                            onClick={() => { setEventDate(new Date().toISOString().split('T')[0]); setEventType('SEMEN_GIVEN'); setShowAddEventModal(true); }}
-                            className="mt-3 text-xs text-brand font-bold underline underline-offset-2 hover:text-brand-dark"
-                          >
-                            + Add the first event
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="relative pl-7 border-l-2 border-border-custom space-y-5">
-                        {events.map(evt => {
-                          const cfg = EVENT_CONFIG[evt.eventType] || { icon: Calendar, color: 'text-text3', bg: 'bg-surface', label: evt.eventType };
-                          const Icon = cfg.icon;
-                          const isReminder = REMINDER_TYPES.includes(evt.eventType);
-                          const isPast = isReminder && new Date(evt.eventDate) < new Date();
-                          return (
-                            <div key={evt.id} className="relative group">
-                              {/* Node */}
-                              <div className={`absolute -left-[37px] top-1 w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center ${cfg.bg} ${cfg.color}`}>
-                                <Icon size={13} />
-                              </div>
-                              {/* Card */}
-                              <div className={`rounded-2xl p-4 border relative pr-10 transition-all ${
-                                isPast   ? 'bg-red-50 border-red-200' :
-                                isReminder ? 'bg-amber-50 border-amber-200' : 'bg-white border-border-custom hover:border-brand/30 hover:shadow-sm'
-                              }`}>
-                                <div className="flex items-start justify-between gap-2 flex-wrap">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
-                                    <span className="font-extrabold text-[13px] text-text">{evt.title}</span>
-                                    {isPast && <span className="text-[8px] font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full border border-red-200 uppercase">Overdue</span>}
-                                  </div>
-                                  <span className="text-[10px] font-bold text-text3 font-mono flex-shrink-0">📅 {evt.eventDate}</span>
-                                </div>
-                                {evt.details && (
-                                  <p className="text-[11px] text-text2 mt-2 bg-black/3 p-2.5 rounded-xl border border-black/5 leading-relaxed">
-                                    {evt.details}
-                                  </p>
-                                )}
-                                {userRole === 'ADMIN' && (
-                                  <button
-                                    onClick={() => handleDeleteEvent(evt.id)}
-                                    className="absolute right-3 top-3 p-1.5 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                    title="Delete Event"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Sticky Close Button */}
-              <div className="p-3 sm:p-4 border-t border-border-custom bg-surface/40 flex-shrink-0">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="w-full bg-brand-dark text-white py-3 rounded-2xl font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-md text-[11px] active:scale-[0.98]"
-                >
-                  Close Animal Record
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      </>
       )}
+
 
       {/* Register Animal Modal */}
       {showRegisterModal && (
@@ -770,7 +444,7 @@ export default function HerdsPage() {
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-text3 uppercase tracking-wider block mb-1.5">Details & Remarks</label>
+                <label className="text-[10px] font-black text-text3 uppercase tracking-wider block mb-1.5">Details &amp; Remarks</label>
                 <textarea
                   value={eventDetailsText} onChange={e => setEventDetailsText(e.target.value)}
                   placeholder="e.g. Bull Tag: GIR-505, Technician Name, Calf gender, dosage details..."
@@ -801,6 +475,18 @@ export default function HerdsPage() {
           onClose={() => setShowDisposedModal(false)}
           herds={herds}
           onAnimalClick={handleHerdClick}
+        />
+      )}
+
+      {/* All Events Modal */}
+      {showAllEventsModal && (
+        <AllEventsModal
+          isOpen={showAllEventsModal}
+          onClose={() => setShowAllEventsModal(false)}
+          events={allGlobalEvents}
+          herds={herds}
+          onAnimalClick={handleHerdClick}
+          onRefresh={fetchHerds}
         />
       )}
     </AppLayout>
@@ -855,6 +541,423 @@ function DisposedAnimalsModal({ isOpen, onClose, herds, onAnimalClick }: {
           <button onClick={onClose} className="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors shadow-md">
             Close Archive
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── All Events Modal ─── */
+function AllEventsModal({ isOpen, onClose, events, herds, onAnimalClick, onRefresh }: any) {
+  const [filterMode, setFilterMode] = useState<'All' | 'Overdue' | 'Due Soon' | 'Upcoming' | 'Completed'>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCowId, setSelectedCowId] = useState<string>('All');
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+
+  if (!isOpen) return null;
+
+  // Date and Time utility formatting to match AnimalWorkspace
+  const fmtDate = (ds: string) => {
+    if (!ds) return '—';
+    const [y, m, d] = ds.split('-').map(Number);
+    return `${d} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1] || m} ${y}`;
+  };
+
+  const getHerdObj = (herdId: number) => herds.find((h: any) => h.id === herdId) || null;
+
+  const { confirm, showToast } = useNotification();
+
+  const markAsDone = async (event: any) => {
+    confirm('Mark this task as completed? This will remove the reminder.', async () => {
+      try {
+        await api.delete(`/herds/events/${event.id}`);
+        setSelectedEvent(null);
+        showToast('Task marked as completed.', 'success');
+        if (onRefresh) onRefresh();
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to mark task as done.', 'error');
+      }
+    });
+  };
+
+  const daysFromNow = (dateStr: string) => {
+    const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    return Math.ceil((d.getTime() - t.getTime()) / 86400000);
+  };
+
+  const isReminder = (type: string) => ['VACCINATION_DUE', 'DEWORMING_DUE', 'PREGNANCY_CHECK_DUE'].includes(type);
+
+  const categorize = (e: any) => {
+    const d = daysFromNow(e.eventDate);
+    if (d < 0 && isReminder(e.eventType)) return 'Overdue';
+    if (d >= 0 && d <= 7 && isReminder(e.eventType)) return 'Due Soon';
+    if (d < 0 && !isReminder(e.eventType)) return 'Completed';
+    return 'Upcoming';
+  };
+
+  // Filter out disposed cows
+  const nonDisposedEvents = events.filter((e: any) => {
+    const herd = getHerdObj(e.herdId);
+    if (!herd) return false;
+    return herd.status !== 'DISPOSED';
+  });
+
+  const activeEvents = nonDisposedEvents;
+
+  const activeCows = herds.filter((h: any) => h.status !== 'DISPOSED');
+
+  const counts = { All: 0, Overdue: 0, 'Due Soon': 0, Upcoming: 0, Completed: 0 };
+  activeEvents.forEach((e: any) => {
+    const c = categorize(e);
+    if (c === 'Overdue') counts.Overdue++;
+    else if (c === 'Due Soon') counts['Due Soon']++;
+    else if (c === 'Upcoming') counts.Upcoming++;
+    else if (c === 'Completed') counts.Completed++;
+    if (c !== 'Completed') counts.All++;
+  });
+
+  const filteredEvents = activeEvents.filter((e: any) => {
+    const herd = getHerdObj(e.herdId);
+    if (selectedCowId !== 'All' && String(e.herdId) !== selectedCowId) return false;
+
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q || (herd?.animalName || '').toLowerCase().includes(q) || (herd?.tagNumber || '').toLowerCase().includes(q);
+    if (!matchSearch) return false;
+
+    const cat = categorize(e);
+    if (filterMode === 'All') return cat !== 'Completed';
+    return cat === filterMode;
+  }).sort((a: any, b: any) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+
+  const cfg = (type: string) => {
+    const map: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
+      SEMEN_GIVEN:         { icon: Syringe,    color: 'text-purple-600', bg: 'bg-purple-50' },
+      PREGNANCY_CONFIRMED: { icon: Heart,       color: 'text-pink-600',   bg: 'bg-pink-50' },
+      CALF_DELIVERED:      { icon: Baby,        color: 'text-green-600',  bg: 'bg-green-50' },
+      DRY_PERIOD_STARTED:  { icon: Leaf,        color: 'text-amber-600',  bg: 'bg-amber-50' },
+      LACTATION_STARTED:   { icon: Droplets,    color: 'text-blue-600',   bg: 'bg-blue-50' },
+      VACCINATION_DUE:     { icon: ShieldCheck, color: 'text-teal-600',   bg: 'bg-teal-50' },
+      DEWORMING_DUE:       { icon: AlarmClock,  color: 'text-orange-600', bg: 'bg-orange-50' },
+      PREGNANCY_CHECK_DUE: { icon: CheckCircle, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    };
+    return map[type] || { icon: Activity, color: 'text-text3', bg: 'bg-surface' };
+  };
+
+  const StatusBadge = ({ event }: { event: any }) => {
+    const d = daysFromNow(event.eventDate);
+    const cat = categorize(event);
+    if (cat === 'Overdue') return <span className="text-[10px] font-bold text-danger bg-red-50 border border-red-100 px-2 py-0.5 rounded-full whitespace-nowrap">Overdue {Math.abs(d)}d</span>;
+    if (cat === 'Due Soon') return <span className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full whitespace-nowrap">{d === 0 ? 'Due Today' : `Due in ${d}d`}</span>;
+    if (cat === 'Completed') return <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full whitespace-nowrap">Completed</span>;
+    return <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full whitespace-nowrap">In {d}d</span>;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[2000] flex items-center justify-center p-2 md:p-6">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[95vh] md:max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center justify-between shrink-0"
+             style={{ background: 'linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 100%)' }}>
+          <div className="flex items-center gap-3">
+            <div className="bg-white/15 p-1.5 rounded-lg"><Calendar size={16} className="text-white" /></div>
+            <div>
+              <h2 className="text-[15px] font-black text-white tracking-tight uppercase">Events</h2>
+              <p className="text-[10px] text-white/75 font-semibold uppercase mt-0.5">Manage important events and take action on pending tasks.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="bg-white/10 hover:bg-white/20 text-white p-1.5 rounded-full transition-all">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden min-h-0">
+          {/* ── Left: List ── */}
+          <div className={`flex flex-col flex-1 overflow-hidden min-w-0 ${selectedEvent ? 'hidden md:flex' : 'flex'}`}>
+
+            {/* Compact stat cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 py-3 border-b border-border-custom bg-surface/40 shrink-0">
+              {[
+                { label: 'Overdue Tasks',     count: counts.Overdue,        icon: ShieldAlert,  color: 'text-danger',      bg: 'bg-red-50',    sub: 'Require immediate action' },
+                { label: 'Due Soon (7 Days)', count: counts['Due Soon'],    icon: Clock,        color: 'text-orange-600',  bg: 'bg-orange-50', sub: 'Action needed soon' },
+                { label: 'Upcoming Tasks',    count: counts.Upcoming,       icon: Calendar,     color: 'text-blue-600',    bg: 'bg-blue-50',   sub: 'Scheduled events' },
+                { label: 'Total Active',      count: counts.All,            icon: Activity,     color: 'text-brand',       bg: 'bg-green-50',  sub: 'Active tasks total' },
+              ].map(card => {
+                const Icon = card.icon;
+                return (
+                  <div key={card.label} className="bg-white rounded-xl p-2 md:p-2.5 border border-border-custom shadow-sm">
+                    <div className="flex items-center gap-1.5 mb-0.5 md:mb-1">
+                      <div className={`${card.bg} p-0.5 md:p-1 rounded-md`}><Icon size={12} className={card.color} /></div>
+                      <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-wider leading-tight ${card.color}`}>{card.label}</span>
+                    </div>
+                    <div className="text-lg md:text-2xl font-black text-text leading-none">{card.count}</div>
+                    <div className="text-[9px] md:text-[10px] text-text3 font-medium mt-0.5 truncate">{card.sub}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Search + Filter tabs */}
+            <div className="px-4 py-2.5 flex gap-2 items-center border-b border-border-custom shrink-0 bg-white flex-wrap">
+              <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+                <div className="relative flex-1 sm:flex-none">
+                  <input
+                    type="text"
+                    placeholder="Search cow name or ID..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="bg-surface border border-border-custom rounded-lg py-1.5 pl-7 pr-3 text-[12px] font-semibold focus:outline-none focus:border-brand w-full sm:w-44"
+                  />
+                  <svg className="absolute left-2 top-1/2 -translate-y-1/2 opacity-40" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <select
+                  value={selectedCowId}
+                  onChange={e => { setSelectedCowId(e.target.value); setSelectedEvent(null); }}
+                  className="bg-surface border border-border-custom rounded-lg py-1.5 px-3 text-[12px] font-semibold focus:outline-none focus:border-brand flex-1 sm:flex-none sm:w-48 text-text truncate"
+                >
+                  <option value="All">All Animals</option>
+                  {activeCows.map((cow: any) => (
+                    <option key={cow.id} value={String(cow.id)}>
+                      {cow.animalName || 'Unnamed'} ({cow.tagNumber})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto flex-1 py-1 sm:py-0">
+                {(['All', 'Overdue', 'Due Soon', 'Upcoming', 'Completed'] as const).map(tab => (
+                  <button
+                     key={tab}
+                     onClick={() => { setFilterMode(tab); setSelectedEvent(null); }}
+                     className={`whitespace-nowrap px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+                       filterMode === tab
+                         ? 'bg-brand text-white shadow-sm'
+                         : 'bg-surface border border-border-custom text-text2 hover:text-brand hover:border-brand'
+                     }`}
+                  >
+                    {tab} <span className="opacity-60">({counts[tab as keyof typeof counts]})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Column headers */}
+            <div className="hidden md:grid px-4 py-2 border-b border-border-custom bg-surface/50 shrink-0 text-[10px] font-black uppercase tracking-widest text-text3"
+                 style={{ gridTemplateColumns: '1.1fr 1.6fr 100px 130px 80px' }}>
+              <div>COW</div><div>EVENT & STATUS</div><div>EVENT DATE</div><div>DUE / OVERDUE</div><div className="text-center">ACTION</div>
+            </div>
+
+            {/* Rows */}
+            <div className="flex-1 overflow-y-auto divide-y divide-border-custom">
+              {filteredEvents.length === 0 ? (
+                <div className="py-10 text-center text-text3 text-sm font-medium">No events found.</div>
+              ) : filteredEvents.map((event: any) => {
+                const herd = getHerdObj(event.herdId);
+                const d = daysFromNow(event.eventDate);
+                const cat = categorize(event);
+                const isSelected = selectedEvent?.id === event.id;
+                const { icon: EvIcon, color: evColor, bg: evBg } = cfg(event.eventType);
+                const initials = herd?.animalName ? herd.animalName.substring(0, 2).toUpperCase() : '??';
+                const imgUrl = herd?.imageUrl ? formatImageUrl(herd.imageUrl) : null;
+
+                return (
+                  <React.Fragment key={event.id}>
+                    {/* Desktop Row */}
+                    <div
+                      onClick={() => setSelectedEvent(isSelected ? null : event)}
+                      className={`hidden md:grid px-4 py-3 cursor-pointer transition-colors items-center border-l-2 ${
+                        isSelected ? 'bg-brand/5 border-brand' : 'hover:bg-surface/60 border-transparent'
+                      }`}
+                      style={{ gridTemplateColumns: '1.1fr 1.6fr 100px 130px 80px' }}
+                    >
+                      {/* Cow */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-9 h-9 rounded-full overflow-hidden shrink-0 border flex items-center justify-center bg-gray-200 font-black text-[11px] text-white ${
+                          cat === 'Overdue' ? 'border-red-300' : cat === 'Due Soon' ? 'border-orange-300' : 'border-border-custom'
+                        }`}>
+                          {imgUrl ? <img src={imgUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-gray-500">{initials}</span>}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-black text-[12px] uppercase truncate text-text">{herd?.animalName || 'Unknown'}</div>
+                          <div className="text-[10px] font-mono text-text3 truncate">ID: {herd?.tagNumber}</div>
+                          {herd?.animalStatus && (
+                            <span className="text-[10px] font-bold uppercase bg-surface border border-border-custom text-text3 px-1 py-0.5 rounded">{herd.animalStatus.replace('_', ' ')}{herd.age ? ` • ${herd.age}` : ''}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Event */}
+                      <div className="flex items-start gap-2 min-w-0">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${evBg}`}>
+                          <EvIcon size={13} className={evColor} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-[12px] text-text truncate">{event.title}</div>
+                          <div className="text-[11px] text-text3 truncate">{event.details || event.eventType.replace(/_/g, ' ')}</div>
+                          {cat === 'Overdue' && <span className="text-[10px] font-bold bg-red-100 text-danger px-1 py-0.5 rounded mt-0.5 inline-block">Action Required</span>}
+                          {cat === 'Due Soon' && <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-1 py-0.5 rounded mt-0.5 inline-block">Due Soon</span>}
+                          {cat === 'Completed' && <span className="text-[10px] font-bold bg-green-100 text-green-600 px-1 py-0.5 rounded mt-0.5 inline-block">Completed</span>}
+                        </div>
+                      </div>
+
+                      {/* Date */}
+                      <div className="text-[12px] font-semibold text-text2">
+                        {fmtDate(event.eventDate)}
+                      </div>
+
+                      {/* Due/Overdue */}
+                      <div>
+                        {cat === 'Overdue' && <><div className="font-black text-[12px] text-danger">Overdue by {Math.abs(d)} days</div><div className="text-[10px] text-text3">Action required</div></>}
+                        {cat === 'Due Soon' && <><div className="font-black text-[12px] text-orange-500">{d === 0 ? 'Due Today' : `Due in ${d}d`}</div><div className="text-[10px] text-text3">Scheduled</div></>}
+                        {cat === 'Completed' && <><div className="font-black text-[12px] text-green-600">Completed</div><div className="text-[10px] text-text3">on {fmtDate(event.eventDate).substring(0, 6)}</div></>}
+                        {cat === 'Upcoming' && <><div className="font-black text-[12px] text-blue-600">In {d} days</div><div className="text-[10px] text-text3">Scheduled</div></>}
+                      </div>
+
+                      {/* Action */}
+                      <div className="flex items-center justify-end">
+                        <button
+                          onClick={e => { e.stopPropagation(); setSelectedEvent(isSelected ? null : event); }}
+                          className="flex items-center gap-0.5 px-2.5 py-1.5 border border-brand text-brand hover:bg-brand hover:text-white rounded-lg text-[11px] font-bold transition-all whitespace-nowrap"
+                        >
+                          View <ChevronRight size={11} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div
+                      onClick={() => setSelectedEvent(isSelected ? null : event)}
+                      className={`md:hidden p-4 flex flex-col gap-3 relative border-l-2 transition-colors cursor-pointer bg-white ${
+                        isSelected ? 'bg-brand/5 border-brand' : 'hover:bg-surface/40 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-8 h-8 rounded-full overflow-hidden shrink-0 border flex items-center justify-center bg-gray-200 font-black text-[11px] text-white ${
+                            cat === 'Overdue' ? 'border-red-300' : cat === 'Due Soon' ? 'border-orange-300' : 'border-border-custom'
+                          }`}>
+                            {imgUrl ? <img src={imgUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-gray-500">{initials}</span>}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-black text-[12px] uppercase truncate text-text">{herd?.animalName || 'Unknown'}</div>
+                            <div className="text-[10px] font-mono text-text3 truncate">ID: {herd?.tagNumber}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[11px] font-semibold text-text2">{fmtDate(event.eventDate)}</div>
+                          <div className="mt-0.5"><StatusBadge event={event} /></div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 bg-surface/50 p-2.5 rounded-lg">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${evBg}`}>
+                            <EvIcon size={12} className={evColor} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-[11px] text-text truncate">{event.title}</div>
+                            <div className="text-[10px] text-text3 truncate mt-0.5">{event.details || event.eventType.replace(/_/g, ' ')}</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); setSelectedEvent(isSelected ? null : event); }}
+                          className="flex items-center gap-0.5 px-2 py-1.5 border border-brand text-brand hover:bg-brand hover:text-white rounded-lg text-[10px] font-bold transition-all whitespace-nowrap"
+                        >
+                          View <ChevronRight size={10} />
+                        </button>
+                      </div>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-3 border-t border-border-custom bg-white flex justify-between items-center shrink-0">
+              <span className="text-[11px] text-text3 font-medium">Showing {filteredEvents.length} of {activeEvents.length} tasks</span>
+              <button onClick={onClose} className="bg-brand hover:bg-brand-dark text-white px-5 py-2 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm">
+                CLOSE PANEL
+              </button>
+            </div>
+          </div>
+
+          {/* ── Right: Detail Panel ── */}
+          {selectedEvent && (() => {
+            const herd = getHerdObj(selectedEvent.herdId);
+            const d = daysFromNow(selectedEvent.eventDate);
+            const cat = categorize(selectedEvent);
+            const { icon: EvIcon, color: evColor, bg: evBg } = cfg(selectedEvent.eventType);
+            const initials = herd?.animalName ? herd.animalName.substring(0, 2).toUpperCase() : '??';
+            const imgUrl = herd?.imageUrl ? formatImageUrl(herd.imageUrl) : null;
+            return (
+              <div className="w-full md:w-64 md:shrink-0 border-l border-border-custom flex flex-col bg-white overflow-hidden">
+                {/* Detail header */}
+                <div className="p-3 border-b border-border-custom flex items-center gap-2 bg-surface/30">
+                  <div className="w-10 h-10 rounded-full overflow-hidden border border-border-custom flex items-center justify-center bg-gray-200 font-black text-[12px] shrink-0">
+                    {imgUrl ? <img src={imgUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-gray-500">{initials}</span>}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-black text-[13px] uppercase truncate text-text">{herd?.animalName || 'Unknown'}</div>
+                    <div className="text-[10px] font-mono text-text3">ID: {herd?.tagNumber}</div>
+                    <StatusBadge event={selectedEvent} />
+                  </div>
+                  <button onClick={() => setSelectedEvent(null)} className="text-text3 hover:text-text shrink-0 ml-auto"><X size={14} /></button>
+                </div>
+
+                {/* Event Info */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-3 text-[12px]">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${evBg}`}>
+                      <EvIcon size={14} className={evColor} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-[13px] text-text">{selectedEvent.title}</div>
+                      {cat === 'Overdue' && <span className="text-[10px] font-bold bg-red-100 text-danger px-1.5 py-0.5 rounded">Action Required</span>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-0 divide-y divide-border-custom">
+                    <div className="flex justify-between items-center py-2">
+                      <div className="flex items-center gap-1.5 text-text3 font-semibold"><Calendar size={11} /> Event Date</div>
+                      <div className="font-bold text-text">{fmtDate(selectedEvent.eventDate)}</div>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <div className="flex items-center gap-1.5 text-text3 font-semibold"><Clock size={11} /> Status</div>
+                      <StatusBadge event={selectedEvent} />
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <div className="flex items-center gap-1.5 text-text3 font-semibold"><AlertTriangle size={11} /> Due</div>
+                      <div className={`font-bold ${d < 0 ? 'text-danger' : d === 0 ? 'text-orange-500' : 'text-green-600'}`}>
+                        {d < 0 ? `${Math.abs(d)}d overdue` : d === 0 ? 'Today' : `in ${d} days`}
+                      </div>
+                    </div>
+                    {selectedEvent.details && (
+                      <div className="py-2">
+                        <div className="text-text3 font-semibold mb-1 text-[11px]">Details</div>
+                        <div className="text-text2 font-medium bg-surface rounded-lg p-2 text-[11px] leading-relaxed">{selectedEvent.details}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="p-3 border-t border-border-custom shrink-0 space-y-2">
+                  <button
+                    onClick={() => markAsDone(selectedEvent)}
+                    className="w-full flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all"
+                  >
+                    <CheckCircle size={12} /> Mark as Done
+                  </button>
+                  <button
+                    onClick={() => { if (herd) { onAnimalClick(herd.id); onClose(); } }}
+                    className="w-full flex items-center justify-center gap-1.5 bg-brand hover:bg-brand-dark text-white py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all"
+                  >
+                    <Activity size={12} /> Go to Animal Timeline
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

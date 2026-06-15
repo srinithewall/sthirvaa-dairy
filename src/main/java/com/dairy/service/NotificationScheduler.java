@@ -37,6 +37,7 @@ public class NotificationScheduler {
         if (currentTimeStr.equals(targetTimeStr)) {
             logger.info("Scheduler matched reminder time ({}). Triggering check...", targetTimeStr);
             pushNotificationService.checkAndSendProductionReminder();
+            pushNotificationService.checkAndSendEventReminders();
         }
     }
 }

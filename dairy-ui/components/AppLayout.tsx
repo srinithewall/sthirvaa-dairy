@@ -6,7 +6,7 @@ import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import api from '@/lib/api';
 
-export default function AppLayout({ children, headerAction }: { children: React.ReactNode, headerAction?: React.ReactNode }) {
+export default function AppLayout({ children, headerAction, noPadding }: { children: React.ReactNode, headerAction?: React.ReactNode, noPadding?: boolean }) {
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
@@ -54,7 +54,7 @@ export default function AppLayout({ children, headerAction }: { children: React.
       <Navbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} headerAction={headerAction} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#F0F4F1]">
+        <main className={`flex-1 overflow-y-auto bg-[#F0F4F1] ${noPadding ? '' : 'p-4 md:p-6'}`}>
           {children}
         </main>
       </div>

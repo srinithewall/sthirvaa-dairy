@@ -1,3 +1,21 @@
+## [v0.1.1] - 2026-06-15
+
+### Added
+- Animal profile pictures (avatars) added to the Log Milk Yield table for easier identification.
+- Support for instant gallery preview of newly uploaded image/video media in Animal Profile.
+
+### Changed
+- Replaced wide 'Actions' button in Animal Profile with a compact 3-dots ('⋮') menu icon.
+- Extracted 'View Gallery' action from the dropdown to be a standalone icon button next to the actions menu.
+- Increased the size of animal avatars in the Log Milk Yield table (`w-10 h-10`).
+- Restyled action buttons and scheduled tasks in Animal Profile to be uniformly neutral/slate instead of overly colorful.
+
+### Fixed
+- Fixed an issue where selecting the exact same image twice for upload would not trigger the file input.
+- Fixed a rendering overlap between the 'Close' and 'Add Media' buttons in the gallery modal.
+- Fixed a React render crash related to improper import of the Lucide `ImageIcon`.
+
+
 # Sthirvaa Farms - Project Release & Version Changelog
 
 This changelog serves as the single source of truth for all versioned releases, feature enhancements, and critical bug fixes in the Sthirvaa Farms project. It logs every Git commit, chronological version increment, and developer descriptions in one file as requested.

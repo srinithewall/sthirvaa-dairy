@@ -14,6 +14,11 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import com.dairy.model.HerdEvent;
+import com.dairy.repo.HerdEventRepository;
+import com.dairy.model.Role;
+import java.util.List;
+import java.util.Optional;
 
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -33,6 +38,9 @@ public class PushNotificationService {
 
     @Autowired
     private SettingRepository settingRepository;
+
+    @Autowired
+    private HerdEventRepository herdEventRepository;
 
     public void checkAndSendProductionReminder() {
         logger.info("Executing scheduled daily milk production record check...");
@@ -107,6 +115,45 @@ public class PushNotificationService {
             logger.info("Successfully sent push notification to {}. Message ID: {}", username, response);
         } catch (Exception e) {
             logger.error("Failed to send push notification to " + username, e);
+        }
+    }
+    public void checkAndSendEventReminders() {
+        logger.info("Executing scheduled event reminders check...");
+
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        LocalDate tomorrow = today.plusDays(1);
+
+        List<HerdEvent> eventsDueToday = herdEventRepository.findByEventDate(today);
+        List<HerdEvent> eventsDueTomorrow = herdEventRepository.findByEventDate(tomorrow);
+
+        if (eventsDueToday.isEmpty() && eventsDueTomorrow.isEmpty()) {
+            logger.info("No events due today or tomorrow. No event reminders to send.");
+            return;
+        }
+
+        List<User> targetUsers = userRepository.findByRoleIn(Arrays.asList(Role.ADMIN, Role.STAFF));
+        if (targetUsers.isEmpty()) {
+            logger.warn("No ADMIN or STAFF users found to send event reminders to.");
+            return;
+        }
+
+        for (User user : targetUsers) {
+            String token = user.getFcmToken();
+            if (token == null || token.trim().isEmpty()) {
+                continue;
+            }
+
+            for (HerdEvent event : eventsDueToday) {
+                String title = "🔔 Due Today: " + event.getTitle();
+                String message = "Event '" + event.getTitle() + "' is due today for animal.";
+                sendMobilePush(token, title, message, user.getUsername());
+            }
+
+            for (HerdEvent event : eventsDueTomorrow) {
+                String title = "📅 Due Tomorrow: " + event.getTitle();
+                String message = "Event '" + event.getTitle() + "' is scheduled for tomorrow.";
+                sendMobilePush(token, title, message, user.getUsername());
+            }
         }
     }
 }

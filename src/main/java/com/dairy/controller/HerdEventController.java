@@ -22,6 +22,12 @@ public class HerdEventController {
         return ResponseEntity.ok(events);
     }
 
+    @GetMapping("/events/all")
+    public ResponseEntity<List<HerdEvent>> getAllEvents() {
+        List<HerdEvent> events = herdEventRepository.findAllByOrderByEventDateDesc();
+        return ResponseEntity.ok(events);
+    }
+
     @PostMapping("/{herdId}/events")
     @PreAuthorize("@ss.can('HERDS')")
     public ResponseEntity<HerdEvent> createEvent(@PathVariable Long herdId, @RequestBody HerdEvent event) {

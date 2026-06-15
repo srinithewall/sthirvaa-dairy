@@ -20,6 +20,8 @@ interface FormData {
   animalStatus: string;
   imageUrl: string;
   status: string;
+  motherName: string;
+  fatherSemen: string;
 }
 
 interface Herd {
@@ -37,6 +39,8 @@ interface Herd {
   animalStatus: string;
   imageUrl?: string;
   status?: string;
+  motherName?: string;
+  fatherSemen?: string;
 }
 
 // ─── Reusable styled select dropdown ────────
@@ -112,11 +116,13 @@ function CustomSelect({
 function Field({
   label,
   required,
+  error,
   children,
   fullWidth = false,
 }: {
   label: string;
   required?: boolean;
+  error?: string;
   children: React.ReactNode;
   fullWidth?: boolean;
 }) {
@@ -126,6 +132,7 @@ function Field({
         {label} {required && <span className="text-red-500 text-[14px] leading-none">*</span>}
       </label>
       {children}
+      {error && <span className="text-red-500 text-[10px] font-bold mt-1 block uppercase tracking-wide">{error}</span>}
     </div>
   );
 }
@@ -147,6 +154,7 @@ export default function RegisterAnimalModal({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(herdToEdit?.imageUrl || null);
   const { showToast } = useNotification();
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
 
 
@@ -164,6 +172,8 @@ export default function RegisterAnimalModal({
     animalStatus: herdToEdit?.animalStatus || 'HEIFER',
     imageUrl: herdToEdit?.imageUrl || '',
     status: herdToEdit?.status || 'ACTIVE',
+    motherName: herdToEdit?.motherName || '',
+    fatherSemen: herdToEdit?.fatherSemen || '',
   });
 
   const [ageYears, setAgeYears] = useState(() => {
@@ -212,8 +222,23 @@ export default function RegisterAnimalModal({
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRegistering(true);
+    
+    // Client-side validation for mandatory fields
+    const newErrors: Record<string, string> = {};
+    if (!formData.tagNumber || !formData.tagNumber.trim()) {
+      newErrors.tagNumber = 'Tag number is required';
+    }
+    if (!formData.animalType) {
+      newErrors.animalType = 'Animal type is required';
+    }
 
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      showToast('Please fill in all mandatory fields.', 'error');
+      return;
+    }
+
+    setRegistering(true);
     try {
       const computedAge =
         ageYears || ageMonths
@@ -288,12 +313,21 @@ export default function RegisterAnimalModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
 
             {/* Tag Number */}
-            <Field label="Tag Number">
+            <Field label="Tag Number" required error={errors.tagNumber}>
               <input
                 value={formData.tagNumber}
-                onChange={(e) => set('tagNumber', e.target.value)}
-                placeholder="e.g. COW-101 (optional)"
-                className={INPUT_CLS}
+                onChange={(e) => {
+                  set('tagNumber', e.target.value);
+                  if (e.target.value.trim()) {
+                    setErrors((prev) => {
+                      const copy = { ...prev };
+                      delete copy.tagNumber;
+                      return copy;
+                    });
+                  }
+                }}
+                placeholder="e.g. COW-101"
+                className={`${INPUT_CLS} ${errors.tagNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10' : ''}`}
               />
             </Field>
 
@@ -325,6 +359,26 @@ export default function RegisterAnimalModal({
                 value={formData.breed}
                 onChange={(e) => set('breed', e.target.value)}
                 placeholder="e.g., Gir, Holstein"
+                className={INPUT_CLS}
+              />
+            </Field>
+
+            {/* Mother Name */}
+            <Field label="Mother Name">
+              <input
+                value={formData.motherName}
+                onChange={(e) => set('motherName', e.target.value)}
+                placeholder="e.g., Ganga (optional)"
+                className={INPUT_CLS}
+              />
+            </Field>
+
+            {/* Father / Semen */}
+            <Field label="Father / Semen">
+              <input
+                value={formData.fatherSemen}
+                onChange={(e) => set('fatherSemen', e.target.value)}
+                placeholder="e.g., Gir Semen, HF Semen"
                 className={INPUT_CLS}
               />
             </Field>

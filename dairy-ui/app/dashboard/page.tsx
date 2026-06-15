@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
-import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check } from 'lucide-react';
+import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -55,6 +55,23 @@ interface DashboardData {
   topMilkers: TopMilker[];
 }
 
+const getTodayDateString = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const getPastDateString = (daysAgo: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +83,10 @@ export default function DashboardPage() {
   const [selectedCowIds, setSelectedCowIds] = useState<string[]>([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [cowSearchQuery, setCowSearchQuery] = useState('');
+
+  // Date range states
+  const [startDate, setStartDate] = useState(getPastDateString(30));
+  const [endDate, setEndDate] = useState(getTodayDateString());
 
   useEffect(() => {
     fetchDashboardData();
@@ -92,7 +113,7 @@ export default function DashboardPage() {
         api.get('/milk-records')
       ]);
       const allCows = cowsRes.data.herds || cowsRes.data || [];
-      setCows(allCows.filter((c: any) => c.status !== 'DISPOSED'));
+      setCows(allCows.filter((c: any) => c.status?.toUpperCase() !== 'DISPOSED' && c.animalStatus?.toUpperCase() !== 'CALF'));
       setMilkRecords(recordsRes.data || []);
     } catch (err) {
       console.error("Failed to fetch cows or milk records for daily chart:", err);
@@ -190,14 +211,19 @@ export default function DashboardPage() {
     '#27ae60', // Emerald
   ];
 
-  const uniqueDates = Array.from(new Set(milkRecords.map(r => r.date))).sort();
-  const chartDates = uniqueDates.slice(-30);
+  // Filter milk records by date range
+  const filteredRecordsByDateRange = milkRecords.filter(r => {
+    return (!startDate || r.date >= startDate) && (!endDate || r.date <= endDate);
+  });
+
+  const uniqueDates = Array.from(new Set(filteredRecordsByDateRange.map(r => r.date))).sort();
+  const chartDates = uniqueDates;
 
   const dailyProductionDatasets: any[] = [];
 
   if (selectedCowIds.length === 0) {
     const dataPoints = chartDates.map(date => {
-      return milkRecords
+      return filteredRecordsByDateRange
         .filter(r => r.date === date)
         .reduce((sum, r) => sum + (r.quantity || 0), 0);
     });
@@ -219,7 +245,7 @@ export default function DashboardPage() {
       const color = COLORS[index % COLORS.length];
 
       const dataPoints = chartDates.map(date => {
-        return milkRecords
+        return filteredRecordsByDateRange
           .filter(r => r.date === date && String(r.herd?.id) === String(cowId))
           .reduce((sum, r) => sum + (r.quantity || 0), 0);
       });
@@ -263,7 +289,9 @@ export default function DashboardPage() {
         intersect: false,
         callbacks: {
           label: (context: any) => {
-            return ` ${context.dataset.label}: ${context.raw} L`;
+            const label = context.dataset.label || '';
+            const cleanedLabel = label.split(' (')[0];
+            return ` ${cleanedLabel}: ${context.raw} L`;
           }
         }
       }
@@ -393,8 +421,33 @@ export default function DashboardPage() {
             <p className="text-[11px] text-text3 mt-0.5">Historical production trends by individual cow or aggregated</p>
           </div>
 
-          {/* Premium Selector dropdown */}
-          <div className="cow-selector-container relative">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Start Date Calendar Input */}
+            <div className="flex items-center gap-2 bg-white border border-border-custom px-3 py-1.5 rounded-xl shadow-sm">
+              <Calendar size={13} className="text-brand" />
+              <span className="text-[10px] font-black text-text3 uppercase tracking-wider border-r pr-2 border-border-custom">From</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="text-[11px] font-bold text-text bg-transparent focus:outline-none"
+              />
+            </div>
+
+            {/* End Date Calendar Input */}
+            <div className="flex items-center gap-2 bg-white border border-border-custom px-3 py-1.5 rounded-xl shadow-sm">
+              <Calendar size={13} className="text-brand" />
+              <span className="text-[10px] font-black text-text3 uppercase tracking-wider border-r pr-2 border-border-custom">To</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="text-[11px] font-bold text-text bg-transparent focus:outline-none"
+              />
+            </div>
+
+            {/* Premium Selector dropdown */}
+            <div className="cow-selector-container relative">
             <button 
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
               className="flex items-center justify-between gap-2.5 bg-white border border-border-custom px-4 py-2 rounded-xl text-[12px] font-bold text-text hover:border-brand hover:text-brand transition-all cursor-pointer shadow-sm min-w-[170px]"
@@ -480,6 +533,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
 

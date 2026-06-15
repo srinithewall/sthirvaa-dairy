@@ -2,6 +2,14 @@
   {
     "version": "v0.1.1",
     "date": "2026-06-15",
+    "commit": "9f05bd4",
+    "changes": [
+      "fix(ui): resolve float rounding in dashboard and fix log yield modal layout on mobile"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-15",
     "commit": "2e8f789",
     "changes": [
       "fix: add edge runtime config to api route for cloudflare pages build"
@@ -109,14 +117,6 @@
     "commit": "8ec6aea",
     "changes": [
       "feat(upload): add Cloudflare R2 image upload support"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-21",
-    "commit": "dc95855",
-    "changes": [
-      "fix: restore Cloudflare R2 upload support"
     ]
   }
 ]

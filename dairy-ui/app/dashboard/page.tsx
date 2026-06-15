@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
-import { ShoppingCart, Droplets, DollarSign, TrendingUp } from 'lucide-react';
+import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -60,9 +60,44 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Daily Milk Production states
+  const [cows, setCows] = useState<any[]>([]);
+  const [milkRecords, setMilkRecords] = useState<any[]>([]);
+  const [selectedCowIds, setSelectedCowIds] = useState<string[]>([]);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [cowSearchQuery, setCowSearchQuery] = useState('');
+
   useEffect(() => {
     fetchDashboardData();
+    fetchCowsAndRecords();
   }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.cow-selector-container')) {
+        setShowFilterDropdown(false);
+      }
+    };
+    if (showFilterDropdown) {
+      document.addEventListener('click', handleOutsideClick);
+    }
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [showFilterDropdown]);
+
+  const fetchCowsAndRecords = async () => {
+    try {
+      const [cowsRes, recordsRes] = await Promise.all([
+        api.get('/herds'),
+        api.get('/milk-records')
+      ]);
+      const allCows = cowsRes.data.herds || cowsRes.data || [];
+      setCows(allCows.filter((c: any) => c.status !== 'DISPOSED'));
+      setMilkRecords(recordsRes.data || []);
+    } catch (err) {
+      console.error("Failed to fetch cows or milk records for daily chart:", err);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -140,6 +175,125 @@ export default function DashboardPage() {
       }
     ]
   };
+
+  // Daily Milk Production chart processing
+  const COLORS = [
+    '#2D6A4F', // Brand green
+    '#3498db', // Blue
+    '#9b59b6', // Purple
+    '#e67e22', // Orange
+    '#1abc9c', // Teal
+    '#e74c3c', // Red
+    '#2c3e50', // Dark Slate
+    '#f1c40f', // Yellow/Gold
+    '#d35400', // Rust
+    '#27ae60', // Emerald
+  ];
+
+  const uniqueDates = Array.from(new Set(milkRecords.map(r => r.date))).sort();
+  const chartDates = uniqueDates.slice(-30);
+
+  const dailyProductionDatasets: any[] = [];
+
+  if (selectedCowIds.length === 0) {
+    const dataPoints = chartDates.map(date => {
+      return milkRecords
+        .filter(r => r.date === date)
+        .reduce((sum, r) => sum + (r.quantity || 0), 0);
+    });
+
+    dailyProductionDatasets.push({
+      label: 'All Cows (Total Yield)',
+      data: dataPoints.map(v => Math.round(v * 10) / 10),
+      borderColor: '#2D6A4F',
+      backgroundColor: 'rgba(45, 106, 79, 0.08)',
+      tension: 0.3,
+      fill: true,
+      pointBackgroundColor: '#2D6A4F',
+      pointHoverRadius: 6,
+    });
+  } else {
+    selectedCowIds.forEach((cowId, index) => {
+      const cow = cows.find(c => String(c.id) === String(cowId));
+      const label = cow ? `${cow.animalName || 'Cow'} (${cow.tagNumber})` : `Cow #${cowId}`;
+      const color = COLORS[index % COLORS.length];
+
+      const dataPoints = chartDates.map(date => {
+        return milkRecords
+          .filter(r => r.date === date && String(r.herd?.id) === String(cowId))
+          .reduce((sum, r) => sum + (r.quantity || 0), 0);
+      });
+
+      dailyProductionDatasets.push({
+        label,
+        data: dataPoints.map(v => Math.round(v * 10) / 10),
+        borderColor: color,
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        fill: false,
+        pointBackgroundColor: color,
+        pointHoverRadius: 6,
+      });
+    });
+  }
+
+  const dailyProductionChartData = {
+    labels: chartDates.map(date => {
+      const [year, month, day] = date.split('-');
+      const d = new Date(Number(year), Number(month) - 1, Number(day));
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }),
+    datasets: dailyProductionDatasets
+  };
+
+  const dailyChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          boxWidth: 8,
+          usePointStyle: true,
+          font: { size: 11 }
+        }
+      },
+      tooltip: {
+        mode: 'index' as const,
+        intersect: false,
+        callbacks: {
+          label: (context: any) => {
+            return ` ${context.dataset.label}: ${context.raw} L`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        min: 0,
+        title: {
+          display: true,
+          text: 'Liters',
+          font: { size: 10, weight: 'bold' }
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)'
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        }
+      }
+    }
+  };
+
+  const filteredCowsForDropdown = cows.filter(cow => {
+    const search = cowSearchQuery.toLowerCase();
+    const name = (cow.animalName || '').toLowerCase();
+    const tag = (cow.tagNumber || '').toLowerCase();
+    return name.includes(search) || tag.includes(search);
+  });
 
   const todayStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -228,6 +382,118 @@ export default function DashboardPage() {
               }} 
             />
           </div>
+        </div>
+      </div>
+
+      {/* Daily Milk Production Line Chart Card */}
+      <div className="bg-white rounded-radius-custom-lg p-5 border border-border-custom card-shadow mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div>
+            <h3 className="text-[14px] font-bold text-text">Daily Milk Production</h3>
+            <p className="text-[11px] text-text3 mt-0.5">Historical production trends by individual cow or aggregated</p>
+          </div>
+
+          {/* Premium Selector dropdown */}
+          <div className="cow-selector-container relative">
+            <button 
+              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              className="flex items-center justify-between gap-2.5 bg-white border border-border-custom px-4 py-2 rounded-xl text-[12px] font-bold text-text hover:border-brand hover:text-brand transition-all cursor-pointer shadow-sm min-w-[170px]"
+            >
+              <span>
+                {selectedCowIds.length === 0 
+                  ? 'All Cows' 
+                  : selectedCowIds.length === 1 
+                    ? (() => {
+                        const c = cows.find(cow => String(cow.id) === String(selectedCowIds[0]));
+                        return c ? `${c.animalName || 'Cow'} (${c.tagNumber})` : '1 Cow Selected';
+                      })()
+                    : `${selectedCowIds.length} Cows Selected`
+                }
+              </span>
+              <ChevronDown size={14} className={`text-text3 transition-transform ${showFilterDropdown ? 'rotate-180 text-brand' : ''}`} />
+            </button>
+
+            {showFilterDropdown && (
+              <div className="absolute right-0 mt-2 w-72 bg-white border border-border-custom rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="relative flex items-center">
+                  <Search size={13} className="absolute left-3.5 text-text3" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or tag..."
+                    value={cowSearchQuery}
+                    onChange={(e) => setCowSearchQuery(e.target.value)}
+                    className="w-full border border-border-custom rounded-xl pl-9 pr-3 py-1.5 text-[12px] text-text focus:outline-none focus:ring-1 focus:ring-brand placeholder:text-text3"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between px-1 text-[10px] font-black uppercase tracking-wider">
+                  <button 
+                    onClick={() => setSelectedCowIds([])}
+                    className="text-brand hover:underline font-bold"
+                  >
+                    All Cows (Clear)
+                  </button>
+                  <button 
+                    onClick={() => setSelectedCowIds(cows.map(c => String(c.id)))}
+                    className="text-brand hover:underline font-bold"
+                  >
+                    Select All
+                  </button>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
+                  {filteredCowsForDropdown.map(cow => {
+                    const isSelected = selectedCowIds.includes(String(cow.id));
+                    return (
+                      <div 
+                        key={cow.id}
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedCowIds(selectedCowIds.filter(id => id !== String(cow.id)));
+                          } else {
+                            setSelectedCowIds([...selectedCowIds, String(cow.id)]);
+                          }
+                        }}
+                        className={`flex items-center justify-between p-2 rounded-lg hover:bg-surface/50 cursor-pointer transition-colors ${isSelected ? 'bg-surface/30' : ''}`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-5 h-5 rounded bg-brand/10 text-brand flex items-center justify-center text-[10px] font-bold">
+                            {isSelected ? <Check size={12} strokeWidth={3} className="text-brand-dark" /> : '🐄'}
+                          </div>
+                          <div>
+                            <span className="text-[12px] font-bold text-text block leading-none">{cow.animalName || 'Unnamed'}</span>
+                            <span className="text-[9px] text-text3 font-mono opacity-80 mt-0.5">{cow.tagNumber}</span>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          readOnly
+                          className="w-3.5 h-3.5 rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
+                        />
+                      </div>
+                    );
+                  })}
+                  {filteredCowsForDropdown.length === 0 && (
+                    <div className="p-4 text-center text-[11px] text-text3 italic">No cows match your search.</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="h-[280px]">
+          {milkRecords.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-text3 italic text-[13px] gap-2 bg-surface/10 rounded-xl border border-dashed border-border-custom">
+              <span>🥛 No milk records found to display trends.</span>
+            </div>
+          ) : (
+            <Line 
+              data={dailyProductionChartData} 
+              options={dailyChartOptions} 
+            />
+          )}
         </div>
       </div>
 

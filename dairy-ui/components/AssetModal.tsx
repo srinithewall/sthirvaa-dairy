@@ -26,6 +26,7 @@ interface AssetModalProps {
 export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetModalProps) {
   const { showToast } = useNotification();
   const [loading, setLoading] = useState(false);
+  const [cows, setCows] = useState<any[]>([]);
   const [formData, setFormData] = useState<Asset>({
     name: '',
     category: 'Cow',
@@ -35,6 +36,15 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
     serialNumber: '',
     location: '',
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      api.get('/herds').then(res => {
+        const allCows = res.data.herds || res.data || [];
+        setCows(allCows.filter((c: any) => c.status !== 'DISPOSED'));
+      }).catch(err => console.error("Error fetching herds in AssetModal:", err));
+    }
+  }, [isOpen]);
 
   const [customLocation, setCustomLocation] = useState('');
   const [isCustomLocation, setIsCustomLocation] = useState(false);
@@ -102,13 +112,38 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-bold text-text3 uppercase mb-1">Asset Name</label>
-            <input
-              type="text"
-              required
-              className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
+            {formData.category === 'Cow' ? (
+              <select
+                required
+                className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                value={formData.serialNumber}
+                onChange={(e) => {
+                  const selectedTag = e.target.value;
+                  const selectedCow = cows.find(c => c.tagNumber === selectedTag);
+                  setFormData({
+                    ...formData,
+                    name: selectedCow ? `${selectedCow.animalName || 'Cow'} (${selectedCow.tagNumber})` : '',
+                    serialNumber: selectedTag,
+                    purchaseDate: selectedCow?.procuredDate ? selectedCow.procuredDate.split('T')[0] : formData.purchaseDate
+                  });
+                }}
+              >
+                <option value="">Select a Cow from Herd...</option>
+                {cows.map((cow) => (
+                  <option key={cow.id} value={cow.tagNumber}>
+                    {cow.animalName || 'Unnamed'} ({cow.tagNumber})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                required
+                className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

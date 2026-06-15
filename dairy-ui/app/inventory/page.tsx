@@ -49,6 +49,7 @@ export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<'inventory' | 'assets'>('inventory');
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [herds, setHerds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
@@ -72,8 +73,13 @@ export default function InventoryPage() {
         const res = await api.get('/inventory');
         setItems(res.data);
       } else {
-        const res = await api.get('/assets');
-        setAssets(res.data);
+        const [assetsRes, herdsRes] = await Promise.all([
+          api.get('/assets'),
+          api.get('/herds')
+        ]);
+        setAssets(assetsRes.data || []);
+        const allHerds = herdsRes.data.herds || herdsRes.data || [];
+        setHerds(allHerds);
       }
     } catch (err) {
       console.error('Failed to fetch data', err);
@@ -112,6 +118,17 @@ export default function InventoryPage() {
   );
 
   const filteredAssets = assets.filter(asset => {
+    // Exclude if asset status is DISPOSED
+    if (asset.status === 'DISPOSED') return false;
+
+    // Check linked herd: if category is 'Cow' and matches a disposed herd, exclude it
+    if (asset.category === 'Cow' && asset.serialNumber) {
+      const linkedHerd = herds.find(h => h.tagNumber === asset.serialNumber);
+      if (linkedHerd && linkedHerd.status === 'DISPOSED') {
+        return false;
+      }
+    }
+
     const matchesSearch = asset.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           asset.category?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'ALL' || asset.category === categoryFilter;

@@ -2,6 +2,14 @@
   {
     "version": "v0.1.1",
     "date": "2026-06-15",
+    "commit": "71353cd",
+    "changes": [
+      "feat(dashboard): add date range filter and clean tooltips/filters for daily milk production graph"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-15",
     "commit": "d23f28a",
     "changes": [
       "feat(dashboard): add Daily Milk Production line chart with cow filter"
@@ -109,14 +117,6 @@
     "commit": "6376e54",
     "changes": [
       "Fixing UI in Distribute Milk Screen"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-21",
-    "commit": "4eed42e",
-    "changes": [
-      "feat(upload): add Cloudflare R2 image upload support"
     ]
   }
 ]

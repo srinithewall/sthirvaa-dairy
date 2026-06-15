@@ -156,7 +156,19 @@ export default function RegisterAnimalModal({
   const { showToast } = useNotification();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Customer & disposal states
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [saleAmount, setSaleAmount] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
 
+  React.useEffect(() => {
+    api.get('/customers').then(res => {
+      setCustomers(res.data || []);
+      if (res.data && res.data.length > 0) {
+        setSelectedCustomerId(String(res.data[0].id));
+      }
+    }).catch(err => console.error("Error fetching customers in RegisterAnimalModal:", err));
+  }, []);
 
   const [formData, setFormData] = useState<FormData>({
     tagNumber: herdToEdit?.tagNumber || '',
@@ -252,11 +264,46 @@ export default function RegisterAnimalModal({
         procuredDate: formData.procuredDate || null,
       };
 
+      let response;
       if (herdToEdit) {
-        await api.put(`/herds/${herdToEdit.id}`, payload);
+        response = await api.put(`/herds/${herdToEdit.id}`, payload);
+      } else {
+        response = await api.post('/herds', payload);
+      }
+
+      // Record a sale if status is DISPOSED and sale amount is entered
+      if (payload.status === 'DISPOSED' && parseFloat(saleAmount) > 0 && selectedCustomerId) {
+        const salePayload = {
+          itemName: `Animal Sale - ${payload.animalName || 'Cow'} (${payload.tagNumber})`,
+          quantity: 1,
+          price: parseFloat(saleAmount),
+          totalAmount: parseFloat(saleAmount),
+          date: new Date().toISOString().split('T')[0],
+          paymentStatus: 'PAID',
+          customer: { id: parseInt(selectedCustomerId) }
+        };
+        await api.post('/sales', salePayload);
+      }
+
+      // Find and update corresponding asset status to DISPOSED if it exists
+      if (payload.status === 'DISPOSED') {
+        try {
+          const assetsRes = await api.get('/assets');
+          const matchedAsset = (assetsRes.data || []).find((a: any) => a.serialNumber === payload.tagNumber);
+          if (matchedAsset && matchedAsset.status !== 'DISPOSED') {
+            await api.put(`/assets/${matchedAsset.id}`, {
+              ...matchedAsset,
+              status: 'DISPOSED'
+            });
+          }
+        } catch (assetErr) {
+          console.error("Failed to auto-dispose linked asset:", assetErr);
+        }
+      }
+
+      if (herdToEdit) {
         showToast('Animal record updated successfully!');
       } else {
-        await api.post('/herds', payload);
         showToast('New animal registered successfully!');
       }
 
@@ -511,6 +558,39 @@ export default function RegisterAnimalModal({
                 { value: 'DISPOSED', label: 'Disposed' },
               ]}
             />
+
+            {formData.status === 'DISPOSED' && (
+              <>
+                <Field label="Sale Amount (₹)">
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 25000"
+                    value={saleAmount}
+                    onChange={(e) => setSaleAmount(e.target.value)}
+                    className={INPUT_CLS}
+                  />
+                </Field>
+                <div className="col-span-1">
+                  <label className="text-[11px] font-bold text-text3 uppercase mb-2 block tracking-wider">
+                    Sold To (Customer)
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full bg-white border border-border-custom rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-brand focus:ring-1 focus:ring-brand/10 transition-all appearance-none"
+                      value={selectedCustomerId}
+                      onChange={(e) => setSelectedCustomerId(e.target.value)}
+                    >
+                      <option value="">Select Customer...</option>
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-text3 pointer-events-none" />
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Animal Status */}
             <div className="col-span-1 sm:col-span-2">

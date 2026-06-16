@@ -2,6 +2,14 @@
   {
     "version": "v0.1.1",
     "date": "2026-06-16",
+    "commit": "6a3a66f",
+    "changes": [
+      "feat(inventory): add purchase cost and market value tracking for cow assets and simplify disposal form"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-16",
     "commit": "b6511a6",
     "changes": [
       "feat(inventory): link asset Category Cow to herds and implement automatic disposal sales/assets update"
@@ -109,14 +117,6 @@
     "commit": "336174f",
     "changes": [
       "feat: implement daily milk production push notification reminders, add mobile FCM token registration, fix linked email state bug"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-29",
-    "commit": "312cc66",
-    "changes": [
-      "feat: improve mobile UX of shop and navbar, add disposed cows filter, fix user brand displays, optimize changelog responsiveness on small screens"
     ]
   }
 ]

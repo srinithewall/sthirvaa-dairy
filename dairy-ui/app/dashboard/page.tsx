@@ -87,6 +87,7 @@ export default function DashboardPage() {
   // Date range states
   const [startDate, setStartDate] = useState(getPastDateString(30));
   const [endDate, setEndDate] = useState(getTodayDateString());
+  const [shiftFilter, setShiftFilter] = useState<'MORNING' | 'ALL' | 'EVENING'>('ALL');
 
   useEffect(() => {
     fetchDashboardData();
@@ -211,9 +212,13 @@ export default function DashboardPage() {
     '#27ae60', // Emerald
   ];
 
-  // Filter milk records by date range
+  // Filter milk records by date range and shift (Morning, Evening, All Day)
   const filteredRecordsByDateRange = milkRecords.filter(r => {
-    return (!startDate || r.date >= startDate) && (!endDate || r.date <= endDate);
+    const matchesDate = (!startDate || r.date >= startDate) && (!endDate || r.date <= endDate);
+    if (!matchesDate) return false;
+    if (shiftFilter === 'MORNING') return r.shift === 'MORNING';
+    if (shiftFilter === 'EVENING') return r.shift === 'EVENING';
+    return true;
   });
 
   const uniqueDates = Array.from(new Set(filteredRecordsByDateRange.map(r => r.date))).sort();
@@ -444,6 +449,62 @@ export default function DashboardPage() {
                 onChange={(e) => setEndDate(e.target.value)}
                 className="text-[11px] font-bold text-text bg-transparent focus:outline-none"
               />
+            </div>
+
+            {/* 3-Way Shift Toggle */}
+            <div className="flex items-center bg-white border border-border-custom px-3 py-1 rounded-xl shadow-sm h-[32px]">
+              <span className="text-[10px] font-black text-text3 uppercase tracking-wider border-r pr-2 border-border-custom">Shift</span>
+              <div className="relative w-36 h-6 bg-slate-100 rounded-full p-0.5 flex items-center justify-between cursor-pointer select-none ml-2">
+                {/* Partition lines */}
+                <div className="absolute left-[33.33%] top-1 bottom-1 w-[1px] bg-slate-200" />
+                <div className="absolute left-[66.66%] top-1 bottom-1 w-[1px] bg-slate-200" />
+
+                {/* Sliding circular knob */}
+                <div 
+                  className="absolute top-0.5 bottom-0.5 w-[42px] bg-white rounded-full shadow transition-all duration-300 ease-out border border-slate-200 flex items-center justify-center"
+                  style={{
+                    left: shiftFilter === 'MORNING' 
+                      ? '2px' 
+                      : shiftFilter === 'ALL' 
+                        ? 'calc(50% - 21px)' 
+                        : 'calc(100% - 44px)'
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                </div>
+                
+                {/* Clickable zones */}
+                <button 
+                  type="button" 
+                  onClick={() => setShiftFilter('MORNING')} 
+                  className={`relative z-10 w-[42px] h-full text-[9px] font-black text-center uppercase tracking-wider transition-all duration-200 flex items-center justify-center ${
+                    shiftFilter === 'MORNING' ? 'text-brand' : 'text-text3 hover:text-text'
+                  }`}
+                  title="Morning shift only"
+                >
+                  Morn
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setShiftFilter('ALL')} 
+                  className={`relative z-10 w-[42px] h-full text-[9px] font-black text-center uppercase tracking-wider transition-all duration-200 flex items-center justify-center ${
+                    shiftFilter === 'ALL' ? 'text-brand' : 'text-text3 hover:text-text'
+                  }`}
+                  title="Whole Day total"
+                >
+                  All
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setShiftFilter('EVENING')} 
+                  className={`relative z-10 w-[42px] h-full text-[9px] font-black text-center uppercase tracking-wider transition-all duration-200 flex items-center justify-center ${
+                    shiftFilter === 'EVENING' ? 'text-brand' : 'text-text3 hover:text-text'
+                  }`}
+                  title="Evening shift only"
+                >
+                  Eve
+                </button>
+              </div>
             </div>
 
             {/* Premium Selector dropdown */}

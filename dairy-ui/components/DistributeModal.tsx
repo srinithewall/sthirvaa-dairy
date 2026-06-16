@@ -159,8 +159,10 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
     rows.filter(r => r.dispatchType === 'CUSTOMER')
       .reduce((s, r) => s + (parseFloat(r.quantity) || 0) * (parseFloat(r.ratePerLitre) || 0), 0), [rows]);
 
-  const remaining = +(totalProduced - totalDispatched).toFixed(2);
-  const pct = Math.min(100, totalProduced > 0 ? (totalDispatched / totalProduced) * 100 : 0);
+  const totalProducedRounded = +(totalProduced).toFixed(1);
+  const totalDispatchedRounded = +(totalDispatched).toFixed(1);
+  const remaining = +(totalProducedRounded - totalDispatchedRounded).toFixed(1);
+  const pct = Math.min(100, totalProducedRounded > 0 ? (totalDispatchedRounded / totalProducedRounded) * 100 : 0);
   const overAllocated = remaining < 0;
 
   const handleSave = async () => {
@@ -218,8 +220,8 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
           {/* ── Stats row ── */}
           <div className="grid grid-cols-4 gap-2">
             {[
-              { label: 'Produced', value: `${totalProduced.toFixed(1)}L`, color: 'text-white' },
-              { label: 'Dispatched', value: `${totalDispatched.toFixed(1)}L`, color: 'text-white' },
+              { label: 'Produced', value: `${totalProducedRounded.toFixed(1)}L`, color: 'text-white' },
+              { label: 'Dispatched', value: `${totalDispatchedRounded.toFixed(1)}L`, color: 'text-white' },
               { label: 'Remaining', value: `${Math.abs(remaining).toFixed(1)}L`, color: overAllocated ? 'text-red-300' : 'text-amber-300' },
               { label: 'Revenue', value: `₹${totalRevenue.toFixed(0)}`, color: 'text-emerald-300' },
             ].map(s => (
@@ -241,7 +243,7 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
               />
             </div>
             <span className="text-[11px] font-semibold text-gray-600 whitespace-nowrap">
-              {totalDispatched.toFixed(1)}L / {totalProduced.toFixed(1)}L
+              {totalDispatchedRounded.toFixed(1)}L / {totalProducedRounded.toFixed(1)}L
             </span>
           </div>
           <p className="text-[11px] text-gray-400">

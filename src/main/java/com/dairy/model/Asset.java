@@ -21,6 +21,9 @@ public class Asset {
 
     private Double value;
 
+    @Column(name = "market_value")
+    private Double marketValue;
+
     private String status; // e.g., ACTIVE, MAINTENANCE, DISPOSED
 
     @Column(name = "serial_number")
@@ -62,6 +65,9 @@ public class Asset {
 
     public Double getValue() { return value; }
     public void setValue(Double value) { this.value = value; }
+
+    public Double getMarketValue() { return marketValue; }
+    public void setMarketValue(Double marketValue) { this.marketValue = marketValue; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

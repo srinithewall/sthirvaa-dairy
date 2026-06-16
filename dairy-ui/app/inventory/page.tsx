@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { Package, Plus, AlertTriangle, CheckCircle2, Pencil, Trash2, Search, Box, Construction, Calendar } from 'lucide-react';
+import { Package, Plus, AlertTriangle, CheckCircle2, Pencil, Trash2, Search, Box, Construction, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import InventoryModal from '@/components/InventoryModal';
 import AssetModal from '@/components/AssetModal';
@@ -53,6 +53,17 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [assetSort, setAssetSort] = useState<{ key: 'purchaseDate' | 'value' | 'marketValue', direction: 'asc' | 'desc' } | null>(null);
+
+  const handleAssetSort = (key: 'purchaseDate' | 'value' | 'marketValue') => {
+    setAssetSort(prev => {
+      if (prev?.key === key) {
+        return prev.direction === 'asc' ? { key, direction: 'desc' } : null;
+      }
+      return { key, direction: 'desc' };
+    });
+  };
+
 
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -134,6 +145,25 @@ export default function InventoryPage() {
     const matchesCategory = categoryFilter === 'ALL' || asset.category === categoryFilter;
     return matchesSearch && matchesCategory;
   }).sort((a, b) => {
+    if (assetSort) {
+      const { key, direction } = assetSort;
+      if (key === 'purchaseDate') {
+        const dateA = a.purchaseDate || '';
+        const dateB = b.purchaseDate || '';
+        return direction === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+      }
+      if (key === 'value') {
+        const valA = a.value || 0;
+        const valB = b.value || 0;
+        return direction === 'asc' ? valA - valB : valB - valA;
+      }
+      if (key === 'marketValue') {
+        // use marketValue if present, else fallback to purchase cost (value)
+        const valA = (a.marketValue ?? a.value) || 0;
+        const valB = (b.marketValue ?? b.value) || 0;
+        return direction === 'asc' ? valA - valB : valB - valA;
+      }
+    }
     const dateA = a.purchaseDate || '';
     const dateB = b.purchaseDate || '';
     return dateB.localeCompare(dateA);
@@ -370,9 +400,39 @@ export default function InventoryPage() {
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Asset Name</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider">Category</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Status</th>
-                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Purchase Date</th>
-                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Purchase Cost</th>
-                      <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Market Value</th>
+                      <th 
+                        className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center cursor-pointer hover:text-brand transition-colors select-none group"
+                        onClick={() => handleAssetSort('purchaseDate')}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          Purchase Date
+                          {assetSort?.key === 'purchaseDate' ? (
+                            assetSort.direction === 'asc' ? <ArrowUp size={12} className="text-brand" /> : <ArrowDown size={12} className="text-brand" />
+                          ) : <ArrowDown size={12} className="opacity-0 group-hover:opacity-30" />}
+                        </div>
+                      </th>
+                      <th 
+                        className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center cursor-pointer hover:text-brand transition-colors select-none group"
+                        onClick={() => handleAssetSort('value')}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          Purchase Cost
+                          {assetSort?.key === 'value' ? (
+                            assetSort.direction === 'asc' ? <ArrowUp size={12} className="text-brand" /> : <ArrowDown size={12} className="text-brand" />
+                          ) : <ArrowDown size={12} className="opacity-0 group-hover:opacity-30" />}
+                        </div>
+                      </th>
+                      <th 
+                        className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center cursor-pointer hover:text-brand transition-colors select-none group"
+                        onClick={() => handleAssetSort('marketValue')}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          Market Value
+                          {assetSort?.key === 'marketValue' ? (
+                            assetSort.direction === 'asc' ? <ArrowUp size={12} className="text-brand" /> : <ArrowDown size={12} className="text-brand" />
+                          ) : <ArrowDown size={12} className="opacity-0 group-hover:opacity-30" />}
+                        </div>
+                      </th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-center">Location</th>
                       <th className="p-4 font-bold text-text3 uppercase text-[11px] tracking-wider text-right">Action</th>
                     </tr>

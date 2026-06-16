@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
-import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar } from 'lucide-react';
+import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar, Sun, Moon, Clock, Plus as PlusIcon } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -292,6 +292,7 @@ export default function DashboardPage() {
       tooltip: {
         mode: 'index' as const,
         intersect: false,
+        itemSort: (a: any, b: any) => b.raw - a.raw,
         callbacks: {
           label: (context: any) => {
             const label = context.dataset.label || '';
@@ -420,98 +421,89 @@ export default function DashboardPage() {
 
       {/* Daily Milk Production Line Chart Card */}
       <div className="bg-white rounded-radius-custom-lg p-5 border border-border-custom card-shadow mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h3 className="text-[14px] font-bold text-text">Daily Milk Production</h3>
             <p className="text-[11px] text-text3 mt-0.5">Historical production trends by individual cow or aggregated</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid grid-cols-[1fr_1fr] sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {/* Start Date Calendar Input */}
-            <div className="flex items-center gap-2 bg-white border border-border-custom px-3 py-1.5 rounded-xl shadow-sm">
-              <Calendar size={13} className="text-brand" />
-              <span className="text-[10px] font-black text-text3 uppercase tracking-wider border-r pr-2 border-border-custom">From</span>
+            <div className="flex items-center gap-1.5 bg-white border border-border-custom px-2.5 py-1.5 rounded-xl shadow-sm min-w-0">
+              <Calendar size={13} className="text-brand flex-shrink-0" />
+              <span className="text-[10px] font-black text-brand uppercase tracking-wider flex-shrink-0">From</span>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="text-[11px] font-bold text-text bg-transparent focus:outline-none"
+                className="text-[11px] font-bold text-text bg-transparent focus:outline-none w-full min-w-0"
               />
             </div>
 
             {/* End Date Calendar Input */}
-            <div className="flex items-center gap-2 bg-white border border-border-custom px-3 py-1.5 rounded-xl shadow-sm">
-              <Calendar size={13} className="text-brand" />
-              <span className="text-[10px] font-black text-text3 uppercase tracking-wider border-r pr-2 border-border-custom">To</span>
+            <div className="flex items-center gap-1.5 bg-white border border-border-custom px-2.5 py-1.5 rounded-xl shadow-sm min-w-0">
+              <Calendar size={13} className="text-brand flex-shrink-0" />
+              <span className="text-[10px] font-black text-brand uppercase tracking-wider flex-shrink-0">To</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="text-[11px] font-bold text-text bg-transparent focus:outline-none"
+                className="text-[11px] font-bold text-text bg-transparent focus:outline-none w-full min-w-0"
               />
             </div>
 
+            {/* Shift Toggle + Cow Selector row */}
+            <div className="col-span-2 sm:col-span-1 flex items-center gap-2 sm:gap-3">
             {/* 3-Way Shift Toggle */}
-            <div className="flex items-center bg-white border border-border-custom px-3 py-1 rounded-xl shadow-sm h-[32px]">
-              <span className="text-[10px] font-black text-text3 uppercase tracking-wider border-r pr-2 border-border-custom">Shift</span>
-              <div className="relative w-36 h-6 bg-slate-100 rounded-full p-0.5 flex items-center justify-between cursor-pointer select-none ml-2">
-                {/* Partition lines */}
-                <div className="absolute left-[33.33%] top-1 bottom-1 w-[1px] bg-slate-200" />
-                <div className="absolute left-[66.66%] top-1 bottom-1 w-[1px] bg-slate-200" />
-
-                {/* Sliding circular knob */}
-                <div 
-                  className="absolute top-0.5 bottom-0.5 w-[42px] bg-white rounded-full shadow transition-all duration-300 ease-out border border-slate-200 flex items-center justify-center"
-                  style={{
-                    left: shiftFilter === 'MORNING' 
-                      ? '2px' 
-                      : shiftFilter === 'ALL' 
-                        ? 'calc(50% - 21px)' 
-                        : 'calc(100% - 44px)'
-                  }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand" />
-                </div>
-                
-                {/* Clickable zones */}
-                <button 
-                  type="button" 
-                  onClick={() => setShiftFilter('MORNING')} 
-                  className={`relative z-10 w-[42px] h-full text-[9px] font-black text-center uppercase tracking-wider transition-all duration-200 flex items-center justify-center ${
-                    shiftFilter === 'MORNING' ? 'text-brand' : 'text-text3 hover:text-text'
-                  }`}
-                  title="Morning shift only"
-                >
-                  Morn
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setShiftFilter('ALL')} 
-                  className={`relative z-10 w-[42px] h-full text-[9px] font-black text-center uppercase tracking-wider transition-all duration-200 flex items-center justify-center ${
-                    shiftFilter === 'ALL' ? 'text-brand' : 'text-text3 hover:text-text'
-                  }`}
-                  title="Whole Day total"
-                >
-                  All
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setShiftFilter('EVENING')} 
-                  className={`relative z-10 w-[42px] h-full text-[9px] font-black text-center uppercase tracking-wider transition-all duration-200 flex items-center justify-center ${
-                    shiftFilter === 'EVENING' ? 'text-brand' : 'text-text3 hover:text-text'
-                  }`}
-                  title="Evening shift only"
-                >
-                  Eve
-                </button>
-              </div>
+            <div className="relative flex items-center bg-[#f1f5f3] rounded-full p-[3px] shadow-sm border border-border-custom flex-shrink-0">
+              {/* Sliding pill indicator */}
+              <div
+                className="absolute top-[3px] bottom-[3px] w-[34px] rounded-full bg-brand shadow-md transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                style={{
+                  left: shiftFilter === 'MORNING'
+                    ? '3px'
+                    : shiftFilter === 'ALL'
+                      ? 'calc(50% - 17px)'
+                      : 'calc(100% - 37px)'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShiftFilter('MORNING')}
+                className={`relative z-10 w-[34px] h-[28px] flex items-center justify-center rounded-full transition-colors duration-200 ${
+                  shiftFilter === 'MORNING' ? 'text-white' : 'text-text3 hover:text-brand'
+                }`}
+                title="Morning"
+              >
+                <Sun size={14} strokeWidth={2.5} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShiftFilter('ALL')}
+                className={`relative z-10 w-[34px] h-[28px] flex items-center justify-center rounded-full transition-colors duration-200 ${
+                  shiftFilter === 'ALL' ? 'text-white' : 'text-text3 hover:text-brand'
+                }`}
+                title="All Day"
+              >
+                <Clock size={14} strokeWidth={2.5} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShiftFilter('EVENING')}
+                className={`relative z-10 w-[34px] h-[28px] flex items-center justify-center rounded-full transition-colors duration-200 ${
+                  shiftFilter === 'EVENING' ? 'text-white' : 'text-text3 hover:text-brand'
+                }`}
+                title="Evening"
+              >
+                <Moon size={14} strokeWidth={2.5} />
+              </button>
             </div>
 
             {/* Premium Selector dropdown */}
-            <div className="cow-selector-container relative">
+            <div className="cow-selector-container relative flex-1 sm:flex-none sm:w-auto">
             <button 
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className="flex items-center justify-between gap-2.5 bg-white border border-border-custom px-4 py-2 rounded-xl text-[12px] font-bold text-text hover:border-brand hover:text-brand transition-all cursor-pointer shadow-sm min-w-[170px]"
+              className="flex items-center justify-between gap-2.5 bg-white border border-border-custom px-4 py-2 rounded-xl text-[12px] font-bold text-text hover:border-brand hover:text-brand transition-all cursor-pointer shadow-sm w-full sm:w-auto sm:min-w-[170px]"
             >
               <span>
                 {selectedCowIds.length === 0 
@@ -528,7 +520,7 @@ export default function DashboardPage() {
             </button>
 
             {showFilterDropdown && (
-              <div className="absolute right-0 mt-2 w-72 bg-white border border-border-custom rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-[calc(100vw-4rem)] sm:w-72 max-w-[288px] bg-white border border-border-custom rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="relative flex items-center">
                   <Search size={13} className="absolute left-3.5 text-text3" />
                   <input
@@ -594,6 +586,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+          </div>
           </div>
           </div>
         </div>

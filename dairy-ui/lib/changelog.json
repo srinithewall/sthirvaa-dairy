@@ -2,6 +2,22 @@
   {
     "version": "v0.1.1",
     "date": "2026-06-16",
+    "commit": "3cbf9d6",
+    "changes": [
+      "feat(backend): add marketValue column to Asset entity"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-16",
+    "commit": "fd9aedf",
+    "changes": [
+      "feat(dashboard): add 3-way shift toggle for daily milk production line chart"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-16",
     "commit": "6a3a66f",
     "changes": [
       "feat(inventory): add purchase cost and market value tracking for cow assets and simplify disposal form"
@@ -101,22 +117,6 @@
     "commit": "40b9f02",
     "changes": [
       "ci: add volumes mount for firebase service account in deploy-backend.yml"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-29",
-    "commit": "de8739b",
-    "changes": [
-      "feat: initialize Firebase Admin SDK and activate mobile push dispatch"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-29",
-    "commit": "336174f",
-    "changes": [
-      "feat: implement daily milk production push notification reminders, add mobile FCM token registration, fix linked email state bug"
     ]
   }
 ]

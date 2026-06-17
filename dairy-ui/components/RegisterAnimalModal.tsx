@@ -465,7 +465,7 @@ export default function RegisterAnimalModal({
             {/* Photo */}
             <Field label="Photo" fullWidth>
               <label
-                className={`block border-2 border-dashed border-border-custom rounded-xl cursor-pointer hover:border-brand transition-all overflow-hidden ${uploadingImage ? 'opacity-50 cursor-wait pointer-events-none' : ''}`}
+                className={`relative block border-2 border-dashed border-border-custom rounded-xl cursor-pointer hover:border-brand transition-all overflow-hidden ${uploadingImage ? 'opacity-50 cursor-wait pointer-events-none' : ''}`}
               >
                 {uploadingImage ? (
                   <div className="flex items-center justify-center gap-2 py-5">
@@ -497,7 +497,7 @@ export default function RegisterAnimalModal({
                 <input
                   type="file"
                   accept="image/*"
-                  className="hidden"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   onChange={handleFileChange}
                 />
               </label>

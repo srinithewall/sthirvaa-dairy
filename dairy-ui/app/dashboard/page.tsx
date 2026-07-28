@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
-import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar, Sun, Moon, Clock, Plus as PlusIcon } from 'lucide-react';
+import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar, Sun, Moon, Clock } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -89,6 +89,49 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState(getTodayDateString());
   const [shiftFilter, setShiftFilter] = useState<'MORNING' | 'ALL' | 'EVENING'>('ALL');
 
+  const [revenuePeriod, setRevenuePeriod] = useState<'daily'|'monthly'>('monthly');
+  const [expensePeriod, setExpensePeriod] = useState<'daily'|'monthly'>('monthly');
+  const finChartRef = React.useRef<any>(null);
+  const overlayRef = React.useRef<HTMLDivElement>(null);
+
+  const profitLossPlugin = {
+    id: 'profitLossOverlay',
+    afterDraw: (chart: any) => {
+      if (!overlayRef.current) return;
+      try {
+        const metaRev = chart.getDatasetMeta(0);
+        const metaExp = chart.getDatasetMeta(1);
+        if (!metaRev || !metaExp || !metaRev.data || !metaExp.data) return;
+        
+        const revData = chart.data.datasets[0].data;
+        const expData = chart.data.datasets[1].data;
+        
+        let html = '';
+        for (let i = 0; i < revData.length; i++) {
+          const rev = revData[i] || 0;
+          const exp = expData[i] || 0;
+          const profit = rev - exp;
+          if (profit === 0 && rev === 0) continue;
+          
+          let formattedProfit = '';
+          if (profit > 0) {
+            formattedProfit = '+' + (profit >= 1000 ? (profit/1000).toFixed(1).replace('.0', '') + 'k' : Math.round(profit));
+          } else {
+            formattedProfit = (profit <= -1000 ? (profit/1000).toFixed(1).replace('.0', '') + 'k' : Math.round(profit).toString());
+          }
+          
+          if (metaRev.data[i] && metaExp.data[i]) {
+            const x = metaRev.data[i].x;
+            const y = Math.min(metaRev.data[i].y, metaExp.data[i].y) - 15;
+            const color = profit > 0 ? '#2ECC71' : '#E74C3C';
+            html += `<div class="absolute blink-node font-bold text-[11px] pointer-events-none" style="left: ${x}px; top: ${y}px; color: ${color}; transform: translateX(-50%); text-shadow: 0px 1px 2px rgba(255,255,255,0.8);">${formattedProfit}</div>`;
+          }
+        }
+        overlayRef.current.innerHTML = html;
+      } catch (e) {}
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
     fetchCowsAndRecords();
@@ -164,8 +207,17 @@ export default function DashboardPage() {
   }
 
   const productionTrend = Math.round((data.todayMilkProduction - data.yesterdayMilkProduction) * 100) / 100;
-  const revenueTrend = Math.round((data.todayRevenue - data.yesterdayRevenue) * 100) / 100;
-  const expenseTrend = Math.round((data.todayExpense - data.yesterdayExpense) * 100) / 100;
+  const revenueTrend = Math.round(data.todayRevenue - data.yesterdayRevenue);
+  const expenseTrend = Math.round(data.todayExpense - data.yesterdayExpense);
+
+  const currentMonthRev = data.revenueChartData ? (Object.values(data.revenueChartData).pop() || 0) : 0;
+  const currentMonthExp = data.expenseChartData ? (Object.values(data.expenseChartData).pop() || 0) : 0;
+
+  const displayRev = revenuePeriod === 'monthly' ? currentMonthRev : data.todayRevenue;
+  const displayRevLabel = revenuePeriod === 'monthly' ? 'Current Month Revenue' : 'Today Revenue';
+  const displayExp = expensePeriod === 'monthly' ? currentMonthExp : data.todayExpense;
+  const displayExpLabel = expensePeriod === 'monthly' ? 'Current Month Expense' : 'Today Expense';
+  const computedNetProfit = Math.round(currentMonthRev - currentMonthExp);
 
   const prodChartData = {
     labels: Object.keys(data.productionChartData),
@@ -246,7 +298,9 @@ export default function DashboardPage() {
   } else {
     selectedCowIds.forEach((cowId, index) => {
       const cow = cows.find(c => String(c.id) === String(cowId));
-      const label = cow ? `${cow.animalName || 'Cow'} (${cow.tagNumber})` : `Cow #${cowId}`;
+      let cowName = cow?.animalName || 'Cow';
+      if (cowName.length > 10) cowName = cowName.substring(0, 10) + '...';
+      const label = cowName;
       const color = COLORS[index % COLORS.length];
 
       const dataPoints = chartDates.map(date => {
@@ -277,6 +331,11 @@ export default function DashboardPage() {
     datasets: dailyProductionDatasets
   };
 
+  const allYValues = dailyProductionDatasets.flatMap(d => d.data);
+  const nonZeroYValues = allYValues.filter(v => v > 0);
+  const minYValue = nonZeroYValues.length > 0 ? Math.min(...nonZeroYValues) : 0;
+  const chartMinY = minYValue > 2 ? 2 : 0;
+
   const dailyChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -304,14 +363,17 @@ export default function DashboardPage() {
     },
     scales: {
       y: {
-        min: 0,
+        min: chartMinY,
         title: {
           display: true,
           text: 'Liters',
-          font: { size: 10, weight: 'bold' }
+          font: { size: 10, weight: 'bold' as const }
         },
         grid: {
           color: 'rgba(0, 0, 0, 0.05)'
+        },
+        ticks: {
+          stepSize: 0.5
         }
       },
       x: {
@@ -353,33 +415,37 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard 
           label="Milk Production" 
-          value={`${data.todayMilkProduction} L`} 
+          value={`${Math.round(data.todayMilkProduction * 10) / 10} L`} 
           trend={`${parseFloat(Math.abs(productionTrend).toFixed(1))}L vs yesterday`} 
           trendType={productionTrend >= 0 ? "up" : "down"} 
           icon="🥛" 
           variant={productionTrend >= 0 ? "green" : "red"}
         />
         <StatCard 
-          label="Today Revenue" 
-          value={`₹${data.todayRevenue}`} 
-          trend={`₹${parseFloat(Math.abs(revenueTrend).toFixed(2))} ${revenueTrend >= 0 ? 'more' : 'less'}`} 
+          label={displayRevLabel} 
+          value={`₹${Math.round(displayRev)}`} 
+          trend={revenuePeriod === 'daily' ? `₹${Math.abs(revenueTrend)} ${revenueTrend >= 0 ? 'more' : 'less'}` : undefined} 
           trendType={revenueTrend >= 0 ? "up" : "down"} 
           icon="💵" 
           variant="blue"
+          period={revenuePeriod}
+          onPeriodChange={setRevenuePeriod}
         />
         <StatCard 
-          label="Today Expense" 
-          value={`₹${data.todayExpense}`} 
-          trend={`₹${parseFloat(Math.abs(expenseTrend).toFixed(2))} vs yesterday`} 
+          label={displayExpLabel} 
+          value={`₹${Math.round(displayExp)}`} 
+          trend={expensePeriod === 'daily' ? `₹${Math.abs(expenseTrend)} vs yesterday` : undefined} 
           trendType={expenseTrend <= 0 ? "down" : "up"} 
           icon="💸" 
           variant="amber"
+          period={expensePeriod}
+          onPeriodChange={setExpensePeriod}
         />
         <StatCard 
           label="Net Profit" 
-          value={`₹${data.currentMonthProfit}`} 
+          value={`₹${computedNetProfit}`} 
           icon="📈"
-          variant={data.currentMonthProfit >= 0 ? "green" : "red"}
+          variant={computedNetProfit >= 0 ? "green" : "red"}
           subValue="Current Month"
         />
       </div>
@@ -402,19 +468,31 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-radius-custom-lg p-5 border border-border-custom card-shadow">
+        <div className="bg-white rounded-radius-custom-lg p-5 border border-border-custom card-shadow relative">
+          <style>{`
+            @keyframes blinkFade {
+              0%, 100% { opacity: 1; transform: scale(1) translateX(-50%); }
+              50% { opacity: 0.3; transform: scale(0.95) translateX(-50%); }
+            }
+            .blink-node {
+              animation: blinkFade 1s infinite ease-in-out;
+            }
+          `}</style>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[14px] font-bold text-text">Revenue vs Expense — 6 Months</h3>
           </div>
-          <div className="h-[200px]">
+          <div className="h-[200px] relative">
             <Line 
+              ref={finChartRef}
               data={finChartData} 
               options={{ 
                 responsive: true, 
                 maintainAspectRatio: false, 
                 plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, usePointStyle: true } } }
               }} 
+              plugins={[profitLossPlugin]}
             />
+            <div ref={overlayRef} className="absolute inset-0 pointer-events-none" />
           </div>
         </div>
       </div>
@@ -591,7 +669,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="h-[280px]">
+        <div className="h-[400px]">
           {milkRecords.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-text3 italic text-[13px] gap-2 bg-surface/10 rounded-xl border border-dashed border-border-custom">
               <span>🥛 No milk records found to display trends.</span>
@@ -614,8 +692,8 @@ export default function DashboardPage() {
             <thead className="bg-[#F5F9F6] text-text2 uppercase text-[11px] font-bold tracking-wider">
               <tr>
                 <th className="p-3">Cow</th>
-                <th className="p-3">Morning</th>
-                <th className="p-3">Evening</th>
+                <th className="p-3">Morn</th>
+                <th className="p-3">Even</th>
                 <th className="p-3">Total</th>
               </tr>
             </thead>
@@ -623,9 +701,9 @@ export default function DashboardPage() {
                {data.topMilkers.map((cow, i) => (
                  <tr key={i} className="border-b border-border-custom/50 last:border-0">
                    <td className="p-3"><strong className="text-brand">{cow.cowId}</strong> {cow.cowName}</td>
-                   <td className="p-3">{cow.morningYield}L</td>
-                   <td className="p-3">{cow.eveningYield}L</td>
-                   <td className="p-3 font-bold text-brand-dark">{cow.totalYield}L</td>
+                   <td className="p-3">{Math.round((cow.morningYield || 0) * 10) / 10}L</td>
+                   <td className="p-3">{Math.round((cow.eveningYield || 0) * 10) / 10}L</td>
+                   <td className="p-3 font-bold text-brand-dark">{Math.round((cow.totalYield || 0) * 10) / 10}L</td>
                  </tr>
                ))}
                {data.topMilkers.length === 0 && (

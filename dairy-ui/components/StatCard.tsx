@@ -8,6 +8,8 @@ interface StatCardProps {
   trendType?: 'up' | 'down';
   icon: string;
   variant?: 'green' | 'blue' | 'amber' | 'red';
+  period?: 'daily' | 'monthly';
+  onPeriodChange?: (period: 'daily' | 'monthly') => void;
 }
 
 const variants = {
@@ -17,9 +19,25 @@ const variants = {
   red: 'bg-[#FDEAEA] text-danger'
 };
 
-export default function StatCard({ label, value, subValue, trend, trendType, icon, variant = 'green' }: StatCardProps) {
+export default function StatCard({ label, value, subValue, trend, trendType, icon, variant = 'green', period, onPeriodChange }: StatCardProps) {
   return (
-    <div className="bg-white rounded-radius-custom-lg p-4 border border-border-custom card-shadow">
+    <div className="bg-white rounded-radius-custom-lg p-4 border border-border-custom card-shadow relative">
+      {period && onPeriodChange && (
+        <div className="absolute top-4 right-4 flex items-center bg-surface2 rounded-md p-[2px] border border-border-custom">
+          <button 
+            onClick={() => onPeriodChange('daily')}
+            className={`px-1.5 py-0.5 text-[10px] font-bold rounded-sm transition-colors ${period === 'daily' ? 'bg-white shadow-sm text-text' : 'text-text3 hover:text-text2'}`}
+          >
+            D
+          </button>
+          <button 
+            onClick={() => onPeriodChange('monthly')}
+            className={`px-1.5 py-0.5 text-[10px] font-bold rounded-sm transition-colors ${period === 'monthly' ? 'bg-white shadow-sm text-text' : 'text-text3 hover:text-text2'}`}
+          >
+            M
+          </button>
+        </div>
+      )}
       <div className={`w-[38px] h-[38px] rounded-lg flex items-center justify-center text-lg mb-3 ${variants[variant]}`}>
         {icon}
       </div>

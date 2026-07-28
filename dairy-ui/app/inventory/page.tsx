@@ -25,6 +25,7 @@ interface Asset {
   status: string;
   serialNumber: string;
   location: string;
+  marketValue?: number;
 }
 
 const formatDate = (dateStr: string) => {
@@ -250,7 +251,7 @@ export default function InventoryPage() {
             <div>
               <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Market Value</span>
               <span className="text-xl font-black text-brand-dark">
-                ₹{filteredAssets.reduce((sum, a) => sum + (a.marketValue ?? a.value || 0), 0).toLocaleString()}
+                ₹{filteredAssets.reduce((sum, a) => sum + ((a.marketValue ?? a.value) || 0), 0).toLocaleString()}
               </span>
             </div>
           </div>

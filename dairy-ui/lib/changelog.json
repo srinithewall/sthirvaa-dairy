@@ -1,6 +1,38 @@
 [
   {
     "version": "v0.1.1",
+    "date": "2026-06-17",
+    "commit": "fc44950",
+    "changes": [
+      "UI: Fix mobile animal image upload tap target"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-16",
+    "commit": "fe17565",
+    "changes": [
+      "UI: Add sort functionality for assets table"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-16",
+    "commit": "4c0fe74",
+    "changes": [
+      "Fix Distribute Milk modal over-allocated error caused by hidden floating point decimals"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-06-16",
+    "commit": "250a261",
+    "changes": [
+      "UI: Improve dashboard filters layout and tooltip sorting"
+    ]
+  },
+  {
+    "version": "v0.1.0",
     "date": "2026-06-16",
     "commit": "3cbf9d6",
     "changes": [
@@ -85,38 +117,6 @@
     "commit": "c82a163",
     "changes": [
       "fix: use local timezone for production log date handling and adjust UI"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-02",
-    "commit": "aab50f5",
-    "changes": [
-      "fix: adjust detail modal layout spacing to prevent overlaps and use animalName matching for database seeding"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-01",
-    "commit": "d7f5102",
-    "changes": [
-      "feat: implement Herd Reproduction, Timeline Events, and Upcoming Reminders system"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-01",
-    "commit": "f146d94",
-    "changes": [
-      "fix: force notification scheduler and milk record check to use Asia/Kolkata (IST) timezone"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-05-29",
-    "commit": "40b9f02",
-    "changes": [
-      "ci: add volumes mount for firebase service account in deploy-backend.yml"
     ]
   }
 ]

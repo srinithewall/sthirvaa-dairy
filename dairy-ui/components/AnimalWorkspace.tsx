@@ -999,7 +999,7 @@ export default function AnimalWorkspace({
   const [selectedBreedCategory, setSelectedBreedCategory] = useState<string>('ALL');
   const [searchSemenQuery, setSearchSemenQuery] = useState<string>('');
 
-  const isAdmin = userRole === 'ADMIN';
+  const isAdmin = userRole === 'ADMIN' || userRole === 'STAFF';
   const imgUrl  = (herd.imageUrl && !failedImages[herd.id]) ? formatImageUrl(herd.imageUrl) : null;
 
   const [uploadedMedia, setUploadedMedia] = useState<any[]>([]);

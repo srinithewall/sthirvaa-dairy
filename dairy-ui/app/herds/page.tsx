@@ -238,26 +238,103 @@ export default function HerdsPage() {
         </div>
         <div className="flex-1 p-3 flex flex-wrap gap-2 items-start justify-start bg-white/50 overflow-visible">
           {items.map((item: Herd) => {
+            const isCalf = item.animalStatus === 'CALF';
+            
+            // Get animal events
+            const herdEvents = allGlobalEvents.filter(e => e.herdId === item.id);
+            
+            // 1. Semen Injection Check (Syringe)
+            // Semen is considered given if they have a SEMEN_GIVEN event as the latest breeding event.
+            const breedingEvents = herdEvents
+              .filter(e => ['SEMEN_GIVEN', 'PREGNANCY_CONFIRMED', 'CALF_DELIVERED'].includes(e.eventType))
+              .sort((a, b) => b.eventDate.localeCompare(a.eventDate));
+            const hasSemen = breedingEvents.length > 0 && 
+              (breedingEvents[0].eventType === 'SEMEN_GIVEN' || breedingEvents[0].eventType === 'PREGNANCY_CONFIRMED');
+
+            // 2. DIM Check (Days in Milk)
+            const lastCalving = herdEvents
+              .filter(e => e.eventType === 'CALF_DELIVERED')
+              .sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
+            let dim = 0;
+            if (item.animalStatus === 'LACTATING' && lastCalving) {
+              const diffTime = Math.abs(Date.now() - new Date(lastCalving.eventDate).getTime());
+              dim = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            }
+
+            // 3. Age in Months (for Calf)
+            let ageInMonths = 0;
+            if (item.birthDate) {
+              const birth = new Date(item.birthDate);
+              const today = new Date();
+              ageInMonths = (today.getFullYear() - birth.getFullYear()) * 12 + (today.getMonth() - birth.getMonth());
+              if (ageInMonths < 0) ageInMonths = 0;
+            }
+
             const tagColor = getAnimalColor(item);
             const isImageFailed = failedImages[item.id];
             const imgUrl = (item.imageUrl && !isImageFailed) ? formatImageUrl(item.imageUrl) : null;
             const initials = item.animalName
               ? item.animalName.trim().substring(0, 2).toUpperCase()
               : item.tagNumber ? item.tagNumber.substring(0, 2).toUpperCase() : '??';
+
             return (
               <div
                 key={item.id}
                 onClick={() => handleHerdClick(item.id)}
-                className={`relative w-[48px] md:w-[52px] h-[48px] md:h-[52px] rounded-lg overflow-hidden border border-black/10 shadow-sm cursor-pointer transition-all duration-250 ease-out active:scale-95 group z-0 hover:z-50 hover:scale-[2.4] hover:shadow-2xl flex items-center justify-center select-none ${tagColor}`}
+                className="flex flex-col w-[85px] md:w-[105px] bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-95 select-none"
               >
-                {imgUrl
-                  ? <img src={imgUrl} alt={item.animalName || item.tagNumber} onError={() => setFailedImages(prev => ({ ...prev, [item.id]: true }))} className="w-full h-full object-cover" />
-                  : <span className="text-[12px] md:text-[13px] font-black text-white uppercase drop-shadow tracking-tighter pb-1">{initials}</span>}
-                <div className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full border border-white shadow-sm z-10 ${item.healthStatus === 'HEALTHY' ? 'bg-green-500' : 'bg-red-500'}`} />
-                <div className="absolute bottom-0 left-0 right-0 bg-black/60 py-0.5 px-0.5 text-center z-10 backdrop-blur-[0.5px]">
-                  <div className="text-[7.5px] font-black text-white truncate uppercase tracking-tighter leading-none scale-[0.95] origin-center">
-                    {item.animalName || '—'}
+                {/* Photo Section */}
+                <div className={`relative h-[65px] md:h-[80px] w-full flex items-center justify-center overflow-hidden ${tagColor}`}>
+                  {imgUrl ? (
+                    <img 
+                      src={imgUrl} 
+                      alt={item.animalName || item.tagNumber} 
+                      onError={() => setFailedImages(prev => ({ ...prev, [item.id]: true }))} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <span className="text-[12px] md:text-[13px] font-black text-white uppercase drop-shadow-sm">{initials}</span>
+                  )}
+                  
+                  {/* Name overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 py-0.5 px-1 text-center backdrop-blur-[0.5px]">
+                    <div className="text-[7.5px] md:text-[9px] font-black text-white truncate uppercase tracking-tight">
+                      {item.animalName || '—'}
+                    </div>
                   </div>
+
+                  {/* Syringe Injection status */}
+                  <div className="absolute top-1 right-1 w-5 h-5 md:w-6 md:h-6 rounded-full bg-white shadow-sm flex items-center justify-center border border-slate-100/50">
+                    <Syringe 
+                      size={11} 
+                      className={hasSemen ? 'text-emerald-600' : 'text-slate-400'} 
+                      strokeWidth={2.5}
+                    />
+                  </div>
+                </div>
+
+                {/* Info / DIM Section */}
+                <div className="py-1.5 px-1 text-center bg-white border-t border-slate-100 flex items-center justify-center gap-1 min-h-[28px] md:min-h-[32px]">
+                  {isCalf ? (
+                    <span className="text-[8.5px] md:text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                      {ageInMonths} Mo
+                    </span>
+                  ) : (
+                    <div className="flex items-center justify-center gap-1">
+                      <svg 
+                        className={`w-3 h-3 md:w-3.5 md:h-3.5 flex-shrink-0 ${dim > 0 ? 'text-emerald-600' : 'text-amber-500'}`} 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor" 
+                        strokeWidth="2.5"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 3h6M10 3v3m4-3v3M8 6h8a2 2 0 012 2v10a4 4 0 01-4 4H10a4 4 0 01-4-4V8a2 2 0 012-2z" />
+                      </svg>
+                      <span className={`text-[8.5px] md:text-[10px] font-bold uppercase tracking-tight ${dim > 0 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                        {dim} DIM
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

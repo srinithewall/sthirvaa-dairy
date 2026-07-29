@@ -304,13 +304,15 @@ export default function HerdsPage() {
                   </div>
 
                   {/* Syringe Injection status */}
-                  <div className="absolute top-1 right-1 w-5 h-5 md:w-6 md:h-6 rounded-full bg-white shadow-sm flex items-center justify-center border border-slate-100/50">
-                    <Syringe 
-                      size={11} 
-                      className={hasSemen ? 'text-emerald-600' : 'text-slate-400'} 
-                      strokeWidth={2.5}
-                    />
-                  </div>
+                  {!isCalf && (
+                    <div className="absolute top-1 right-1 w-5 h-5 md:w-6 md:h-6 rounded-full bg-white shadow-sm flex items-center justify-center border border-slate-100/50">
+                      <Syringe 
+                        size={11} 
+                        className={hasSemen ? 'text-emerald-600' : 'text-slate-400'} 
+                        strokeWidth={2.5}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Info / DIM Section */}

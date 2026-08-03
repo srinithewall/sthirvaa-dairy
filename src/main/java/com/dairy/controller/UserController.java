@@ -22,6 +22,20 @@ public class UserController {
     @Autowired
     private CustomerRepository customerRepository;
 
+    @GetMapping("/me")
+    public ResponseEntity<?> getMe() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("username", user.getUsername());
+        response.put("email", user.getEmail());
+        response.put("role", user.getRole().name());
+        response.put("staffId", user.getStaffId());
+        response.put("customerId", user.getCustomerId());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/me/address")
     public ResponseEntity<?> getMyAddress() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();

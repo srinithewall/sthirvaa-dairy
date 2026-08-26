@@ -9,7 +9,7 @@ export default function LoginPage() {
     const state = Math.random().toString(36).substring(2);
     
     // Redirect to ng_core SSO login (root page handles login/SSO)
-    const ngBaseUrl = process.env.NEXT_PUBLIC_NG_URL || 'https://ng.sthirvaa.com';
+    const ngBaseUrl = process.env.NEXT_PUBLIC_NG_URL || 'https://nammagrama.sthirvaa.com';
     window.location.href = `${ngBaseUrl}/?clientId=${clientId}&redirectUri=${encodeURIComponent(redirectUri)}&state=${state}`;
   }, []);
 

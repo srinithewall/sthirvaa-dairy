@@ -22,6 +22,9 @@ public class Expense {
     @Column(nullable = false)
     private LocalDate date;
 
+    @Column(name = "herd_id")
+    private Long herdId;
+
     // Audit Fields
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -63,6 +66,9 @@ public class Expense {
 
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }
+
+    public Long getHerdId() { return herdId; }
+    public void setHerdId(Long herdId) { this.herdId = herdId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

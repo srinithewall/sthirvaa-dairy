@@ -22,6 +22,7 @@ interface Transaction {
   date: string;
   description: string;
   type: 'EXPENSE' | 'INCOME';
+  herdId?: number;
 }
 
 function LedgerPage() {
@@ -29,12 +30,14 @@ function LedgerPage() {
   const [activeTab, setActiveTab] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [herds, setHerds] = useState<any[]>([]);
   
   // Selection & Form State
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedHerdId, setSelectedHerdId] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   // New Category State
@@ -47,6 +50,10 @@ function LedgerPage() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const { showToast, confirm } = useNotification();
 
+  // Filters State
+  const [filterMonth, setFilterMonth] = useState<string>('ALL');
+  const [filterCategory, setFilterCategory] = useState<string>('ALL');
+
   const searchParams = useSearchParams();
   const typeParam = searchParams.get('type');
 
@@ -55,6 +62,10 @@ function LedgerPage() {
       setActiveTab(typeParam as 'EXPENSE' | 'INCOME');
     }
   }, [typeParam]);
+
+  useEffect(() => {
+    setFilterCategory('ALL');
+  }, [activeTab]);
 
   useEffect(() => {
     fetchData();
@@ -66,14 +77,17 @@ function LedgerPage() {
       const responses = await Promise.allSettled([
         api.get('/categories'),
         api.get('/expenses'),
-        api.get('/income')
+        api.get('/income'),
+        api.get('/herds')
       ]);
       
       const catRes = responses[0].status === 'fulfilled' ? responses[0].value.data : [];
       const expRes = responses[1].status === 'fulfilled' ? responses[1].value.data : [];
       const incRes = responses[2].status === 'fulfilled' ? responses[2].value.data : [];
+      const herdRes = responses[3].status === 'fulfilled' ? (responses[3].value.data.herds || responses[3].value.data) : [];
 
       setCategories(catRes);
+      setHerds(Array.isArray(herdRes) ? herdRes : []);
       
       const combined: Transaction[] = [
         ...expRes.map((e: any) => ({ ...e, type: 'EXPENSE' })),
@@ -88,8 +102,22 @@ function LedgerPage() {
     }
   };
 
-  const totalExpense = history.filter(h => h.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
-  const totalIncome = history.filter(h => h.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
+  const filteredHistory = history.filter(h => {
+    let matches = true;
+    if (filterCategory !== 'ALL' && h.category !== filterCategory) {
+      matches = false;
+    }
+    if (filterMonth !== 'ALL') {
+      const entryMonth = h.date.substring(0, 7); // YYYY-MM
+      if (entryMonth !== filterMonth) {
+        matches = false;
+      }
+    }
+    return matches;
+  });
+
+  const totalExpense = filteredHistory.filter(h => h.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
+  const totalIncome = filteredHistory.filter(h => h.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
   const balance = totalIncome - totalExpense;
 
   const handleSaveEntry = async () => {
@@ -98,17 +126,22 @@ function LedgerPage() {
     try {
       const type = selectedCategory.type;
       const endpoint = type === 'EXPENSE' ? '/expenses' : '/income';
-      await api.post(endpoint, {
+      const payload: any = {
         category: selectedCategory.name,
         amount: parseFloat(amount),
         description: description || `Payment for ${selectedCategory.name}`,
         date: date
-      });
+      };
+      if (selectedHerdId && selectedHerdId !== 'ALL' && selectedCategory.name.toUpperCase().includes('MEDICAL')) {
+        payload.herdId = parseInt(selectedHerdId);
+      }
+      await api.post(endpoint, payload);
       
       showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} added successfully!`);
       setSelectedCategory(null);
       setAmount('');
       setDescription('');
+      setSelectedHerdId('');
       setDate(new Date().toISOString().split('T')[0]);
       fetchData();
     } catch (err: any) {
@@ -124,17 +157,22 @@ function LedgerPage() {
     try {
       const type = editingTransaction.type;
       const endpoint = type === 'EXPENSE' ? `/expenses/${editingTransaction.id}` : `/income/${editingTransaction.id}`;
-      await api.put(endpoint, {
+      const payload: any = {
         category: editingTransaction.category,
         amount: parseFloat(amount),
         description: description,
         date: date
-      });
+      };
+      if (selectedHerdId && selectedHerdId !== 'ALL' && editingTransaction.category.toUpperCase().includes('MEDICAL')) {
+        payload.herdId = parseInt(selectedHerdId);
+      }
+      await api.put(endpoint, payload);
       
       showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} updated successfully!`);
       setEditingTransaction(null);
       setAmount('');
       setDescription('');
+      setSelectedHerdId('');
       setDate(new Date().toISOString().split('T')[0]);
       fetchData();
     } catch (err: any) {
@@ -182,6 +220,9 @@ function LedgerPage() {
     .filter(c => c.type === activeTab)
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  const uniqueMonths = Array.from(new Set(history.map(h => h.date.substring(0, 7)))).sort().reverse();
+  const currentTabCategories = categories.filter(c => c.type === activeTab).sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto pb-10 px-1">
@@ -212,16 +253,48 @@ function LedgerPage() {
           <div className="bg-white p-6 rounded-radius-custom-lg border border-border-custom shadow-sm flex flex-col items-center justify-center gap-1 text-center">
              <span className="text-[10px] font-black text-text3 uppercase tracking-[0.2em]">Net Balance</span>
              <span className={`text-2xl font-black ${balance >= 0 ? 'text-brand' : 'text-danger'}`}>
-               ₹{balance.toLocaleString()}
+               ₹{balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
              </span>
           </div>
           <div className="bg-danger/5 border border-danger/10 p-6 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
              <span className="text-[10px] font-black text-danger uppercase tracking-[0.2em]">Total Expense</span>
-             <span className="text-2xl font-black text-danger">₹{totalExpense.toLocaleString()}</span>
+             <span className="text-2xl font-black text-danger">₹{totalExpense.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
           </div>
           <div className="bg-brand/5 border border-brand/10 p-6 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
              <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em]">Total Income</span>
-             <span className="text-2xl font-black text-brand">₹{totalIncome.toLocaleString()}</span>
+             <span className="text-2xl font-black text-brand">₹{totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+          </div>
+        </div>
+
+        {/* Filters Section */}
+        <div className="bg-white p-4 rounded-radius-custom-lg border border-border-custom shadow-sm mb-8 flex flex-col sm:flex-row items-center gap-4">
+          <div className="w-full sm:w-1/2">
+            <label className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Filter by Month</label>
+            <select 
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="w-full bg-surface2 border border-border-custom text-text text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand/30"
+            >
+              <option value="ALL">All Time</option>
+              {uniqueMonths.map(month => (
+                <option key={month} value={month}>
+                  {new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full sm:w-1/2">
+            <label className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Filter by Category</label>
+            <select 
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full bg-surface2 border border-border-custom text-text text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand/30"
+            >
+              <option value="ALL">All Categories</option>
+              {currentTabCategories.map(cat => (
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -269,9 +342,9 @@ function LedgerPage() {
               <div className="p-10 sm:p-20 text-center">
                  <div className="inline-block w-8 h-8 border-4 border-brand/30 border-t-brand rounded-full animate-spin"></div>
               </div>
-            ) : history.length === 0 ? (
+            ) : filteredHistory.length === 0 ? (
               <div className="p-10 sm:p-20 text-center text-text3 font-bold">NO TRANSACTIONS YET</div>
-            ) : history.filter(item => item.type === activeTab).map((item) => (
+            ) : filteredHistory.filter(item => item.type === activeTab).map((item) => (
               <div key={`${item.type}-${item.id}`} className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-surface transition-all group border-l-4 border-transparent hover:border-brand gap-4 sm:gap-0">
                 <div className="flex items-center gap-4 sm:gap-5 w-full sm:w-auto">
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-xl flex items-center justify-center text-lg sm:text-xl font-bold shadow-sm ${item.type === 'EXPENSE' ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}`}>
@@ -291,7 +364,7 @@ function LedgerPage() {
                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-1 sm:mt-0">
                   <div className="text-left sm:text-right">
                     <div className={`font-black text-[16px] sm:text-[18px] ${item.type === 'EXPENSE' ? 'text-danger' : 'text-brand'}`}>
-                      {item.type === 'EXPENSE' ? '-' : '+'} ₹{item.amount.toLocaleString()}
+                      {item.type === 'EXPENSE' ? '-' : '+'} ₹{item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -301,6 +374,7 @@ function LedgerPage() {
                         setAmount(item.amount.toString());
                         setDescription(item.description);
                         setDate(item.date);
+                        setSelectedHerdId(item.herdId ? item.herdId.toString() : 'ALL');
                       }}
                       className="p-2 bg-surface2 sm:bg-transparent hover:bg-white rounded-lg text-text3 hover:text-brand transition-colors"
                     >
@@ -355,6 +429,24 @@ function LedgerPage() {
                   className="w-full text-3xl font-black text-text border-b border-border-custom outline-none"
                 />
               </div>
+
+              {((selectedCategory?.name || editingTransaction?.category)?.toUpperCase().includes('MEDICAL')) && (
+                <div className="mb-6">
+                  <label className="block text-[11px] font-bold text-text3 uppercase mb-2">Select Animal (Optional)</label>
+                  <select
+                    value={selectedHerdId}
+                    onChange={(e) => setSelectedHerdId(e.target.value)}
+                    className="w-full text-sm text-text border-b border-border-custom outline-none py-1 bg-white"
+                  >
+                    <option value="ALL">All (Farm Level)</option>
+                    {herds.map((herd: any) => (
+                      <option key={herd.id} value={herd.id.toString()}>
+                        {herd.animalName ? `${herd.animalName} (${herd.tagNumber})` : herd.tagNumber}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="mb-8">
                 <label className="block text-[11px] font-bold text-text3 uppercase mb-2">Note (Optional)</label>

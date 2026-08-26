@@ -22,6 +22,7 @@ interface FormData {
   status: string;
   motherName: string;
   fatherSemen: string;
+  heartGirth: string;
 }
 
 interface Herd {
@@ -41,6 +42,7 @@ interface Herd {
   status?: string;
   motherName?: string;
   fatherSemen?: string;
+  heartGirth?: number;
 }
 
 // ─── Reusable styled select dropdown ────────
@@ -161,14 +163,24 @@ export default function RegisterAnimalModal({
   const [saleAmount, setSaleAmount] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [purchaseAmount, setPurchaseAmount] = useState('');
+  const [breedOptions, setBreedOptions] = useState<{value: string, label: string}[]>([]);
 
   React.useEffect(() => {
+    // Fetch customers
     api.get('/customers').then(res => {
       setCustomers(res.data || []);
       if (res.data && res.data.length > 0) {
         setSelectedCustomerId(String(res.data[0].id));
       }
     }).catch(err => console.error("Error fetching customers in RegisterAnimalModal:", err));
+
+    // Fetch breeds
+    api.get('/breeds').then(res => {
+      if (res.data) {
+        const opts = res.data.map((b: any) => ({ value: b.name, label: b.name }));
+        setBreedOptions(opts);
+      }
+    }).catch(err => console.error("Error fetching breeds:", err));
   }, []);
 
   const [formData, setFormData] = useState<FormData>({
@@ -187,6 +199,7 @@ export default function RegisterAnimalModal({
     status: herdToEdit?.status || 'ACTIVE',
     motherName: herdToEdit?.motherName || '',
     fatherSemen: herdToEdit?.fatherSemen || '',
+    heartGirth: herdToEdit?.heartGirth ? String(herdToEdit.heartGirth) : '',
   });
 
   const [ageYears, setAgeYears] = useState(() => {
@@ -421,14 +434,12 @@ export default function RegisterAnimalModal({
             />
 
             {/* Breed */}
-            <Field label="Breed">
-              <input
-                value={formData.breed}
-                onChange={(e) => set('breed', e.target.value)}
-                placeholder="e.g., Gir, Holstein"
-                className={INPUT_CLS}
-              />
-            </Field>
+            <CustomSelect
+              label="Breed"
+              value={formData.breed}
+              onChange={(v) => set('breed', v)}
+              options={breedOptions.length > 0 ? breedOptions : [{value: 'Holstein Friesian', label: 'Holstein Friesian'}, {value: 'Jersey', label: 'Jersey'}, {value: 'Gir', label: 'Gir'}, {value: 'Unknown', label: 'Unknown'}]}
+            />
 
             {/* Mother Name */}
             <Field label="Mother Name">
@@ -535,6 +546,19 @@ export default function RegisterAnimalModal({
                   onChange={(e) => setAgeMonths(e.target.value)}
                 />
               </div>
+            </Field>
+
+            {/* Heart Girth */}
+            <Field label="Heart Girth (cm)">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.heartGirth}
+                onChange={(e) => set('heartGirth', e.target.value)}
+                placeholder="e.g. 180"
+                className={INPUT_CLS}
+              />
             </Field>
 
             {/* Procured Date */}

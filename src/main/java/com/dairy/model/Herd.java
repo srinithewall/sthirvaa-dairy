@@ -47,6 +47,9 @@ public class Herd {
 
     private String age;
 
+    @Column(name = "heart_girth")
+    private Double heartGirth;
+
     @Column(name = "mother_name")
     private String motherName;
 
@@ -55,6 +58,13 @@ public class Herd {
 
     @Column(nullable = false)
     private String status = "ACTIVE";
+
+    // Computed / UI Fields
+    @Transient
+    private Double calculatedWeight;
+
+    @Transient
+    private String weightStatus;
 
     // Audit Fields (At the end)
     @Column(name = "created_at")
@@ -138,6 +148,9 @@ public class Herd {
     public String getAge() { return age; }
     public void setAge(String age) { this.age = age; }
 
+    public Double getHeartGirth() { return heartGirth; }
+    public void setHeartGirth(Double heartGirth) { this.heartGirth = heartGirth; }
+
     public String getMotherName() { return motherName; }
     public void setMotherName(String motherName) { this.motherName = motherName; }
 
@@ -153,4 +166,30 @@ public class Herd {
         if (period.getMonths() > 0) return period.getMonths() + "m";
         return period.getDays() + "d";
     }
+
+    @Transient
+    private Double avgMilk30Days;
+    public Double getAvgMilk30Days() { return avgMilk30Days; }
+    public void setAvgMilk30Days(Double avgMilk30Days) { this.avgMilk30Days = avgMilk30Days; }
+
+    @Transient
+    private Integer milkPotential;
+    public Integer getMilkPotential() { return milkPotential; }
+    public void setMilkPotential(Integer milkPotential) { this.milkPotential = milkPotential; }
+
+    @Transient
+    private String milkPotentialConfidence;
+    public String getMilkPotentialConfidence() { return milkPotentialConfidence; }
+    public void setMilkPotentialConfidence(String milkPotentialConfidence) { this.milkPotentialConfidence = milkPotentialConfidence; }
+
+    @Transient
+    private Integer lactationNumber;
+    public Integer getLactationNumber() { return lactationNumber; }
+    public void setLactationNumber(Integer lactationNumber) { this.lactationNumber = lactationNumber; }
+
+    public Double getCalculatedWeight() { return calculatedWeight; }
+    public void setCalculatedWeight(Double calculatedWeight) { this.calculatedWeight = calculatedWeight; }
+
+    public String getWeightStatus() { return weightStatus; }
+    public void setWeightStatus(String weightStatus) { this.weightStatus = weightStatus; }
 }

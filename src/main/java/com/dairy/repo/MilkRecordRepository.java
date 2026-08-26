@@ -2,12 +2,16 @@ package com.dairy.repo;
 
 import com.dairy.model.MilkRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import java.time.LocalDate;
 import java.util.List;
 
 public interface MilkRecordRepository extends JpaRepository<MilkRecord, Long> {
     List<MilkRecord> findByDate(LocalDate date);
     List<MilkRecord> findByHerdId(Long herdId);
+
+    @Query("SELECT SUM(m.quantity) FROM MilkRecord m")
+    Double getTotalMilkProduction();
 
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
@@ -16,4 +20,6 @@ public interface MilkRecordRepository extends JpaRepository<MilkRecord, Long> {
     List<MilkRecord> findByDateAndShift(LocalDate date, String shift);
     List<MilkRecord> findAllByOrderByDateDesc();
     List<MilkRecord> findByDateBetween(LocalDate startDate, LocalDate endDate);
+
+    List<MilkRecord> findByHerdIdAndDateGreaterThanEqual(Long herdId, LocalDate startDate);
 }

@@ -1,6 +1,46 @@
 [
   {
     "version": "v0.1.1",
+    "date": "2026-08-03",
+    "commit": "8e2a0ca",
+    "changes": [
+      "feat(auth): add seamless sso login from ng app"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-07-29",
+    "commit": "4bb9054",
+    "changes": [
+      "fix(herds): hide semen syringe icon for calves"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-07-29",
+    "commit": "4603662",
+    "changes": [
+      "feat(herds): render large animal cards displaying DIM, age for calves, and semen injection syringe status"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-07-28",
+    "commit": "3823cd6",
+    "changes": [
+      "fix(herds): allow STAFF role to edit animals and logs"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-07-28",
+    "commit": "9f73a28",
+    "changes": [
+      "fix(dashboard): resolve decimal issues, adjust milk chart minimum/height, clean up top milkers layout, and correct net profit calculation"
+    ]
+  },
+  {
+    "version": "v0.1.0",
     "date": "2026-06-17",
     "commit": "fc44950",
     "changes": [
@@ -77,46 +117,6 @@
     "commit": "d23f28a",
     "changes": [
       "feat(dashboard): add Daily Milk Production line chart with cow filter"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-15",
-    "commit": "9f05bd4",
-    "changes": [
-      "fix(ui): resolve float rounding in dashboard and fix log yield modal layout on mobile"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-15",
-    "commit": "2e8f789",
-    "changes": [
-      "fix: add edge runtime config to api route for cloudflare pages build"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-15",
-    "commit": "9b1deb9",
-    "changes": [
-      "fix: sync changelog generator with package.json versions"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-15",
-    "commit": "c500ee6",
-    "changes": [
-      "UI enhancements: Gallery improvements, animal avatars in yield table, styling fixes"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-03",
-    "commit": "c82a163",
-    "changes": [
-      "fix: use local timezone for production log date handling and adjust UI"
     ]
   }
 ]

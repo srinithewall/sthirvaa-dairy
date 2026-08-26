@@ -1,0 +1,1102 @@
+[
+  {
+    "feedName": "Hybrid Napier",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 5,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pennisetum purpureum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "CO-3 Napier",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pennisetum purpureum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "CO-4 Napier",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pennisetum purpureum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "CO-5 Napier",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pennisetum purpureum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Super Napier",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pennisetum purpureum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Guinea Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Megathyrsus maximus",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Para Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Urochloa mutica",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Rhodes Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Rhodes Grass spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Signal Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Signal Grass spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Setaria",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Setaria spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Sudan Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sudan Grass spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Sorghum",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sorghum bicolor",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Multicut Sorghum",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sorghum bicolor",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Fodder Maize",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Zea mays",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Hydroponic Maize",
+    "category": "Hydroponic",
+    "referenceSource": "Hydroponic",
+    "palatabilityRating": 5,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Zea mays",
+    "costRating": "High",
+    "primaryNutrient": "Energy"
+  },
+  {
+    "feedName": "Barley",
+    "category": "Hydroponic",
+    "referenceSource": "Hydroponic",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Barley spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Wheat",
+    "category": "Hydroponic",
+    "referenceSource": "Hydroponic",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Triticum aestivum",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Oats",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Oats spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Pearl Millet",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pennisetum glaucum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Finger Millet",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Eleusine coracana",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Foxtail Millet",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Foxtail Millet spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Cowpea",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Vigna unguiculata",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Lucerne",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 5,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Medicago sativa",
+    "costRating": "Medium",
+    "primaryNutrient": "Protein+Calcium"
+  },
+  {
+    "feedName": "Berseem",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Trifolium alexandrinum",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Stylo",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Stylo spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Hedge Lucerne",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Medicago sativa",
+    "costRating": "Medium",
+    "primaryNutrient": "Protein+Calcium"
+  },
+  {
+    "feedName": "Horse Gram",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Horse Gram spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Sunhemp",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sunhemp spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Cluster Bean",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Cluster Bean spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Sesbania",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sesbania spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Moringa",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 5,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Moringa oleifera",
+    "costRating": "Medium",
+    "primaryNutrient": "Protein+Minerals"
+  },
+  {
+    "feedName": "Agathi",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sesbania grandiflora",
+    "costRating": "Medium",
+    "primaryNutrient": "Protein+Calcium"
+  },
+  {
+    "feedName": "Subabul",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Leucaena leucocephala",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Gliricidia",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Gliricidia sepium",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Mulberry",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Mulberry spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Cassava Leaves",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Manihot esculenta",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Sweet Potato Vine",
+    "category": "Vine",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sweet Potato Vine spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Pumpkin Vine",
+    "category": "Vine",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pumpkin Vine spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Cucumber Vine",
+    "category": "Vine",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Cucumber Vine spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Banana Stem",
+    "category": "Byproduct",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Banana Stem spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Banana Leaves",
+    "category": "Byproduct",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Banana Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Sugarcane Tops",
+    "category": "Byproduct",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sugarcane Tops spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Groundnut Haulms",
+    "category": "Residue",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Arachis hypogaea",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Soybean Haulms",
+    "category": "Residue",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Soybean Haulms spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Pigeon Pea Haulms",
+    "category": "Residue",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pigeon Pea Haulms spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Green Gram Haulms",
+    "category": "Residue",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Green Gram Haulms spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Black Gram Haulms",
+    "category": "Residue",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Black Gram Haulms spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Cowpea Haulms",
+    "category": "Residue",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Vigna unguiculata",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Azolla",
+    "category": "Aquatic",
+    "referenceSource": "Water",
+    "palatabilityRating": 5,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Azolla pinnata",
+    "costRating": "Medium",
+    "primaryNutrient": "Protein+Minerals"
+  },
+  {
+    "feedName": "Duckweed",
+    "category": "Aquatic",
+    "referenceSource": "Water",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Duckweed spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Rice Straw",
+    "category": "Dry",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Oryza sativa",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber"
+  },
+  {
+    "feedName": "Wheat Straw",
+    "category": "Dry",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Triticum aestivum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber"
+  },
+  {
+    "feedName": "Maize Stover",
+    "category": "Dry",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Zea mays",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber"
+  },
+  {
+    "feedName": "Ragi Straw",
+    "category": "Dry",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Eleusine coracana",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber"
+  },
+  {
+    "feedName": "Jowar Stover",
+    "category": "Dry",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sorghum bicolor",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber"
+  },
+  {
+    "feedName": "Bajra Stover",
+    "category": "Dry",
+    "referenceSource": "Farm",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pennisetum glaucum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber"
+  },
+  {
+    "feedName": "Paddy Green",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Oryza sativa",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Teosinte",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Teosinte spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Desmanthus",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Desmanthus spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Velvet Bean",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Velvet Bean spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Leucaena",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Leucaena spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Cenchrus",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Cenchrus spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Anjan Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Anjan Grass spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Marvel Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Marvel Grass spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Blue Panic",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Blue Panic spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Napier x Bajra Hybrid",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Pennisetum purpureum",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Timothy Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Timothy Grass spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Ryegrass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Ryegrass spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Orchard Grass",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Orchard Grass spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Fescue",
+    "category": "Grass",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Fescue spp.",
+    "costRating": "Low",
+    "primaryNutrient": "Fiber+Water"
+  },
+  {
+    "feedName": "Clover",
+    "category": "Legume",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Clover spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Alfalfa Hydroponic",
+    "category": "Hydroponic",
+    "referenceSource": "Hydroponic",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Medicago sativa",
+    "costRating": "High",
+    "primaryNutrient": "Protein+Calcium"
+  },
+  {
+    "feedName": "Fenugreek Fodder",
+    "category": "Hydroponic",
+    "referenceSource": "Hydroponic",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Fenugreek Fodder spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Mustard Greens",
+    "category": "Leaf",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Brassica spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Radish Tops",
+    "category": "Leaf",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Radish Tops spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Beet Tops",
+    "category": "Leaf",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Beet Tops spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Turnip Tops",
+    "category": "Leaf",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Turnip Tops spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Amaranthus",
+    "category": "Leaf",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Amaranthus spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Protein+Calcium+Vit A"
+  },
+  {
+    "feedName": "Water Spinach",
+    "category": "Aquatic",
+    "referenceSource": "Water",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Water Spinach spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Colocasia Leaves",
+    "category": "Leaf",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Colocasia Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Jackfruit Leaves",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Jackfruit Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Neem Leaves",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Neem Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Mango Leaves",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Mango Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Bamboo Leaves",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Bamboo Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Curry Leaves",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Curry Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Papaya Leaves",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Papaya Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Guava Leaves",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Guava Leaves spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Drumstick Pods",
+    "category": "Tree",
+    "referenceSource": "Land",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Moringa oleifera",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Maize Silage",
+    "category": "Silage",
+    "referenceSource": "Stored",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Zea mays",
+    "costRating": "High",
+    "primaryNutrient": "Energy"
+  },
+  {
+    "feedName": "Sorghum Silage",
+    "category": "Silage",
+    "referenceSource": "Stored",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sorghum bicolor",
+    "costRating": "High",
+    "primaryNutrient": "Energy"
+  },
+  {
+    "feedName": "Oat Silage",
+    "category": "Silage",
+    "referenceSource": "Stored",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Oat Silage spp.",
+    "costRating": "High",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Hay",
+    "category": "Dry",
+    "referenceSource": "Stored",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Hay spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Groundnut Hay",
+    "category": "Dry",
+    "referenceSource": "Stored",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Arachis hypogaea",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Lucerne Hay",
+    "category": "Dry",
+    "referenceSource": "Stored",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Medicago sativa",
+    "costRating": "Medium",
+    "primaryNutrient": "Protein+Calcium"
+  },
+  {
+    "feedName": "Cottonseed Cake",
+    "category": "Concentrate",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Gossypium spp.",
+    "costRating": "High",
+    "primaryNutrient": "Protein"
+  },
+  {
+    "feedName": "Groundnut Cake",
+    "category": "Concentrate",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Arachis hypogaea",
+    "costRating": "High",
+    "primaryNutrient": "Protein"
+  },
+  {
+    "feedName": "Soybean Meal",
+    "category": "Concentrate",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Soybean Meal spp.",
+    "costRating": "High",
+    "primaryNutrient": "Protein"
+  },
+  {
+    "feedName": "Maize Grain",
+    "category": "Grain",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Zea mays",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy"
+  },
+  {
+    "feedName": "Broken Wheat",
+    "category": "Grain",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Triticum aestivum",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Rice Bran",
+    "category": "Concentrate",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Oryza sativa",
+    "costRating": "High",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Wheat Bran",
+    "category": "Concentrate",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Triticum aestivum",
+    "costRating": "High",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Mineral Mixture",
+    "category": "Mineral",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Mineral Mixture spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Minerals"
+  },
+  {
+    "feedName": "Salt",
+    "category": "Mineral",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Salt spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Minerals"
+  },
+  {
+    "feedName": "Calcium Supplement",
+    "category": "Mineral",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Calcium Supplement spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Molasses",
+    "category": "Energy",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Molasses spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy"
+  },
+  {
+    "feedName": "Brewer's Grains",
+    "category": "Byproduct",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Brewer's Grains spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Distillers Grains",
+    "category": "Byproduct",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Distillers Grains spp.",
+    "costRating": "Medium",
+    "primaryNutrient": "Energy+Fiber"
+  },
+  {
+    "feedName": "Coconut Cake",
+    "category": "Concentrate",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Cocos nucifera",
+    "costRating": "High",
+    "primaryNutrient": "Protein"
+  },
+  {
+    "feedName": "Sesame Cake",
+    "category": "Concentrate",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Sesame Cake spp.",
+    "costRating": "High",
+    "primaryNutrient": "Protein"
+  },
+  {
+    "feedName": "Linseed Cake",
+    "category": "Concentrate",
+    "referenceSource": "Purchased",
+    "palatabilityRating": 3,
+    "remarks": "Reference database; verify ration quantities before use.",
+    "scientificName": "Linseed Cake spp.",
+    "costRating": "High",
+    "primaryNutrient": "Protein"
+  }
+]

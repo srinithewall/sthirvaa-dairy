@@ -63,15 +63,44 @@ public class DashboardService {
         dto.setTodayExpense(todayExpenseValue);
         dto.setYesterdayExpense(yesterdayExpenseValue);
 
-        // 3. Current Month Profit
+        // 3. Current Month & Totals
         LocalDate startOfMonth = today.withDayOfMonth(1);
+        List<MilkRecord> monthRecords = milkRecordRepository.findByDateBetween(startOfMonth, today);
+        double monthMilk = monthRecords.stream().mapToDouble(r -> r.getQuantity() != null ? r.getQuantity() : 0.0).sum();
+        dto.setMonthMilkProduction(monthMilk);
+        
         List<Income> monthIncomes = incomeRepository.findByDateBetween(startOfMonth, today);
         List<Expense> monthExpenses = expenseRepository.findByDateBetween(startOfMonth, today);
         
         double monthRevenue = monthIncomes.stream().mapToDouble(i -> i.getAmount() != null ? i.getAmount() : 0.0).sum();
         double monthExpense = monthExpenses.stream().mapToDouble(e -> e.getAmount() != null ? e.getAmount() : 0.0).sum();
         
+        dto.setMonthRevenue(monthRevenue);
+        dto.setMonthExpense(monthExpense);
+        
+        dto.setTodayProfit(todayRevenue - todayExpenseValue);
         dto.setCurrentMonthProfit(monthRevenue - monthExpense);
+        
+        Double totalMilk = milkRecordRepository.getTotalMilkProduction();
+        dto.setTotalMilkProduction(totalMilk != null ? totalMilk : 0.0);
+        
+        Double totalRev = incomeRepository.getTotalRevenue();
+        dto.setTotalRevenue(totalRev != null ? totalRev : 0.0);
+        
+        Double totalExp = expenseRepository.getTotalExpense();
+        dto.setTotalExpense(totalExp != null ? totalExp : 0.0);
+        
+        dto.setTotalProfit((totalRev != null ? totalRev : 0.0) - (totalExp != null ? totalExp : 0.0));
+        
+        // Expense Pie Chart Data
+        List<Object[]> pieDataRaw = expenseRepository.getExpensePieChartData();
+        Map<String, Double> pieData = new LinkedHashMap<>();
+        for (Object[] row : pieDataRaw) {
+            String cat = (String) row[0];
+            Double amt = (Double) row[1];
+            pieData.put(cat != null ? cat : "Other", amt != null ? amt : 0.0);
+        }
+        dto.setExpensePieChartData(pieData);
 
         // 4. Production Chart Data (Last 14 Days)
         LocalDate twoWeeksAgo = today.minusDays(13);

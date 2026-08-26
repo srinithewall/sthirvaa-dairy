@@ -6,15 +6,27 @@ import java.util.Map;
 public class DashboardDTO {
     private Double todayMilkProduction;
     private Double yesterdayMilkProduction;
+    private Double monthMilkProduction;
+    private Double totalMilkProduction;
+    
     private Double todayRevenue;
     private Double yesterdayRevenue;
+    private Double monthRevenue;
+    private Double totalRevenue;
+    
     private Double todayExpense;
     private Double yesterdayExpense;
+    private Double monthExpense;
+    private Double totalExpense;
+    
+    private Double todayProfit;
     private Double currentMonthProfit;
+    private Double totalProfit;
     
     private Map<String, Double> productionChartData;
     private Map<String, Double> revenueChartData;
     private Map<String, Double> expenseChartData;
+    private Map<String, Double> expensePieChartData;
     
     private List<TopMilkerDTO> topMilkers;
 
@@ -73,4 +85,31 @@ public class DashboardDTO {
         public Double getEveningYield() { return eveningYield; }
         public Double getTotalYield() { return totalYield; }
     }
+
+    public Double getMonthMilkProduction() { return monthMilkProduction; }
+    public void setMonthMilkProduction(Double monthMilkProduction) { this.monthMilkProduction = monthMilkProduction; }
+
+    public Double getTotalMilkProduction() { return totalMilkProduction; }
+    public void setTotalMilkProduction(Double totalMilkProduction) { this.totalMilkProduction = totalMilkProduction; }
+
+    public Double getMonthRevenue() { return monthRevenue; }
+    public void setMonthRevenue(Double monthRevenue) { this.monthRevenue = monthRevenue; }
+
+    public Double getTotalRevenue() { return totalRevenue; }
+    public void setTotalRevenue(Double totalRevenue) { this.totalRevenue = totalRevenue; }
+
+    public Double getMonthExpense() { return monthExpense; }
+    public void setMonthExpense(Double monthExpense) { this.monthExpense = monthExpense; }
+
+    public Double getTotalExpense() { return totalExpense; }
+    public void setTotalExpense(Double totalExpense) { this.totalExpense = totalExpense; }
+
+    public Double getTodayProfit() { return todayProfit; }
+    public void setTodayProfit(Double todayProfit) { this.todayProfit = todayProfit; }
+
+    public Double getTotalProfit() { return totalProfit; }
+    public void setTotalProfit(Double totalProfit) { this.totalProfit = totalProfit; }
+
+    public Map<String, Double> getExpensePieChartData() { return expensePieChartData; }
+    public void setExpensePieChartData(Map<String, Double> expensePieChartData) { this.expensePieChartData = expensePieChartData; }
 }

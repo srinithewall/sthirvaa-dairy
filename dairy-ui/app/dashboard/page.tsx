@@ -16,7 +16,7 @@ import {
   LineElement,
   ArcElement
 } from 'chart.js';
-import { Bar, Line } from 'react-chartjs-2';
+import { Bar, Line, Pie } from 'react-chartjs-2';
 import api from '@/lib/api';
 
 ChartJS.register(
@@ -46,12 +46,21 @@ interface DashboardData {
   yesterdayMilkProduction: number;
   todayRevenue: number;
   yesterdayRevenue: number;
+  monthMilkProduction: number;
+  totalMilkProduction: number;
+  monthRevenue: number;
+  totalRevenue: number;
   todayExpense: number;
   yesterdayExpense: number;
+  monthExpense: number;
+  totalExpense: number;
+  todayProfit: number;
   currentMonthProfit: number;
+  totalProfit: number;
   productionChartData: Record<string, number>;
   revenueChartData: Record<string, number>;
   expenseChartData: Record<string, number>;
+  expensePieChartData: Record<string, number>;
   topMilkers: TopMilker[];
 }
 
@@ -89,8 +98,29 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState(getTodayDateString());
   const [shiftFilter, setShiftFilter] = useState<'MORNING' | 'ALL' | 'EVENING'>('ALL');
 
-  const [revenuePeriod, setRevenuePeriod] = useState<'daily'|'monthly'>('monthly');
-  const [expensePeriod, setExpensePeriod] = useState<'daily'|'monthly'>('monthly');
+  const [milkPeriod, setMilkPeriod] = useState<'daily'|'monthly'|'total'>('daily');
+  const [revenuePeriod, setRevenuePeriod] = useState<'daily'|'monthly'|'total'>('monthly');
+  const [expensePeriod, setExpensePeriod] = useState<'daily'|'monthly'|'total'>('monthly');
+  const [profitPeriod, setProfitPeriod] = useState<'daily'|'monthly'|'total'>('monthly');
+  
+  // Modal states
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [modalPeriod, setModalPeriod] = useState<'CURRENT_MONTH'|'LAST_2_MONTHS'|'LAST_3_MONTHS'|'ALL_TIME'>('CURRENT_MONTH');
+  const [modalExpenses, setModalExpenses] = useState<any[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showExpenseModal && modalExpenses.length === 0) {
+      setModalLoading(true);
+      api.get('/expenses').then(res => {
+        setModalExpenses(res.data);
+      }).catch(err => {
+        console.error("Failed to load expenses for modal", err);
+      }).finally(() => setModalLoading(false));
+    }
+  }, [showExpenseModal]);
+
   const finChartRef = React.useRef<any>(null);
   const overlayRef = React.useRef<HTMLDivElement>(null);
 
@@ -210,14 +240,48 @@ export default function DashboardPage() {
   const revenueTrend = Math.round(data.todayRevenue - data.yesterdayRevenue);
   const expenseTrend = Math.round(data.todayExpense - data.yesterdayExpense);
 
-  const currentMonthRev = data.revenueChartData ? (Object.values(data.revenueChartData).pop() || 0) : 0;
-  const currentMonthExp = data.expenseChartData ? (Object.values(data.expenseChartData).pop() || 0) : 0;
+  const displayMilk = milkPeriod === 'monthly' ? (data.monthMilkProduction || 0) : milkPeriod === 'total' ? (data.totalMilkProduction || 0) : data.todayMilkProduction;
+  const displayMilkLabel = milkPeriod === 'monthly' ? 'Month Milk Production' : milkPeriod === 'total' ? 'Total Milk Production' : 'Today Milk Production';
+  
+  const displayRev = revenuePeriod === 'monthly' ? (data.monthRevenue || 0) : revenuePeriod === 'total' ? (data.totalRevenue || 0) : data.todayRevenue;
+  const displayRevLabel = revenuePeriod === 'monthly' ? 'Current Month Revenue' : revenuePeriod === 'total' ? 'Total Revenue' : 'Today Revenue';
+  
+  const displayExp = expensePeriod === 'monthly' ? (data.monthExpense || 0) : expensePeriod === 'total' ? (data.totalExpense || 0) : data.todayExpense;
+  const displayExpLabel = expensePeriod === 'monthly' ? 'Current Month Expense' : expensePeriod === 'total' ? 'Total Expense' : 'Today Expense';
+  
+  const displayProfit = profitPeriod === 'monthly' ? (data.currentMonthProfit || 0) : profitPeriod === 'total' ? (data.totalProfit || 0) : (data.todayProfit || 0);
+  const displayProfitLabel = profitPeriod === 'monthly' ? 'Month Net Profit' : profitPeriod === 'total' ? 'Total Net Profit' : 'Today Net Profit';
 
-  const displayRev = revenuePeriod === 'monthly' ? currentMonthRev : data.todayRevenue;
-  const displayRevLabel = revenuePeriod === 'monthly' ? 'Current Month Revenue' : 'Today Revenue';
-  const displayExp = expensePeriod === 'monthly' ? currentMonthExp : data.todayExpense;
-  const displayExpLabel = expensePeriod === 'monthly' ? 'Current Month Expense' : 'Today Expense';
-  const computedNetProfit = Math.round(currentMonthRev - currentMonthExp);
+  // Modal logic
+  const filteredModalExpenses = modalExpenses.filter(e => {
+    if (modalPeriod === 'ALL_TIME') return true;
+    const date = new Date(e.date);
+    const now = new Date();
+    if (modalPeriod === 'CURRENT_MONTH') {
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    } else if (modalPeriod === 'LAST_2_MONTHS') {
+      const twoMonthsAgo = new Date();
+      twoMonthsAgo.setMonth(now.getMonth() - 2);
+      return date >= twoMonthsAgo;
+    } else if (modalPeriod === 'LAST_3_MONTHS') {
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(now.getMonth() - 3);
+      return date >= threeMonthsAgo;
+    }
+    return true;
+  });
+
+  const modalPieDataMap = filteredModalExpenses.reduce((acc, curr) => {
+    acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const modalPieLabels = Object.keys(modalPieDataMap).sort((a, b) => modalPieDataMap[b] - modalPieDataMap[a]);
+  const modalPieValues = modalPieLabels.map(label => modalPieDataMap[label]);
+
+  const categoryExpenses = selectedPieCategory 
+    ? filteredModalExpenses.filter(e => e.category === selectedPieCategory).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : [];
 
   const prodChartData = {
     labels: Object.keys(data.productionChartData),
@@ -414,12 +478,14 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard 
-          label="Milk Production" 
-          value={`${Math.round(data.todayMilkProduction * 10) / 10} L`} 
-          trend={`${parseFloat(Math.abs(productionTrend).toFixed(1))}L vs yesterday`} 
+          label={displayMilkLabel} 
+          value={`${Math.round(displayMilk * 10) / 10} L`} 
+          trend={milkPeriod === 'daily' ? `${parseFloat(Math.abs(productionTrend).toFixed(1))}L vs yesterday` : undefined} 
           trendType={productionTrend >= 0 ? "up" : "down"} 
           icon="🥛" 
           variant={productionTrend >= 0 ? "green" : "red"}
+          period={milkPeriod}
+          onPeriodChange={setMilkPeriod}
         />
         <StatCard 
           label={displayRevLabel} 
@@ -440,15 +506,148 @@ export default function DashboardPage() {
           variant="amber"
           period={expensePeriod}
           onPeriodChange={setExpensePeriod}
+          onIconClick={() => setShowExpenseModal(true)}
         />
         <StatCard 
-          label="Net Profit" 
-          value={`₹${computedNetProfit}`} 
+          label={displayProfitLabel} 
+          value={`₹${Math.round(displayProfit)}`} 
           icon="📈"
-          variant={computedNetProfit >= 0 ? "green" : "red"}
-          subValue="Current Month"
+          variant={displayProfit >= 0 ? "green" : "red"}
+          period={profitPeriod}
+          onPeriodChange={setProfitPeriod}
         />
       </div>
+
+      {showExpenseModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm" onClick={() => { setShowExpenseModal(false); setSelectedPieCategory(null); }}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b border-border-custom">
+              <h3 className="font-bold text-xl text-text">Expenses Dashboard</h3>
+              <button onClick={() => { setShowExpenseModal(false); setSelectedPieCategory(null); }} className="text-text3 hover:text-text bg-surface2 p-1.5 rounded-md transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-2">
+              {/* Left Column: Chart */}
+              <div className="p-6 border-r border-border-custom overflow-y-auto">
+                <div className="flex justify-between items-center mb-6">
+                  <h4 className="font-bold text-text">Distribution by Category</h4>
+                  <select 
+                    value={modalPeriod} 
+                    onChange={e => { setModalPeriod(e.target.value as any); setSelectedPieCategory(null); }}
+                    className="border border-border-custom rounded-md text-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand"
+                  >
+                    <option value="CURRENT_MONTH">Current Month</option>
+                    <option value="LAST_2_MONTHS">Last 2 Months</option>
+                    <option value="LAST_3_MONTHS">Last 3 Months</option>
+                    <option value="ALL_TIME">All Time</option>
+                  </select>
+                </div>
+                
+                {modalLoading ? (
+                  <div className="h-64 flex items-center justify-center text-text3">Loading expenses...</div>
+                ) : modalPieLabels.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-text3">No expenses found for this period.</div>
+                ) : (
+                  <div className="h-64 relative cursor-pointer">
+                    <Pie
+                      data={{
+                        labels: modalPieLabels,
+                        datasets: [{
+                          data: modalPieValues,
+                          backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#8A2BE2'
+                          ],
+                          borderWidth: 2,
+                          hoverOffset: 10
+                        }]
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { position: 'bottom' },
+                          tooltip: {
+                            callbacks: {
+                              label: function(context: any) {
+                                let label = context.label || '';
+                                if (label) {
+                                  label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                  label += '₹' + context.parsed;
+                                  const total = context.dataset.data.reduce((acc: number, curr: number) => acc + curr, 0);
+                                  const percentage = ((context.parsed / total) * 100).toFixed(1) + '%';
+                                  label += ' (' + percentage + ')';
+                                }
+                                return label;
+                              }
+                            }
+                          }
+                        },
+                        onClick: (event, elements, chart) => {
+                          if (elements.length > 0) {
+                            const dataIndex = elements[0].index;
+                            const label = chart.data.labels![dataIndex] as string;
+                            setSelectedPieCategory(label);
+                          } else {
+                            setSelectedPieCategory(null);
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="mt-6 text-[12px] text-text3 text-center">
+                  Click on any slice of the pie chart to view specific entries.
+                </div>
+              </div>
+
+              {/* Right Column: Entries */}
+              <div className="p-6 bg-surface overflow-y-auto">
+                {selectedPieCategory ? (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-bold text-text flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#36A2EB' }}></span>
+                        {selectedPieCategory} Entries
+                      </h4>
+                      <span className="text-sm font-bold text-text2">
+                        Total: ₹{modalPieDataMap[selectedPieCategory] || 0}
+                      </span>
+                    </div>
+                    {categoryExpenses.length === 0 ? (
+                      <div className="text-sm text-text3 mt-4">No entries found.</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {[...categoryExpenses].sort((a, b) => (b.amount || 0) - (a.amount || 0)).map(expense => (
+                          <div key={expense.id} className="bg-white p-3 rounded-lg border border-border-custom shadow-sm flex justify-between items-center">
+                            <div>
+                              <div className="text-sm font-semibold text-text">{expense.description || 'No description'}</div>
+                              <div className="text-[11px] text-text3">{new Date(expense.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                            </div>
+                            <div className="font-bold text-danger text-sm">
+                              ₹{expense.amount}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center text-text3">
+                    <svg className="w-12 h-12 text-border-custom mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                    </svg>
+                    <p className="text-sm">Select a category from the chart<br/>to view its detailed expense entries.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-radius-custom-lg p-5 border border-border-custom card-shadow">

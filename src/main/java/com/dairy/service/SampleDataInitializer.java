@@ -24,6 +24,8 @@ public class SampleDataInitializer implements CommandLineRunner {
     @Autowired private MilkRecordRepository milkRecordRepository;
     @Autowired private SaleRepository saleRepository;
     @Autowired private ExpenseRepository expenseRepository;
+    @Autowired private com.dairy.repository.FeedMasterRepository feedMasterRepository;
+    @Autowired private com.dairy.repository.FeedNutritionRepository feedNutritionRepository;
     @Autowired private IncomeRepository incomeRepository;
     @Autowired private StaffRepository staffRepository;
     @Autowired private InventoryRepository inventoryRepository;
@@ -54,7 +56,70 @@ public class SampleDataInitializer implements CommandLineRunner {
         seedUsers(staffList, customers);
         
         updateExistingHerds();
+        updateExistingFeeds();
         logger.info("Identity Seeding finished.");
+    }
+
+    private void updateExistingFeeds() {
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            java.io.InputStream is = new org.springframework.core.io.ClassPathResource("feed_seed_data.json").getInputStream();
+            List<Map<String, Object>> seedData = mapper.readValue(is, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
+            
+            Map<String, Map<String, Object>> seedMap = new java.util.HashMap<>();
+            for (Map<String, Object> sd : seedData) {
+                seedMap.put((String) sd.get("feedName"), sd);
+            }
+
+            List<FeedMaster> feeds = feedMasterRepository.findAll();
+            for (FeedMaster f : feeds) {
+                boolean updated = false;
+                
+                // Ensure placeholder image
+                if (f.getImageUrl() == null || f.getImageUrl().contains("unsplash")) {
+                    f.setImageUrl("/feed-placeholder.jpg");
+                    updated = true;
+                }
+
+                // Sync accurate data from JSON
+                Map<String, Object> sd = seedMap.get(f.getFeedName());
+                if (sd != null) {
+                    if (sd.containsKey("scientificName") && !String.valueOf(sd.get("scientificName")).equals(f.getScientificName())) {
+                        f.setScientificName((String) sd.get("scientificName"));
+                        updated = true;
+                    }
+                    if (sd.containsKey("costRating") && !String.valueOf(sd.get("costRating")).equals(f.getCostRating())) {
+                        f.setCostRating((String) sd.get("costRating"));
+                        updated = true;
+                    }
+                }
+                
+                if (updated) {
+                    feedMasterRepository.save(f);
+                }
+                
+                // Seed FeedNutrition accurate fields
+                feedNutritionRepository.findByFeedMasterId(f.getId()).ifPresent(nut -> {
+                    boolean nutUpdated = false;
+                    if (sd != null && sd.containsKey("primaryNutrient")) {
+                        String accurateNutrient = (String) sd.get("primaryNutrient");
+                        if (!accurateNutrient.equals(nut.getPrimaryNutrient())) {
+                            nut.setPrimaryNutrient(accurateNutrient);
+                            nutUpdated = true;
+                        }
+                    }
+                    if (nut.getNutritionRating() == null) {
+                        nut.setNutritionRating("High");
+                        nutUpdated = true;
+                    }
+                    if (nutUpdated) {
+                        feedNutritionRepository.save(nut);
+                    }
+                });
+            }
+        } catch (Exception e) {
+            logger.error("Failed to sync accurate feed data: " + e.getMessage(), e);
+        }
     }
 
     private void updateExistingHerds() {

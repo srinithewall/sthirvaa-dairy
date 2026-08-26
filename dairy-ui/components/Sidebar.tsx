@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api, { formatImageUrl } from '@/lib/api';
@@ -25,18 +25,13 @@ const sidebarItems: SidebarSection[] = [
   ]},
   { group: 'Farm Management', items: [
     { name: 'Herd Management', icon: Layout, path: '/herds' },
-    { name: 'Milk Production', icon: Droplets, path: '/production' }
+    { name: 'Milk Production', icon: Droplets, path: '/production' },
+    { name: 'Feed Management', icon: Leaf, path: '/feeds' }
   ]},
   { group: 'Business', items: [
     { name: 'Digital Ledger', icon: BarChart3, path: '/ledger' },
     { name: 'Sales', icon: ShoppingCart, path: '/sales' },
     { name: 'Inventory', icon: Package, path: '/inventory' }
-  ]},
-  { group: 'Shop', items: [
-    { name: 'Sthirvaa Shop', icon: ShoppingCart, path: '/shop' },
-    { name: 'My Orders', icon: ClipboardList, path: '/orders' },
-    { name: 'My Invoices', icon: FileText, path: '/invoices' },
-    { name: 'Products Admin', icon: Package2, path: '/admin/products' }
   ]},
   { group: 'Operations', items: [
     { name: 'Staff Management', icon: Users, path: '/staff' }

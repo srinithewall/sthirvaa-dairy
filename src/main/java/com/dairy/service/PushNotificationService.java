@@ -91,6 +91,15 @@ public class PushNotificationService {
         }
     }
 
+    /**
+     * Whether this server can actually deliver a push. False when no Firebase service account
+     * is present - sends are then logged and silently dropped, which is easy to mistake for a
+     * delivery failure on the device.
+     */
+    public boolean isPushConfigured() {
+        return !FirebaseApp.getApps().isEmpty();
+    }
+
     private void sendMobilePush(String token, String title, String message, String username) {
         sendMobilePush(token, title, message, username, null);
     }

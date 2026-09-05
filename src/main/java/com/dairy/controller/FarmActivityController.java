@@ -21,6 +21,9 @@ public class FarmActivityController {
     @Autowired
     private FarmActivityService activityService;
 
+    @Autowired
+    private com.dairy.service.ChoreReminderService choreReminderService;
+
     // --- Routines ---
 
     @GetMapping("/templates")
@@ -99,6 +102,19 @@ public class FarmActivityController {
     public FarmActivityLog assignLog(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Long staffId = body.get("staffId") != null ? ((Number) body.get("staffId")).longValue() : null;
         return activityService.assignLog(id, staffId);
+    }
+
+    /**
+     * Fires one reminder to the caller's own device right now, bypassing the 2h interval and the
+     * daytime window. For checking the push and deep-link path without waiting for a sweep.
+     * Never pushes to anyone else, and does not disturb the real reminder cadence.
+     */
+    @PostMapping("/reminders/test")
+    public ResponseEntity<Map<String, Object>> sendTestReminder(
+            @RequestParam(value = "logId", required = false) Long logId) {
+        Map<String, Object> report = choreReminderService.sendTestReminderToCurrentUser(logId);
+        boolean sent = Boolean.TRUE.equals(report.get("sent"));
+        return sent ? ResponseEntity.ok(report) : ResponseEntity.badRequest().body(report);
     }
 
     @ExceptionHandler(FarmActivityService.RoutineNotEditableException.class)

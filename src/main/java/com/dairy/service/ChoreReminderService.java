@@ -10,6 +10,8 @@ import com.dairy.repo.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -19,6 +21,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -136,6 +139,105 @@ public class ChoreReminderService {
             // A failing rule must not silence the reminder - fall through and push as usual.
             logger.warn("Completion check for chore {} failed", log.getId(), ex);
             return false;
+        }
+    }
+
+    /**
+     * Sends one reminder to the calling user immediately, for testing.
+     *
+     * Ignores the 2h interval and the daytime window, and pushes regardless of role - so a chore
+     * can be checked at any hour from any account. It deliberately does NOT record the send: the
+     * real cadence and the daily cap are left untouched, so testing cannot eat the day's budget
+     * or delay the genuine reminders.
+     *
+     * Only ever pushes to the caller's own device.
+     */
+    public Map<String, Object> sendTestReminderToCurrentUser(Long logId) {
+        Map<String, Object> report = new HashMap<>();
+
+        User user = currentUser();
+        if (user == null) {
+            report.put("sent", false);
+            report.put("reason", "Could not identify the signed-in user.");
+            return report;
+        }
+        report.put("recipient", user.getUsername());
+        report.put("role", user.getRole() != null ? user.getRole().name() : null);
+
+        FarmActivityLog log = resolveLog(logId);
+        if (log == null) {
+            report.put("sent", false);
+            report.put("reason", "No open chore to remind about. Pass logId to target a specific one.");
+            return report;
+        }
+
+        FarmActivity activity;
+        try {
+            activity = activityService.getActivity(log.getActivityId());
+        } catch (Exception ex) {
+            report.put("sent", false);
+            report.put("reason", "The chore's routine could not be loaded.");
+            return report;
+        }
+
+        String token = user.getFcmToken();
+        if (token == null || token.trim().isEmpty()) {
+            report.put("sent", false);
+            report.put("reason", "This account has no FCM token registered. Open the app on the "
+                    + "device and sign in as this user first.");
+            return report;
+        }
+
+        if (!pushNotificationService.isPushConfigured()) {
+            report.put("sent", false);
+            report.put("reason", "Firebase is not configured on this server, so the push can be "
+                    + "logged but not delivered. Expected on a local backend; on the deployed "
+                    + "server it means the service account is missing.");
+            return report;
+        }
+
+        Map<String, String> data = payloadFor(activity, log);
+        pushNotificationService.sendMobilePush(
+                token,
+                "Pending chore: " + activity.getTitle(),
+                buildBody(activity, log, LocalDate.now(ZONE)),
+                user.getUsername(),
+                data);
+
+        report.put("sent", true);
+        report.put("logId", log.getId());
+        report.put("chore", activity.getTitle());
+        report.put("dueDate", String.valueOf(log.getDueDate()));
+        report.put("status", String.valueOf(log.getStatus()));
+        report.put("route", data.get("route"));
+        report.put("note", "Cadence untouched - this send does not count toward the daily cap.");
+        return report;
+    }
+
+    /** The requested chore, or the longest-outstanding open one. */
+    private FarmActivityLog resolveLog(Long logId) {
+        if (logId != null) {
+            try {
+                return activityService.getLog(logId);
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+        List<FarmActivityLog> open = logRepository.findByDueDateLessThanEqualAndStatusIn(
+                LocalDate.now(ZONE), OPEN_STATUSES);
+        if (open.isEmpty()) return null;
+        open.sort(Comparator.comparing(FarmActivityLog::getDueDate));
+        return open.get(0);
+    }
+
+    private User currentUser() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || auth.getName() == null) return null;
+            return userRepository.findByEmail(auth.getName())
+                    .orElseGet(() -> userRepository.findByUsername(auth.getName()).orElse(null));
+        } catch (Exception ex) {
+            return null;
         }
     }
 

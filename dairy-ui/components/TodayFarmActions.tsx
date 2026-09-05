@@ -26,9 +26,9 @@ export default function TodayFarmActions() {
   const fetchTodayLogs = async () => {
     try {
       setLoading(true);
-      const d = new Date();
-      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const res = await api.get(`/activities/logs?date=${today}`);
+      // /today = due today plus anything still open from earlier days, so a chore that is
+      // being pushed about is also visible here.
+      const res = await api.get("/activities/today");
       setLogs(res.data);
     } catch (error) {
       console.error("Failed to fetch farm actions:", error);

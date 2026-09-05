@@ -39,3 +39,6 @@ yarn-error.log*
 
 # Claude Code personal settings (machine-specific paths, DB access)
 .claude/settings.local.json
+
+# Local run logs
+*.log

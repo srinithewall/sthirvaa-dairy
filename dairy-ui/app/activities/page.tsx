@@ -76,7 +76,7 @@ function ActivitiesPageInner() {
   const fetchTodayLogs = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/activities/logs?date=${localDate(new Date())}`);
+      const res = await api.get("/activities/today");
       setLogs(res.data);
     } catch (err) {
       console.error(err);
@@ -137,6 +137,8 @@ function ActivitiesPageInner() {
 
   const pendingLogs = logs.filter(l => l.status === "PENDING" || l.status === "OVERDUE");
   const completedLogs = logs.filter(l => l.status === "COMPLETED");
+  // Carried over from earlier days - the server sorts these to the front.
+  const overdueCount = pendingLogs.filter(l => l.status === "OVERDUE").length;
 
   return (
     <AppLayout>
@@ -189,6 +191,12 @@ function ActivitiesPageInner() {
                 {pendingLogs.length > 0 && (
                   <div>
                     <h2 className="text-sm font-semibold text-text3 uppercase mb-3 px-1">To Do ({pendingLogs.length})</h2>
+                    {overdueCount > 0 && (
+                      <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-800 text-xs font-medium">
+                        <AlertTriangle size={14} className="flex-shrink-0" />
+                        {overdueCount} task{overdueCount === 1 ? "" : "s"} carried over from earlier days
+                      </div>
+                    )}
                     <div className="space-y-3">
                       {pendingLogs.map(log => {
                         const hasRoute = !!log.activityDetails?.actionRoute;

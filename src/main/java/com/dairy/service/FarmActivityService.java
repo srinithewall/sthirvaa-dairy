@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -156,12 +157,29 @@ public class FarmActivityService {
     // --- Occurrences (logs / chores) ---
 
     public List<FarmActivityLog> getLogsForDate(LocalDate date) {
+        return enrich(materialise(date));
+    }
+
+    /**
+     * The day's occurrences plus anything still open from earlier days. The reminder engine
+     * already nags about overdue chores, so leaving them off the checklist meant staff were
+     * pushed about work they could not find in the app.
+     */
+    public List<FarmActivityLog> getLogsForDateIncludingOverdue(LocalDate date) {
+        List<FarmActivityLog> logs = new ArrayList<>(logRepository.findByDueDateLessThanAndStatusIn(date, OPEN_STATUSES));
+        logs.addAll(materialise(date));
+        // Oldest first, so what has been waiting longest is at the top of the list.
+        logs.sort(Comparator.comparing(FarmActivityLog::getDueDate));
+        return enrich(logs);
+    }
+
+    private List<FarmActivityLog> materialise(LocalDate date) {
         List<FarmActivityLog> logs = logRepository.findByDueDate(date);
         // The nightly job normally has these already; re-read only if we actually had to create one.
         if (generateMissing(date, logs) > 0) {
             logs = logRepository.findByDueDate(date);
         }
-        return enrich(logs);
+        return new ArrayList<>(logs);
     }
 
     public List<FarmActivityLog> getLogsBetween(LocalDate start, LocalDate end) {

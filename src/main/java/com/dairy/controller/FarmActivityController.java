@@ -58,8 +58,12 @@ public class FarmActivityController {
     // --- Occurrences ---
 
     @GetMapping("/logs")
-    public List<FarmActivityLog> getLogsForDate(@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return activityService.getLogsForDate(date);
+    public List<FarmActivityLog> getLogsForDate(
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(name = "includeOverdue", defaultValue = "false") boolean includeOverdue) {
+        return includeOverdue
+                ? activityService.getLogsForDateIncludingOverdue(date)
+                : activityService.getLogsForDate(date);
     }
 
     @GetMapping("/logs/range")
@@ -74,9 +78,10 @@ public class FarmActivityController {
         return activityService.getLog(id);
     }
 
+    /** The actionable list: due today, plus anything still open from earlier days. */
     @GetMapping("/today")
     public List<FarmActivityLog> getLogsForToday() {
-        return activityService.getLogsForDate(LocalDate.now());
+        return activityService.getLogsForDateIncludingOverdue(LocalDate.now());
     }
 
     @PatchMapping("/logs/{id}/status")

@@ -73,8 +73,20 @@ public class FeedMaster {
     
     @Column(name = "reference_source")
     private String referenceSource;
-    
+
     private String status = "ACTIVE";
+
+    // Feed Optimizer constraint fields (nullable - populated separately as real
+    // data is entered; the optimizer treats null cost as "no cost contribution"
+    // and null min/max as 0 / a configurable default ceiling, never a fabricated number).
+    @Column(name = "cost_per_kg_as_fed")
+    private Double costPerKgAsFed;
+
+    @Column(name = "min_daily_qty_kg")
+    private Double minDailyQtyKg;
+
+    @Column(name = "max_daily_qty_kg")
+    private Double maxDailyQtyKg;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -167,6 +179,15 @@ public class FeedMaster {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public Double getCostPerKgAsFed() { return costPerKgAsFed; }
+    public void setCostPerKgAsFed(Double costPerKgAsFed) { this.costPerKgAsFed = costPerKgAsFed; }
+
+    public Double getMinDailyQtyKg() { return minDailyQtyKg; }
+    public void setMinDailyQtyKg(Double minDailyQtyKg) { this.minDailyQtyKg = minDailyQtyKg; }
+
+    public Double getMaxDailyQtyKg() { return maxDailyQtyKg; }
+    public void setMaxDailyQtyKg(Double maxDailyQtyKg) { this.maxDailyQtyKg = maxDailyQtyKg; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

@@ -36,7 +36,7 @@ public class OrderController {
     public List<Order> getMyOrders() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
-                .map(user -> orderRepository.findByUserId(user.getId()))
+                .map(user -> orderRepository.findByUserIdWithItems(user.getId()))
                 .orElse(java.util.Collections.emptyList());
     }
 

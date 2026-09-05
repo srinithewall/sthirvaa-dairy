@@ -1,0 +1,492 @@
+
+> dairy-ui@0.1.1 dev
+> node scripts/generate-changelog.js && next dev -p 8006 -H 0.0.0.0
+
+Changelog generated successfully!
+   ▲ Next.js 15.1.5
+   - Local:        http://localhost:8006
+   - Network:      http://0.0.0.0:8006
+
+ ✓ Starting...
+ ✓ Ready in 8.6s
+ ○ Compiling / ...
+ ✓ Compiled / in 13.7s (1608 modules)
+ GET / 200 in 14820ms
+ ✓ Compiled in 1160ms (764 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 1844ms (1610 modules)
+ GET /login 200 in 2268ms
+(node:35224) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ○ Compiling / ...
+ ✓ Compiled / in 591ms (856 modules)
+ GET / 200 in 1341ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1075ms (1619 modules)
+ GET /_next/static/chunks/app/LayoutGroupContext.mjs.map 404 in 234ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1265ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1801ms (1733 modules)
+ GET /dashboard 200 in 2059ms
+ GET /dashboard 200 in 75ms
+ GET /dashboard 200 in 50ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 341ms
+ GET /_next/static/chunks/app/LayoutGroupContext.mjs.map 404 in 148ms
+ ○ Compiling /activities ...
+ ✓ Compiled /activities in 1670ms (1744 modules)
+ GET /activities 200 in 2004ms
+ ○ Compiling /herds ...
+ ✓ Compiled /herds in 4.7s (1801 modules)
+ GET /herds 200 in 5079ms
+ GET /herds 200 in 74ms
+ GET /herds 200 in 72ms
+ ○ Compiling /api/semen-catalog ...
+ ✓ Compiled /api/semen-catalog in 6.7s (1046 modules)
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 7373ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 140ms
+ GET /herds 200 in 567ms
+ GET /activities 200 in 580ms
+ GET /dashboard 200 in 83ms
+ GET /herds 200 in 82ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 115ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 85ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 64ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 58ms
+ GET /herds 200 in 96ms
+ GET /dashboard 200 in 61ms
+ GET /herds 200 in 66ms
+ ○ Compiling /production ...
+ ✓ Compiled /production in 3.3s (1829 modules)
+ GET /production 200 in 3672ms
+ GET /herds 200 in 105ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 508ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 54ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 74ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 64ms
+ GET /production 200 in 119ms
+ GET /herds 200 in 76ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 72ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 57ms
+ GET /dashboard 200 in 190ms
+ GET /activities 200 in 283ms
+ GET /herds 200 in 73ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 89ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 74ms
+ GET /production 200 in 84ms
+ GET /herds 200 in 69ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 76ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 59ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 63ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 61ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.5s (1822 modules)
+ GET /_next/static/chunks/app/LayoutGroupContext.mjs.map 404 in 2363ms
+ GET /_next/static/chunks/app/herds/LayoutGroupContext.mjs.map 404 in 2372ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 3387ms
+ GET /_next/static/chunks/app/production/LayoutGroupContext.mjs.map 404 in 2372ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 407ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 51ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 119ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 115ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 95ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 65ms
+ GET /activities 200 in 111ms
+ GET /production 200 in 95ms
+ ○ Compiling /ledger ...
+ ✓ Compiled /ledger in 3.9s (1845 modules)
+ GET /ledger 200 in 5006ms
+ ✓ Compiled in 1430ms (877 modules)
+ GET /activities 200 in 1032ms
+ GET /ledger 200 in 463ms
+ GET /activities 200 in 117ms
+ GET /ledger 200 in 112ms
+ GET /ledger 200 in 69ms
+ GET /production 200 in 166ms
+Failed to proxy http://localhost:8080/api/activities/today [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+ ○ Compiling /_error ...
+Failed to proxy http://localhost:8080/api/activities/today [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+ ✓ Compiled /_error in 6s (2089 modules)
+ GET /production 200 in 4471ms
+ GET /activities 200 in 4480ms
+ GET /production 200 in 99ms
+ GET /activities 200 in 108ms
+ GET /production 200 in 128ms
+ GET /activities 200 in 120ms
+Failed to proxy http://localhost:8080/api/customers [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/milk-dispatch/by-date?date=2026-07-24 [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/customers [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/milk-dispatch/by-date?date=2026-07-24 [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/customers [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/milk-dispatch/by-date?date=2026-07-24 [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/customers [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/milk-dispatch/by-date?date=2026-07-24 [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+ GET /production 200 in 94ms
+ GET /ledger 200 in 115ms
+Failed to proxy http://localhost:8080/api/activities/today [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/categories [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/expenses [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/income [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/herds [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/activities/today [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/staff/5 [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/categories [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/expenses [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/income [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/herds [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/activities/today [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+ GET /ledger 200 in 2134ms
+Failed to proxy http://localhost:8080/api/activities/today [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/categories [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/expenses [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/income [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/herds [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/staff/5 [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/activities/today [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+Failed to proxy http://localhost:8080/api/activities/today [AggregateError: ] { code: 'ECONNREFUSED' }
+[AggregateError: ] { code: 'ECONNREFUSED' }
+ GET /dashboard 200 in 290ms
+ GET /activities 200 in 153ms
+ GET /ledger 200 in 240ms
+ GET /herds 200 in 167ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 458ms
+[semen-catalog] backend unavailable, using fallback: Error: Backend returned 401
+    at GET (app\api\semen-catalog\route.ts:103:23)
+  101 |     });
+  102 |
+> 103 |     if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      |                       ^
+  104 |
+  105 |     const data = await res.json();
+  106 |     return NextResponse.json(data); {
+  
+}
+ GET /api/semen-catalog?animalType=COW 200 in 63ms
+ GET /production 200 in 48ms
+ GET /dashboard 200 in 66ms
+ GET /herds 200 in 60ms
+ GET /production 200 in 69ms
+ ○ Compiling /feeds ...
+ ✓ Compiled /feeds in 4.4s (2126 modules)
+ GET /feeds 200 in 5323ms
+ ✓ Compiled in 1146ms (1098 modules)
+ GET /feeds 200 in 1720ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 1991ms (1039 modules)
+ GET /login 200 in 2646ms
+ GET /dashboard 200 in 107ms
+ GET /feeds 200 in 112ms
+ ✓ Compiled in 3.2s (1098 modules)
+ ✓ Compiled in 1293ms (1098 modules)
+ GET /feeds 200 in 405ms
+ GET /feeds 200 in 40ms
+ ✓ Compiled in 3.4s (2104 modules)
+ GET /feeds 200 in 293ms
+ ✓ Compiled in 3.9s (2108 modules)
+ GET /feeds 200 in 305ms
+ ✓ Compiled in 4.2s (2108 modules)
+ GET /feeds 200 in 303ms
+[?25h

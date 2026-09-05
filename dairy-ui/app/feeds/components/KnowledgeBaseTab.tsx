@@ -1,24 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import React, { useMemo } from 'react';
 
-export default function KnowledgeBaseTab() {
-  const [feeds, setFeeds] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+interface Props {
+  /** Raw { feed, nutrition, knowledge } rows, owned by the page and shared across tabs. */
+  feeds: any[];
+  loading: boolean;
+}
 
-  useEffect(() => {
-    fetchFeeds();
-  }, []);
-
-  const fetchFeeds = async () => {
-    try {
-      const res = await api.get('/feeds');
-      setFeeds(res.data.map((d: any) => d.feed || d));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function KnowledgeBaseTab({ feeds: feedRows, loading }: Props) {
+  const feeds = useMemo(() => (feedRows || []).map((d: any) => d.feed || d), [feedRows]);
 
   return (
     <div className="flex flex-col h-full">

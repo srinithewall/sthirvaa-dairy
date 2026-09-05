@@ -10,7 +10,7 @@ public class AnimalRequirement {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "animal_stage", nullable = false, unique = true)
+    @Column(name = "animal_stage", nullable = false)
     private String animalStage;
 
     private String breed;

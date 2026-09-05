@@ -1,0 +1,2 @@
+mv: cannot move '/tmp/tmp.vjekZAl13z/apache-maven-3.9.6' to '/c/Users/SIPL4129/.m2/wrapper/dists/apache-maven-3.9.6/a53741d1': Permission denied
+fail to move MAVEN_HOME

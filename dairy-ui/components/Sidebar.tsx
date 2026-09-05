@@ -26,10 +26,12 @@ const sidebarItems: SidebarSection[] = [
   { group: 'Farm Management', items: [
     { name: 'Herd Management', icon: Layout, path: '/herds' },
     { name: 'Milk Production', icon: Droplets, path: '/production' },
-    { name: 'Feed Management', icon: Leaf, path: '/feeds' }
+    { name: 'Feed Management', icon: Leaf, path: '/feeds' },
+    { name: 'Farm Chores', icon: ClipboardList, path: '/activities' }
   ]},
   { group: 'Business', items: [
-    { name: 'Digital Ledger', icon: BarChart3, path: '/ledger' },
+    { name: 'Reports & Analytics', icon: BarChart3, path: '/reports' },
+    { name: 'Digital Ledger', icon: FileText, path: '/ledger' },
     { name: 'Sales', icon: ShoppingCart, path: '/sales' },
     { name: 'Inventory', icon: Package, path: '/inventory' }
   ]},

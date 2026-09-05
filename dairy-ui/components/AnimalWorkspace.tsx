@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
+import WeightTracker from '@/components/WeightTracker';
 
 /* ─── Types ─────────────────────────────────────── */
 interface Herd {
@@ -982,7 +983,7 @@ export default function AnimalWorkspace({
   herd, events, loadingEvents, userRole, failedImages,
   onBack, onEdit, onDelete, onEventAdded, onEventDeleted, onImageError,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<'overview'|'breeding'|'health'|'history'|'details'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview'|'breeding'|'health'|'history'|'details'|'weight'>('overview');
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showSemenSelection, setShowSemenSelection] = useState(false);
   const [prefillType, setPrefillType] = useState<string|undefined>();
@@ -1409,6 +1410,7 @@ export default function AnimalWorkspace({
             { id: 'breeding',  label: 'AI Service', icon: <Syringe size={18} /> },
             { id: 'health',    label: 'Health',     icon: <Heart size={18} /> },
             { id: 'history',   label: 'History',    icon: <Clock size={18} /> },
+            { id: 'weight',    label: 'Weight',     icon: <Activity size={18} /> },
             { id: 'details',   label: 'Details',    icon: <Info size={18} /> },
           ] as const).map(tab => (
             <button
@@ -1777,6 +1779,12 @@ export default function AnimalWorkspace({
         )}
 
         {/* ─── DETAILS TAB ─── */}
+        {activeTab==='weight' && (
+          <div className="animate-in fade-in duration-200">
+            <WeightTracker herdId={herd.id} />
+          </div>
+        )}
+
         {activeTab==='details' && (
           <div className="p-4 space-y-4 max-w-2xl mx-auto animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

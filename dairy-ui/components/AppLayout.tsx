@@ -39,6 +39,14 @@ export default function AppLayout({ children, headerAction, noPadding }: { child
             PushNotifications.addListener('registrationError', (error: any) => {
               console.error('Error on registration: ', error);
             });
+
+            // Tapping a reminder should land on the screen that clears it.
+            PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
+              const route = action?.notification?.data?.route;
+              if (typeof route === 'string' && route.startsWith('/')) {
+                router.push(route);
+              }
+            });
           }
         }
       } catch (err) {

@@ -10,7 +10,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,8 +46,23 @@ public class OrderService {
         order.setGatewayFee(request.getGatewayFee());
         order.setTotal(request.getTotal());
 
+        // Load every product in the cart in one query rather than one per line item.
+        List<Long> productIds = new ArrayList<>();
         for (CheckoutRequestDTO.CheckoutItemDTO itemDto : request.getItems()) {
-            Product product = productRepository.findById(itemDto.getProductId()).orElseThrow();
+            productIds.add(itemDto.getProductId());
+        }
+
+        Map<Long, Product> productsById = new HashMap<>();
+        for (Product product : productRepository.findAllById(productIds)) {
+            productsById.put(product.getId(), product);
+        }
+
+        for (CheckoutRequestDTO.CheckoutItemDTO itemDto : request.getItems()) {
+            Product product = productsById.get(itemDto.getProductId());
+            // Still a hard failure, as before - an order must never quietly lose a line item.
+            if (product == null) {
+                throw new IllegalArgumentException("Unknown product in cart: " + itemDto.getProductId());
+            }
             OrderItem item = new OrderItem(order, product, itemDto.getQuantity(), itemDto.getPrice());
             order.addItem(item);
         }
@@ -56,14 +73,15 @@ public class OrderService {
 
     public List<OrderResponseDTO> getMyOrders(String email) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        List<Order> orders = orderRepository.findByUserId(user.getId());
+        List<Order> orders = orderRepository.findByUserIdWithItems(user.getId());
         // Sort by created at desc
         orders.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         return orders.stream().map(this::mapToResponseDTO).collect(Collectors.toList());
     }
 
     public OrderResponseDTO getOrderById(String id) {
-        Order order = orderRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
+        Order order = orderRepository.findByIdWithItems(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
         return mapToResponseDTO(order);
     }
 

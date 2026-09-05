@@ -36,3 +36,6 @@ yarn-error.log*
 # Firebase credentials
 **/service-account.json
 **/firebase-service-account.json
+
+# Claude Code personal settings (machine-specific paths, DB access)
+.claude/settings.local.json

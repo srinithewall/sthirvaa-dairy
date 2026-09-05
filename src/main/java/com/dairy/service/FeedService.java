@@ -39,16 +39,31 @@ public class FeedService {
     }
 
     public List<FeedResponseDTO> getAllFeedDetails() {
-        List<FeedMaster> feeds = feedMasterRepository.findAll();
-        List<FeedNutrition> nutritions = feedNutritionRepository.findAll();
-        List<FeedKnowledge> knowledges = feedKnowledgeRepository.findAll();
-        
-        java.util.Map<Long, FeedNutrition> nutMap = nutritions.stream().collect(Collectors.toMap(n -> n.getFeedMaster().getId(), n -> n));
-        java.util.Map<Long, FeedKnowledge> knwMap = knowledges.stream().collect(Collectors.toMap(k -> k.getFeedMaster().getId(), k -> k));
+        return buildFeedDetails(feedMasterRepository.findAll());
+    }
+
+    /**
+     * Assembles feed + nutrition + knowledge in three queries total.
+     *
+     * The join fetches are load-bearing: both FeedNutrition.feedMaster and
+     * FeedKnowledge.feedMaster are @OneToOne, which defaults to EAGER, so a plain findAll()
+     * on either issues an extra SELECT per row. With ~110 feeds that was several hundred
+     * round trips and made this endpoint the slowest on the feeds screen.
+     */
+    private List<FeedResponseDTO> buildFeedDetails(List<FeedMaster> feeds) {
+        java.util.Map<Long, FeedNutrition> nutMap = feedNutritionRepository.findAllWithFeedMaster()
+            .stream().collect(Collectors.toMap(n -> n.getFeedMaster().getId(), n -> n));
+        java.util.Map<Long, FeedKnowledge> knwMap = feedKnowledgeRepository.findAllWithFeedMaster()
+            .stream().collect(Collectors.toMap(k -> k.getFeedMaster().getId(), k -> k));
 
         return feeds.stream()
             .map(f -> new FeedResponseDTO(f, nutMap.get(f.getId()), knwMap.get(f.getId())))
             .collect(Collectors.toList());
+    }
+
+    /** Category-filtered variant, sharing the same three-query assembly. */
+    public List<FeedResponseDTO> getFeedDetailsByCategory(String category) {
+        return buildFeedDetails(getFeedsByCategory(category));
     }
 
     public Optional<FeedResponseDTO> getFeedDetails(Long id) {

@@ -24,9 +24,8 @@ public class FeedMasterController {
     public ResponseEntity<List<FeedResponseDTO>> getAllFeeds(
             @RequestParam(required = false) String category) {
         if (category != null && !category.trim().isEmpty()) {
-            return ResponseEntity.ok(feedService.getFeedsByCategory(category).stream()
-                .map(f -> feedService.getFeedDetails(f.getId()).orElse(null))
-                .filter(d -> d != null).collect(Collectors.toList()));
+            // Was two extra queries per feed in the category; now shares the bulk assembly.
+            return ResponseEntity.ok(feedService.getFeedDetailsByCategory(category));
         }
         return ResponseEntity.ok(feedService.getAllFeedDetails());
     }

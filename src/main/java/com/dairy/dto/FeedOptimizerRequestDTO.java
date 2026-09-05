@@ -3,10 +3,17 @@ package com.dairy.dto;
 import java.util.List;
 
 public class FeedOptimizerRequestDTO {
+    // Primary going forward: real animal record drives requirement resolution
+    // (breed/DIM/weight/pregnancy). animalStage below becomes an optional
+    // override, only honored if it exactly matches a seeded AnimalRequirement row.
+    private Long animalId;
     private String animalStage;
     private Double bodyWeight;
     private Double milkYield;
     private List<FeedEntry> feedEntries;
+
+    public Long getAnimalId() { return animalId; }
+    public void setAnimalId(Long animalId) { this.animalId = animalId; }
 
     public String getAnimalStage() { return animalStage; }
     public void setAnimalStage(String animalStage) { this.animalStage = animalStage; }

@@ -33,6 +33,8 @@ interface Herd {
   milkPotential?: number;
   milkPotentialConfidence?: string;
   lactationNumber?: number;
+  calculatedWeight?: number;
+  weightStatus?: string;
 }
 
 interface HerdEvent {

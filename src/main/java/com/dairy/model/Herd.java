@@ -187,6 +187,25 @@ public class Herd {
     public Integer getLactationNumber() { return lactationNumber; }
     public void setLactationNumber(Integer lactationNumber) { this.lactationNumber = lactationNumber; }
 
+    // Days in milk - computed from the most recent LACTATION_STARTED HerdEvent,
+    // only meaningful while animalStatus is LACTATING. See HerdService.enrichHerd.
+    @Transient
+    private Integer dim;
+    public Integer getDim() { return dim; }
+    public void setDim(Integer dim) { this.dim = dim; }
+
+    // Days pregnant - computed from the most recent PREGNANCY_CONFIRMED HerdEvent,
+    // only meaningful while animalStatus is PREGNANT. See HerdService.enrichHerd.
+    @Transient
+    private Integer pregnancyDaysPregnant;
+    public Integer getPregnancyDaysPregnant() { return pregnancyDaysPregnant; }
+    public void setPregnancyDaysPregnant(Integer pregnancyDaysPregnant) { this.pregnancyDaysPregnant = pregnancyDaysPregnant; }
+
+    @Transient
+    private String pregnancyStatus;
+    public String getPregnancyStatus() { return pregnancyStatus; }
+    public void setPregnancyStatus(String pregnancyStatus) { this.pregnancyStatus = pregnancyStatus; }
+
     public Double getCalculatedWeight() { return calculatedWeight; }
     public void setCalculatedWeight(Double calculatedWeight) { this.calculatedWeight = calculatedWeight; }
 

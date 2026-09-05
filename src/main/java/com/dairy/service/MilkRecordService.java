@@ -113,10 +113,10 @@ public class MilkRecordService {
 
             Map<String, Object> dayMap = new HashMap<>();
             dayMap.put("date", date.toString());
-            dayMap.put("morning", morning);
-            dayMap.put("evening", evening);
-            dayMap.put("total", morning + evening);
-            dayMap.put("distributed", distributed);
+            dayMap.put("morning", Math.round(morning * 10.0) / 10.0);
+            dayMap.put("evening", Math.round(evening * 10.0) / 10.0);
+            dayMap.put("total", Math.round((morning + evening) * 10.0) / 10.0);
+            dayMap.put("distributed", Math.round(distributed * 10.0) / 10.0);
             dayMap.put("cowCount", cowCount);
             
             summary.add(dayMap);

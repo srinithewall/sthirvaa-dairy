@@ -1,6 +1,46 @@
 [
   {
     "version": "v0.1.1",
+    "date": "2026-08-27",
+    "commit": "f44c922",
+    "changes": [
+      "fix(docker): enable standalone output in next.config.ts"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-08-27",
+    "commit": "4f2d391",
+    "changes": [
+      "Revert login page redirect to ng app"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-08-27",
+    "commit": "e1bfefe",
+    "changes": [
+      "fix(sso): set correct IDP url and nammagrama base URL"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-08-27",
+    "commit": "4f8af25",
+    "changes": [
+      "fix(sso): resolve redirect race condition and correct SSO tokens"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-08-26",
+    "commit": "cdd02eb",
+    "changes": [
+      "Update DIM text colors, injection icon visibility, and map expenses to individual cows"
+    ]
+  },
+  {
+    "version": "v0.1.0",
     "date": "2026-08-03",
     "commit": "8e2a0ca",
     "changes": [
@@ -77,46 +117,6 @@
     "commit": "3cbf9d6",
     "changes": [
       "feat(backend): add marketValue column to Asset entity"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-16",
-    "commit": "fd9aedf",
-    "changes": [
-      "feat(dashboard): add 3-way shift toggle for daily milk production line chart"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-16",
-    "commit": "6a3a66f",
-    "changes": [
-      "feat(inventory): add purchase cost and market value tracking for cow assets and simplify disposal form"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-16",
-    "commit": "b6511a6",
-    "changes": [
-      "feat(inventory): link asset Category Cow to herds and implement automatic disposal sales/assets update"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-15",
-    "commit": "71353cd",
-    "changes": [
-      "feat(dashboard): add date range filter and clean tooltips/filters for daily milk production graph"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-15",
-    "commit": "d23f28a",
-    "changes": [
-      "feat(dashboard): add Daily Milk Production line chart with cow filter"
     ]
   }
 ]

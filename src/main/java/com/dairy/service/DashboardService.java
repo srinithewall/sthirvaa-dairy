@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,7 +36,9 @@ public class DashboardService {
         LocalDate yesterday = today.minusDays(1);
         
         // 1. Milk Production (Today vs Yesterday)
-        List<MilkRecord> todayRecords = milkRecordRepository.findByDate(today);
+        // Joined to the animal up front: the Top Milkers section below reads record.getHerd(),
+        // which is lazy and would otherwise fetch one row per cow milked today.
+        List<MilkRecord> todayRecords = milkRecordRepository.findByDateWithHerd(today);
         List<MilkRecord> yesterdayRecords = milkRecordRepository.findByDate(yesterday);
         
         double todayMilk = todayRecords.stream().mapToDouble(r -> r.getQuantity() != null ? r.getQuantity() : 0.0).sum();
@@ -124,18 +127,29 @@ public class DashboardService {
         Map<String, Double> expData = new LinkedHashMap<>();
         DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM");
         
+        // Read the whole six-month window once and bucket it by month. This loop used to issue
+        // an income query and an expense query per month - twelve round trips for one chart.
+        LocalDate windowStart = today.minusMonths(5).withDayOfMonth(1);
+        LocalDate windowEnd = today.withDayOfMonth(today.lengthOfMonth());
+
+        Map<YearMonth, Double> revByMonth = new HashMap<>();
+        for (Income inc : incomeRepository.findByDateBetween(windowStart, windowEnd)) {
+            if (inc.getDate() == null) continue;
+            revByMonth.merge(YearMonth.from(inc.getDate()), inc.getAmount() != null ? inc.getAmount() : 0.0, Double::sum);
+        }
+
+        Map<YearMonth, Double> expByMonth = new HashMap<>();
+        for (Expense exp : expenseRepository.findByDateBetween(windowStart, windowEnd)) {
+            if (exp.getDate() == null) continue;
+            expByMonth.merge(YearMonth.from(exp.getDate()), exp.getAmount() != null ? exp.getAmount() : 0.0, Double::sum);
+        }
+
         for (int i = 5; i >= 0; i--) {
             LocalDate monthDate = today.minusMonths(i);
-            LocalDate start = monthDate.withDayOfMonth(1);
-            LocalDate end = monthDate.withDayOfMonth(monthDate.lengthOfMonth());
-            
-            double mRev = incomeRepository.findByDateBetween(start, end)
-                .stream().mapToDouble(inc -> inc.getAmount() != null ? inc.getAmount() : 0.0).sum();
-            double mExp = expenseRepository.findByDateBetween(start, end)
-                .stream().mapToDouble(exp -> exp.getAmount() != null ? exp.getAmount() : 0.0).sum();
-                
-            revData.put(monthDate.format(monthFormatter), mRev);
-            expData.put(monthDate.format(monthFormatter), mExp);
+            YearMonth month = YearMonth.from(monthDate);
+
+            revData.put(monthDate.format(monthFormatter), revByMonth.getOrDefault(month, 0.0));
+            expData.put(monthDate.format(monthFormatter), expByMonth.getOrDefault(month, 0.0));
         }
         
         dto.setRevenueChartData(revData);

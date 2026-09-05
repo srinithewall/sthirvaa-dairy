@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import com.dairy.model.HerdEvent;
 import com.dairy.repo.HerdEventRepository;
@@ -24,6 +25,7 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import com.google.firebase.messaging.AndroidConfig;
 
 @Service
 public class PushNotificationService {
@@ -90,6 +92,14 @@ public class PushNotificationService {
     }
 
     private void sendMobilePush(String token, String title, String message, String username) {
+        sendMobilePush(token, title, message, username, null);
+    }
+
+    /**
+     * Sends a push with an optional data payload. The data block is what the app reads when the
+     * user taps the notification, so it must carry the in-app route to open.
+     */
+    public void sendMobilePush(String token, String title, String message, String username, Map<String, String> data) {
         // Log the push payload prominently
         logger.info("==========================================================================");
         logger.info("PREPARING PUSH NOTIFICATION FOR USER: {} ({})", username, token);
@@ -103,13 +113,24 @@ public class PushNotificationService {
         }
 
         try {
-            Message fcmMessage = Message.builder()
+            Message.Builder builder = Message.builder()
                     .setToken(token)
                     .setNotification(Notification.builder()
                             .setTitle(title)
                             .setBody(message)
-                            .build())
-                    .build();
+                            .build());
+
+            if (data != null && !data.isEmpty()) {
+                // The data block reaches the app as the tapped notification's payload, which is
+                // where the client reads the route from. No click_action - the launcher activity
+                // handles the tap, and naming an action no activity declares would swallow it.
+                builder.putAllData(data);
+                builder.setAndroidConfig(AndroidConfig.builder()
+                        .setPriority(AndroidConfig.Priority.HIGH)
+                        .build());
+            }
+
+            Message fcmMessage = builder.build();
 
             String response = FirebaseMessaging.getInstance().send(fcmMessage);
             logger.info("Successfully sent push notification to {}. Message ID: {}", username, response);

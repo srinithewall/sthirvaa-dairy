@@ -170,7 +170,7 @@ export default function MilkProductionPage() {
             </div>
           ) : (
             paged.map((day) => {
-              const isFullyDistributed = day.distributed >= day.total && day.total > 0;
+              const isFullyDistributed = Math.round(day.distributed * 10) >= Math.round(day.total * 10) && day.total > 0;
               const today = new Date(); today.setHours(0,0,0,0);
               // Parse date parts directly to avoid UTC-vs-local timezone shifting
               const [y, m, d] = day.date.split('-').map(Number);
@@ -276,7 +276,7 @@ export default function MilkProductionPage() {
                 </tr>
               ) : (
                 paged.map((day) => {
-                  const isFullyDistributed = day.distributed >= day.total && day.total > 0;
+                  const isFullyDistributed = Math.round(day.distributed * 10) >= Math.round(day.total * 10) && day.total > 0;
                   return (
                     <tr
                       key={day.date}

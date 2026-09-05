@@ -1,6 +1,8 @@
 package com.dairy.service;
 
+import com.dairy.model.Breed;
 import com.dairy.model.Herd;
+import com.dairy.model.HerdEvent;
 import com.dairy.repo.HerdRepository;
 import com.dairy.repo.HerdEventRepository;
 import com.dairy.repo.MilkRecordRepository;
@@ -8,7 +10,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -29,9 +35,7 @@ public class HerdService {
     private com.dairy.repo.BreedRepository breedRepository;
 
     public List<Herd> getAllHerds() {
-        List<Herd> herds = herdRepository.findAll();
-        herds.forEach(this::enrichHerd);
-        return herds;
+        return enrichAll(herdRepository.findAll());
     }
 
     public Optional<Herd> getHerdById(Long id) {
@@ -59,42 +63,145 @@ public class HerdService {
     }
 
     public List<Herd> getHerdsByAnimalType(String animalType) {
-        List<Herd> herds = herdRepository.findByAnimalType(animalType);
-        herds.forEach(this::enrichHerd);
-        return herds;
+        return enrichAll(herdRepository.findByAnimalType(animalType));
     }
 
     private void enrichHerd(Herd herd) {
-        // 1. Avg Milk 30 Days
-        List<com.dairy.model.MilkRecord> records = milkRecordRepository.findByHerdIdAndDateGreaterThanEqual(herd.getId(), LocalDate.now().minusDays(30));
-        if (records.isEmpty()) {
-            herd.setAvgMilk30Days(0.0);
-        } else {
-            java.util.Map<LocalDate, Double> dailyTotals = new java.util.HashMap<>();
-            for (com.dairy.model.MilkRecord r : records) {
-                dailyTotals.put(r.getDate(), dailyTotals.getOrDefault(r.getDate(), 0.0) + r.getQuantity());
-            }
-            double total = 0.0;
-            for (Double qty : dailyTotals.values()) {
-                total += qty;
-            }
-            herd.setAvgMilk30Days(total / dailyTotals.size());
-        }
-
-        // 2. Lactation Number (Count of CALF_DELIVERED events)
-        long lactationCount = herdEventRepository.countByHerdIdAndEventType(herd.getId(), "CALF_DELIVERED");
-        herd.setLactationNumber((int) lactationCount);
-
-        // 3. Weight Calculation from Breed Master
-        calculateWeightAndStatus(herd);
-
-        // 4. Milk Potential
-        MilkPotentialService.MilkPotentialResult potentialResult = milkPotentialService.calculatePotential(herd, (int) lactationCount);
-        herd.setMilkPotential(potentialResult.getPotential());
-        herd.setMilkPotentialConfidence(potentialResult.getConfidence());
+        List<Herd> single = new ArrayList<>();
+        single.add(herd);
+        enrichAll(single);
     }
 
-    private void calculateWeightAndStatus(Herd herd) {
+    /**
+     * Fills in the derived fields - 30-day average, lactation number, weight, milk potential,
+     * DIM - for a whole list of animals.
+     *
+     * This costs three queries no matter how many animals are passed. Doing it one animal at a
+     * time cost four to five each, which on the herd list meant hundreds of round trips.
+     */
+    private List<Herd> enrichAll(List<Herd> herds) {
+        if (herds.isEmpty()) return herds;
+
+        List<Long> herdIds = new ArrayList<>();
+        for (Herd herd : herds) {
+            if (herd.getId() != null) herdIds.add(herd.getId());
+        }
+        if (herdIds.isEmpty()) return herds;
+
+        // 1. Daily milk totals, aggregated by the database rather than in the loop below.
+        Map<Long, List<Double>> dailyTotalsByHerd = new HashMap<>();
+        for (Object[] row : milkRecordRepository.sumDailyByHerdIdsSince(herdIds, LocalDate.now().minusDays(30))) {
+            if (row[0] == null) continue;
+            Long herdId = ((Number) row[0]).longValue();
+            double litres = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
+            dailyTotalsByHerd.computeIfAbsent(herdId, key -> new ArrayList<>()).add(litres);
+        }
+
+        // 2. Event history for every animal at once, newest first (the ordering is preserved
+        //    within each animal's list).
+        Map<Long, List<HerdEvent>> eventsByHerd = new HashMap<>();
+        for (HerdEvent event : herdEventRepository.findByHerdIdInOrderByEventDateDesc(herdIds)) {
+            eventsByHerd.computeIfAbsent(event.getHerdId(), key -> new ArrayList<>()).add(event);
+        }
+
+        // 3. Breed formulas - a handful of rows, looked up by name below.
+        Map<String, Breed> breedsByName = new HashMap<>();
+        for (Breed breed : breedRepository.findAll()) {
+            if (breed.getName() != null) breedsByName.put(breed.getName().toLowerCase(), breed);
+        }
+
+        for (Herd herd : herds) {
+            List<HerdEvent> events = eventsByHerd.getOrDefault(herd.getId(), Collections.emptyList());
+
+            herd.setAvgMilk30Days(averageOf(dailyTotalsByHerd.get(herd.getId())));
+
+            // Counted here rather than by the database. equalsIgnoreCase matches what the old
+            // countBy query did, since MySQL's default collation is case-insensitive.
+            int lactationCount = 0;
+            for (HerdEvent event : events) {
+                if ("CALF_DELIVERED".equalsIgnoreCase(event.getEventType())) lactationCount++;
+            }
+            herd.setLactationNumber(lactationCount);
+
+            calculateWeightAndStatus(herd, breedsByName);
+
+            MilkPotentialService.MilkPotentialResult potentialResult =
+                    milkPotentialService.calculatePotential(herd, lactationCount);
+            herd.setMilkPotential(potentialResult.getPotential());
+            herd.setMilkPotentialConfidence(potentialResult.getConfidence());
+
+            applyDimAndPregnancy(herd, events);
+        }
+        return herds;
+    }
+
+    /** Mean of the per-day totals, matching the old "sum of days / number of days" behaviour. */
+    private double averageOf(List<Double> dailyTotals) {
+        if (dailyTotals == null || dailyTotals.isEmpty()) return 0.0;
+        double total = 0.0;
+        for (Double litres : dailyTotals) {
+            total += litres != null ? litres : 0.0;
+        }
+        return total / dailyTotals.size();
+    }
+
+    /**
+     * Derives DIM and pregnancy duration from HerdEvent history rather than a
+     * stored field, since neither exists on the animal record today. Used by
+     * the Feed Optimizer's stage resolution (see service.optimizer.AnimalStageResolver).
+     */
+    private void applyDimAndPregnancy(Herd herd, List<HerdEvent> events) {
+        // DIM: Days since last calving/calf delivered or lactation started
+        events.stream()
+                .filter(e -> "CALVING".equalsIgnoreCase(e.getEventType()) || "CALF_DELIVERED".equalsIgnoreCase(e.getEventType()) || "LACTATION_STARTED".equalsIgnoreCase(e.getEventType()))
+                .findFirst()
+                .ifPresent(e -> herd.setDim((int) java.time.temporal.ChronoUnit.DAYS.between(e.getEventDate(), LocalDate.now())));
+
+        // Pregnancy: Days since last AI (SEMEN_GIVEN) or PREGNANCY_CONFIRMED
+        events.stream()
+                .filter(e -> "PREGNANCY_CONFIRMED".equalsIgnoreCase(e.getEventType()) || "SEMEN_GIVEN".equalsIgnoreCase(e.getEventType()) || "AI_DONE".equalsIgnoreCase(e.getEventType()))
+                .findFirst()
+                .ifPresent(e -> {
+                    int days = (int) java.time.temporal.ChronoUnit.DAYS.between(e.getEventDate(), LocalDate.now());
+                    herd.setPregnancyDaysPregnant(days);
+                    herd.setPregnancyStatus(days + " days pregnant");
+                });
+    }
+
+    /**
+     * Weight from a tape measurement, using the same breed formula the animal card uses.
+     * Pass a measured body length to use it directly; otherwise the breed's length ratio applies.
+     */
+    public Double estimateWeightKg(String breedName, Double heartGirthCm, Double bodyLengthCm) {
+        if (heartGirthCm == null || heartGirthCm <= 0) return null;
+
+        String name = breedName != null ? breedName : "Unknown";
+        com.dairy.model.Breed breedMaster = breedRepository.findByName(name)
+                .orElseGet(() -> breedRepository.findByName("Unknown").orElse(null));
+        if (breedMaster == null) return null;
+
+        double weight = applyBreedFormula(breedMaster, heartGirthCm, bodyLengthCm);
+        return Math.round(weight * 10.0) / 10.0;
+    }
+
+    private double applyBreedFormula(com.dairy.model.Breed breedMaster, double hGirth, Double measuredLengthCm) {
+        if ("AGARWAL".equalsIgnoreCase(breedMaster.getFormulaType())) {
+            // Agarwal: (Girth_in * Length_in) / Y (output is in seers, convert to kg by multiplying by 0.933)
+            double girthInches = hGirth / 2.54;
+            double lengthInches = measuredLengthCm != null && measuredLengthCm > 0
+                    ? measuredLengthCm / 2.54
+                    : girthInches * breedMaster.getLengthRatio();
+            double Y = girthInches < 65 ? 9.0 : (girthInches <= 80 ? 8.5 : 8.0);
+            return ((girthInches * lengthInches) / Y) * 0.933;
+        }
+        // SCHAEFFER: (Girth_cm^2 * Length_cm) / 10830 (dividing by 10830 already converts to kg)
+        double lengthCm = measuredLengthCm != null && measuredLengthCm > 0
+                ? measuredLengthCm
+                : hGirth * breedMaster.getLengthRatio();
+        return (hGirth * hGirth * lengthCm) / 10830.0;
+    }
+
+    private void calculateWeightAndStatus(Herd herd, Map<String, Breed> breedsByName) {
         if (herd.getHeartGirth() == null || herd.getHeartGirth() <= 0) {
             herd.setCalculatedWeight(0.0);
             herd.setWeightStatus("Unknown");
@@ -103,9 +210,10 @@ public class HerdService {
 
         Double hGirth = herd.getHeartGirth();
         String breedName = herd.getBreed() != null ? herd.getBreed() : "Unknown";
-        
-        com.dairy.model.Breed breedMaster = breedRepository.findByName(breedName)
-                .orElseGet(() -> breedRepository.findByName("Unknown").orElse(null));
+
+        // Resolved from the pre-loaded breed table - same fallback to "Unknown" as before.
+        Breed breedMaster = breedsByName.get(breedName.toLowerCase());
+        if (breedMaster == null) breedMaster = breedsByName.get("unknown");
 
         if (breedMaster == null) {
             herd.setCalculatedWeight(0.0);
@@ -113,19 +221,7 @@ public class HerdService {
             return;
         }
 
-        double weight = 0.0;
-        
-        if ("AGARWAL".equalsIgnoreCase(breedMaster.getFormulaType())) {
-            // Agarwal: (Girth_in * Length_in) / Y (output is in seers, convert to kg by multiplying by 0.933)
-            double girthInches = hGirth / 2.54;
-            double lengthInches = girthInches * breedMaster.getLengthRatio();
-            double Y = girthInches < 65 ? 9.0 : (girthInches <= 80 ? 8.5 : 8.0);
-            weight = ((girthInches * lengthInches) / Y) * 0.933;
-        } else {
-            // SCHAEFFER: (Girth_cm^2 * Length_cm) / 10830 (dividing by 10830 already converts to kg)
-            double lengthCm = hGirth * breedMaster.getLengthRatio();
-            weight = (hGirth * hGirth * lengthCm) / 10830.0;
-        }
+        double weight = applyBreedFormula(breedMaster, hGirth, null);
 
         herd.setCalculatedWeight(Math.round(weight * 10.0) / 10.0); // 1 decimal place
 

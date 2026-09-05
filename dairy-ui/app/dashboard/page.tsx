@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
+import TodayFarmActions from '@/components/TodayFarmActions';
 import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar, Sun, Moon, Clock } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -475,6 +476,8 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <TodayFarmActions />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard 

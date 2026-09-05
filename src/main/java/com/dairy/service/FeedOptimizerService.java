@@ -2,17 +2,15 @@ package com.dairy.service;
 
 import com.dairy.dto.FeedOptimizerRequestDTO;
 import com.dairy.dto.FeedOptimizerResponseDTO;
+import com.dairy.dto.optimizer.FeedLineDTO;
 import com.dairy.model.AnimalRequirement;
-import com.dairy.model.FeedNutrition;
 import com.dairy.repository.AnimalRequirementRepository;
-import com.dairy.repository.FeedNutritionRepository;
+import com.dairy.service.optimizer.CurrentRationOptimizationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -22,7 +20,7 @@ public class FeedOptimizerService {
     private AnimalRequirementRepository animalRequirementRepository;
 
     @Autowired
-    private FeedNutritionRepository feedNutritionRepository;
+    private CurrentRationOptimizationService currentRationOptimizationService;
 
     public List<AnimalRequirement> getAllRequirements() {
         return animalRequirementRepository.findAll();
@@ -32,85 +30,25 @@ public class FeedOptimizerService {
         return animalRequirementRepository.findByAnimalStage(stage);
     }
 
+    /**
+     * Delegates to the real constraint-based optimizer (service.optimizer package).
+     * animalId now drives requirement resolution (real breed/DIM/weight/pregnancy);
+     * animalStage is kept only as an optional legacy override - see
+     * AnimalRequirementResolutionService and docs/feed-optimizer-backend.md.
+     */
     public FeedOptimizerResponseDTO optimizeRation(FeedOptimizerRequestDTO request) {
-        FeedOptimizerResponseDTO response = new FeedOptimizerResponseDTO();
-        
-        Optional<AnimalRequirement> reqOpt = animalRequirementRepository.findByAnimalStage(request.getAnimalStage());
-        if (reqOpt.isEmpty()) {
-            throw new IllegalArgumentException("Animal stage not found: " + request.getAnimalStage());
+        if (request.getAnimalId() == null) {
+            throw new IllegalArgumentException("animalId is required");
         }
-        
-        AnimalRequirement req = reqOpt.get();
-        response.setRequirements(req);
-        
-        double totalDM = 0;
-        double totalCP = 0;
-        double totalTDN = 0;
-        double totalME = 0;
-        double totalCa = 0;
-        double totalP = 0;
-        
-        for (FeedOptimizerRequestDTO.FeedEntry entry : request.getFeedEntries()) {
-            if (entry.getQuantityKg() == null || entry.getQuantityKg() <= 0) continue;
-            
-            Optional<FeedNutrition> nutOpt = feedNutritionRepository.findByFeedMasterId(entry.getFeedId());
-            if (nutOpt.isPresent()) {
-                FeedNutrition nut = nutOpt.get();
-                double qty = entry.getQuantityKg();
-                
-                // Assuming percentages are stored as 1-100, we divide by 100 for true percentage
-                double dm = (nut.getDryMatterPct() != null ? nut.getDryMatterPct() : 90) / 100.0;
-                double dryMatterKg = qty * dm;
-                totalDM += dryMatterKg;
-                
-                if (nut.getCrudeProteinPct() != null) totalCP += dryMatterKg * (nut.getCrudeProteinPct() / 100.0);
-                if (nut.getTdnPct() != null) totalTDN += dryMatterKg * (nut.getTdnPct() / 100.0);
-                if (nut.getMetabolizableEnergy() != null) totalME += dryMatterKg * nut.getMetabolizableEnergy();
-                
-                // Assuming minerals are in percentage of DM
-                if (nut.getCalciumPct() != null) totalCa += (dryMatterKg * 1000) * (nut.getCalciumPct() / 100.0); // in grams
-                if (nut.getPhosphorusPct() != null) totalP += (dryMatterKg * 1000) * (nut.getPhosphorusPct() / 100.0); // in grams
+
+        List<FeedLineDTO> feedLines = new ArrayList<>();
+        if (request.getFeedEntries() != null) {
+            for (FeedOptimizerRequestDTO.FeedEntry entry : request.getFeedEntries()) {
+                if (entry.getFeedId() == null || entry.getQuantityKg() == null || entry.getQuantityKg() <= 0) continue;
+                feedLines.add(new FeedLineDTO(entry.getFeedId(), null, entry.getQuantityKg()));
             }
         }
-        
-        Map<String, Double> totals = new HashMap<>();
-        totals.put("DryMatter", totalDM);
-        totals.put("CrudeProtein", totalCP);
-        totals.put("TDN", totalTDN);
-        totals.put("MetabolizableEnergy", totalME);
-        totals.put("Calcium", totalCa);
-        totals.put("Phosphorus", totalP);
-        response.setTotals(totals);
-        
-        Map<String, String> status = new HashMap<>();
-        List<String> recommendations = new ArrayList<>();
-        
-        evaluateNutrient("DryMatter", totalDM, req.getDryMatterIntake(), status, recommendations, "Add more dry fodder like straw or hay.", "Reduce overall feed quantity.");
-        evaluateNutrient("CrudeProtein", totalCP, req.getCrudeProteinReq(), status, recommendations, "Add more protein sources like Soybean Meal, Groundnut Cake, or Lucerne.", "Reduce high protein concentrates.");
-        evaluateNutrient("TDN", totalTDN, req.getTdnReq(), status, recommendations, "Add more energy sources like Maize grain, Molasses, or high-quality grasses.", "Reduce energy-dense feeds.");
-        evaluateNutrient("Calcium", totalCa, req.getCalciumReq(), status, recommendations, "Add mineral mixture or legumes like Lucerne/Moringa.", "Slightly reduce calcium-rich feeds.");
-        
-        response.setStatus(status);
-        response.setRecommendations(recommendations);
-        
-        return response;
-    }
-    
-    private void evaluateNutrient(String name, double actual, Double required, Map<String, String> status, List<String> recs, String lowRec, String highRec) {
-        if (required == null || required == 0) {
-            status.put(name, "OK");
-            return;
-        }
-        
-        double ratio = actual / required;
-        if (ratio < 0.9) {
-            status.put(name, "DEFICIENT");
-            recs.add(name + " is Deficient. " + lowRec);
-        } else if (ratio > 1.2) {
-            status.put(name, "EXCESS");
-            recs.add(name + " is in Excess. " + highRec);
-        } else {
-            status.put(name, "OK");
-        }
+
+        return currentRationOptimizationService.optimize(request.getAnimalId(), request.getAnimalStage(), feedLines);
     }
 }

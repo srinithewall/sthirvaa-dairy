@@ -58,6 +58,9 @@ export default function TodayFarmActions() {
   const completedLogs = logs.filter(l => l.status === "COMPLETED");
 
   if (logs.length === 0 || pendingLogs.length === 0) {
+    // Finishing every chore and having none scheduled are different things - saying "no special
+    // actions" after the work was done reads as if the completions had not registered.
+    const allDone = completedLogs.length > 0;
     return (
       <div className="bg-surface-green border border-border-green rounded-radius-custom p-4 mb-6 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
@@ -65,8 +68,14 @@ export default function TodayFarmActions() {
             <Check size={18} />
           </div>
           <div>
-            <h3 className="font-semibold text-text text-[14px]">No special actions today</h3>
-            <p className="text-[13px] text-text3">Just regular feeding and milking.</p>
+            <h3 className="font-semibold text-text text-[14px]">
+              {allDone ? "All chores done for today" : "No special actions today"}
+            </h3>
+            <p className="text-[13px] text-text3">
+              {allDone
+                ? `${completedLogs.length} completed. Just regular feeding and milking left.`
+                : "Just regular feeding and milking."}
+            </p>
           </div>
         </div>
         <Link href="/activities" className="text-[13px] font-medium text-brand hover:underline">

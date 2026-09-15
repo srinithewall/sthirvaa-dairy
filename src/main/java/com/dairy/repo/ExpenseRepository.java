@@ -9,6 +9,8 @@ import java.util.List;
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByCategory(String category);
     List<Expense> findByDateBetween(LocalDate startDate, LocalDate endDate);
+    List<Expense> findByPaidByAndSettledFalse(String paidBy);
+    List<Expense> findByPaidByAndSettledFalseAndDateBetween(String paidBy, LocalDate startDate, LocalDate endDate);
     
     @Query("SELECT SUM(e.amount) FROM Expense e")
     Double getTotalExpense();

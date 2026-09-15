@@ -23,6 +23,8 @@ interface Transaction {
   description: string;
   type: 'EXPENSE' | 'INCOME';
   herdId?: number;
+  paidBy?: string;
+  settled?: boolean;
 }
 
 function LedgerPage() {
@@ -31,6 +33,7 @@ function LedgerPage() {
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [herds, setHerds] = useState<any[]>([]);
+  const [staffList, setStaffList] = useState<any[]>([]);
   
   // Selection & Form State
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -38,6 +41,7 @@ function LedgerPage() {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedHerdId, setSelectedHerdId] = useState<string>('');
+  const [paidBy, setPaidBy] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   // New Category State
@@ -53,6 +57,8 @@ function LedgerPage() {
   // Filters State
   const [filterMonth, setFilterMonth] = useState<string>('ALL');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const [filterPaidBy, setFilterPaidBy] = useState<string>('ALL');
+  const [settling, setSettling] = useState(false);
 
   const searchParams = useSearchParams();
   const typeParam = searchParams.get('type');
@@ -78,16 +84,19 @@ function LedgerPage() {
         api.get('/categories'),
         api.get('/expenses'),
         api.get('/income'),
-        api.get('/herds')
+        api.get('/herds'),
+        api.get('/staff')
       ]);
       
       const catRes = responses[0].status === 'fulfilled' ? responses[0].value.data : [];
       const expRes = responses[1].status === 'fulfilled' ? responses[1].value.data : [];
       const incRes = responses[2].status === 'fulfilled' ? responses[2].value.data : [];
       const herdRes = responses[3].status === 'fulfilled' ? (responses[3].value.data.herds || responses[3].value.data) : [];
+      const staffRes = responses[4].status === 'fulfilled' ? responses[4].value.data : [];
 
       setCategories(catRes);
       setHerds(Array.isArray(herdRes) ? herdRes : []);
+      setStaffList(Array.isArray(staffRes) ? staffRes : []);
       
       const combined: Transaction[] = [
         ...expRes.map((e: any) => ({ ...e, type: 'EXPENSE' })),
@@ -113,12 +122,39 @@ function LedgerPage() {
         matches = false;
       }
     }
+    if (filterPaidBy !== 'ALL' && h.paidBy !== filterPaidBy) {
+      matches = false;
+    }
     return matches;
   });
 
   const totalExpense = filteredHistory.filter(h => h.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
   const totalIncome = filteredHistory.filter(h => h.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
   const balance = totalIncome - totalExpense;
+
+  // Paid-by summary (respects the month filter, independent of the category filter)
+  const paidByEntries = history.filter(h =>
+    h.type === 'EXPENSE' &&
+    h.paidBy === filterPaidBy &&
+    (filterMonth === 'ALL' || h.date.substring(0, 7) === filterMonth)
+  );
+  const paidByTotal = paidByEntries.reduce((a, b) => a + b.amount, 0);
+  const paidByUnsettled = paidByEntries.filter(h => !h.settled);
+  const paidByUnsettledTotal = paidByUnsettled.reduce((a, b) => a + b.amount, 0);
+
+  const handleSettle = async () => {
+    if (filterPaidBy === 'ALL' || paidByUnsettled.length === 0) return;
+    setSettling(true);
+    try {
+      await api.patch('/expenses/settle', null, { params: { paidBy: filterPaidBy, month: filterMonth } });
+      showToast(`₹${paidByUnsettledTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })} settled to ${filterPaidBy}!`);
+      fetchData();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to settle amount.", 'error');
+    } finally {
+      setSettling(false);
+    }
+  };
 
   const handleSaveEntry = async () => {
     if (!selectedCategory || !amount) return;
@@ -135,6 +171,9 @@ function LedgerPage() {
       if (selectedHerdId && selectedHerdId !== 'ALL' && selectedCategory.name.toUpperCase().includes('MEDICAL')) {
         payload.herdId = parseInt(selectedHerdId);
       }
+      if (type === 'EXPENSE' && paidBy) {
+        payload.paidBy = paidBy;
+      }
       await api.post(endpoint, payload);
       
       showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} added successfully!`);
@@ -142,6 +181,7 @@ function LedgerPage() {
       setAmount('');
       setDescription('');
       setSelectedHerdId('');
+      setPaidBy('');
       setDate(new Date().toISOString().split('T')[0]);
       fetchData();
     } catch (err: any) {
@@ -166,6 +206,9 @@ function LedgerPage() {
       if (selectedHerdId && selectedHerdId !== 'ALL' && editingTransaction.category.toUpperCase().includes('MEDICAL')) {
         payload.herdId = parseInt(selectedHerdId);
       }
+      if (type === 'EXPENSE' && paidBy) {
+        payload.paidBy = paidBy;
+      }
       await api.put(endpoint, payload);
       
       showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} updated successfully!`);
@@ -173,6 +216,7 @@ function LedgerPage() {
       setAmount('');
       setDescription('');
       setSelectedHerdId('');
+      setPaidBy('');
       setDate(new Date().toISOString().split('T')[0]);
       fetchData();
     } catch (err: any) {
@@ -267,10 +311,10 @@ function LedgerPage() {
         </div>
 
         {/* Filters Section */}
-        <div className="bg-white p-4 rounded-radius-custom-lg border border-border-custom shadow-sm mb-8 flex flex-col sm:flex-row items-center gap-4">
-          <div className="w-full sm:w-1/2">
-            <label className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Filter by Month</label>
-            <select 
+        <div className="bg-white p-4 rounded-radius-custom-lg border border-border-custom shadow-sm mb-4 flex flex-col sm:flex-row items-center gap-4">
+          <div className={`w-full ${activeTab === 'EXPENSE' ? 'sm:w-1/3' : 'sm:w-1/2'}`}>
+            <label className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Month</label>
+            <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
               className="w-full bg-surface2 border border-border-custom text-text text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand/30"
@@ -283,9 +327,9 @@ function LedgerPage() {
               ))}
             </select>
           </div>
-          <div className="w-full sm:w-1/2">
-            <label className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Filter by Category</label>
-            <select 
+          <div className={`w-full ${activeTab === 'EXPENSE' ? 'sm:w-1/3' : 'sm:w-1/2'}`}>
+            <label className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Category</label>
+            <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
               className="w-full bg-surface2 border border-border-custom text-text text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand/30"
@@ -296,7 +340,50 @@ function LedgerPage() {
               ))}
             </select>
           </div>
+          {activeTab === 'EXPENSE' && (
+            <div className="w-full sm:w-1/3">
+              <label className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Paid By</label>
+              <select
+                value={filterPaidBy}
+                onChange={(e) => setFilterPaidBy(e.target.value)}
+                className="w-full bg-surface2 border border-border-custom text-text text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand/30"
+              >
+                <option value="ALL">All Staff</option>
+                {[...staffList].sort((a: any, b: any) => a.name.localeCompare(b.name)).map((staff: any) => (
+                  <option key={staff.id} value={staff.name}>{staff.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
+
+        {/* Paid By Settlement Summary */}
+        {activeTab === 'EXPENSE' && filterPaidBy !== 'ALL' && (
+          <div className="bg-amber-400/10 border border-amber-400/30 p-4 sm:p-5 rounded-radius-custom-lg shadow-sm mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <div className="text-[10px] font-black text-amber-700 uppercase tracking-[0.2em]">
+                Paid by {filterPaidBy} {filterMonth !== 'ALL' && `· ${new Date(filterMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
+              </div>
+              <div className="text-2xl font-black text-amber-700 mt-1">
+                ₹{paidByTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {paidByUnsettledTotal !== paidByTotal && (
+                  <span className="text-sm font-bold text-amber-600 ml-2">
+                    (₹{paidByUnsettledTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })} unsettled)
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              disabled={settling || paidByUnsettled.length === 0}
+              onClick={handleSettle}
+              className="w-full sm:w-auto px-4 py-2 sm:px-5 sm:py-2.5 rounded-radius-custom-lg font-black text-[11px] sm:text-xs tracking-wide text-white bg-amber-600 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {settling ? 'SETTLING...' : paidByUnsettled.length === 0 ? 'ALL SETTLED' : (
+                <>MARK SETTLED <span className="hidden sm:inline">TO {filterPaidBy.toUpperCase()}</span></>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Category Selection Section */}
         <div className="mb-4 flex items-center justify-between px-1">
@@ -344,8 +431,10 @@ function LedgerPage() {
               </div>
             ) : filteredHistory.length === 0 ? (
               <div className="p-10 sm:p-20 text-center text-text3 font-bold">NO TRANSACTIONS YET</div>
-            ) : filteredHistory.filter(item => item.type === activeTab).map((item) => (
-              <div key={`${item.type}-${item.id}`} className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-surface transition-all group border-l-4 border-transparent hover:border-brand gap-4 sm:gap-0">
+            ) : filteredHistory.filter(item => item.type === activeTab).map((item) => {
+              const isHighlighted = filterPaidBy !== 'ALL' && item.paidBy === filterPaidBy && !item.settled;
+              return (
+              <div key={`${item.type}-${item.id}`} className={`p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-surface transition-all group border-l-4 gap-4 sm:gap-0 ${isHighlighted ? 'bg-amber-400/10 border-amber-400' : 'border-transparent hover:border-brand'}`}>
                 <div className="flex items-center gap-4 sm:gap-5 w-full sm:w-auto">
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-xl flex items-center justify-center text-lg sm:text-xl font-bold shadow-sm ${item.type === 'EXPENSE' ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}`}>
                     {categories.find(c => c.name === item.category)?.iconCode || item.category.charAt(0)}
@@ -356,6 +445,11 @@ function LedgerPage() {
                       <span className="text-[10px] font-black bg-surface2 px-1.5 py-0.5 rounded text-text2 flex-shrink-0">{item.date}</span>
                       <span className="text-[11px] sm:text-[12px] text-text3 font-medium truncate sm:line-clamp-1 max-w-[150px] sm:max-w-none">
                         {item.description}
+                        {item.paidBy && (
+                          <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${item.settled ? 'bg-brand/10 text-brand' : 'bg-surface2 text-text2'}`}>
+                            {item.settled ? '✓ Settled · ' : 'Paid by: '}{item.paidBy}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -375,6 +469,7 @@ function LedgerPage() {
                         setDescription(item.description);
                         setDate(item.date);
                         setSelectedHerdId(item.herdId ? item.herdId.toString() : 'ALL');
+                        setPaidBy((item as any).paidBy || '');
                       }}
                       className="p-2 bg-surface2 sm:bg-transparent hover:bg-white rounded-lg text-text3 hover:text-brand transition-colors"
                     >
@@ -389,7 +484,8 @@ function LedgerPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -442,6 +538,24 @@ function LedgerPage() {
                     {herds.map((herd: any) => (
                       <option key={herd.id} value={herd.id.toString()}>
                         {herd.animalName ? `${herd.animalName} (${herd.tagNumber})` : herd.tagNumber}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {((selectedCategory?.type || editingTransaction?.type) === 'EXPENSE') && (
+                <div className="mb-6">
+                  <label className="block text-[11px] font-bold text-text3 uppercase mb-2">Paid By (Optional)</label>
+                  <select
+                    value={paidBy}
+                    onChange={(e) => setPaidBy(e.target.value)}
+                    className="w-full text-sm text-text border-b border-border-custom outline-none py-1 bg-white"
+                  >
+                    <option value="">Select Staff...</option>
+                    {staffList.map((staff: any) => (
+                      <option key={staff.id} value={staff.name}>
+                        {staff.name}
                       </option>
                     ))}
                   </select>

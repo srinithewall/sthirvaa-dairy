@@ -25,6 +25,18 @@ public class Expense {
     @Column(name = "herd_id")
     private Long herdId;
 
+    @Column(name = "paid_by")
+    private String paidBy;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean settled = false;
+
+    @Column(name = "settled_at")
+    private LocalDateTime settledAt;
+
+    @Column(name = "settled_by")
+    private String settledBy;
+
     // Audit Fields
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -69,6 +81,18 @@ public class Expense {
 
     public Long getHerdId() { return herdId; }
     public void setHerdId(Long herdId) { this.herdId = herdId; }
+
+    public String getPaidBy() { return paidBy; }
+    public void setPaidBy(String paidBy) { this.paidBy = paidBy; }
+
+    public boolean isSettled() { return settled; }
+    public void setSettled(boolean settled) { this.settled = settled; }
+
+    public LocalDateTime getSettledAt() { return settledAt; }
+    public void setSettledAt(LocalDateTime settledAt) { this.settledAt = settledAt; }
+
+    public String getSettledBy() { return settledBy; }
+    public void setSettledBy(String settledBy) { this.settledBy = settledBy; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

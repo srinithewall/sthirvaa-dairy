@@ -59,4 +59,12 @@ public class ExpenseController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         return expenseService.getExpensesByDateRange(start, end);
     }
+
+    @PatchMapping("/settle")
+    @PreAuthorize("@ss.can('LEDGER', 'EDIT')")
+    public List<Expense> settleExpenses(
+            @RequestParam String paidBy,
+            @RequestParam(required = false) String month) {
+        return expenseService.settleExpensesForStaff(paidBy, month);
+    }
 }

@@ -27,6 +27,7 @@ interface Herd {
   animalStatus: string;
   status: string;
   age: string;
+  calculatedAge?: string;
   imageUrl?: string;
   heartGirth?: number;
   avgMilk30Days?: number;
@@ -75,6 +76,7 @@ export default function HerdsPage() {
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [filterSemenPending, setFilterSemenPending] = useState(false);
   const { showToast, confirm } = useNotification();
 
   // Events & Timeline
@@ -389,6 +391,24 @@ export default function HerdsPage() {
 
   let activeHerds = herds.filter(h => h.status !== 'DISPOSED');
 
+  if (filterSemenPending) {
+    activeHerds = activeHerds.filter(item => {
+      if (item.animalType !== 'COW') return false;
+      if (item.animalStatus === 'CALF') return false; // Heifers, Dry, Lactating are okay.
+
+      const herdEvents = allGlobalEvents.filter(e => e.herdId === item.id);
+      const lastCalving = herdEvents.filter(e => e.eventType === 'CALF_DELIVERED').sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
+      const lastPd = herdEvents.filter(e => e.eventType === 'PREGNANCY_CONFIRMED').sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
+
+      let isPregnant = false;
+      if (lastPd && (!lastCalving || new Date(lastPd.eventDate) > new Date(lastCalving.eventDate))) {
+         isPregnant = true;
+      }
+      
+      return !isPregnant;
+    });
+  }
+
   // Sorting Logic
   if (sortColumn) {
     activeHerds.sort((a, b) => {
@@ -419,6 +439,11 @@ export default function HerdsPage() {
         if (col === 'heartGirth') return item.heartGirth || 0;
         if (col === 'calvingDate') {
           const evts = allGlobalEvents.filter(e => e.herdId === item.id && e.eventType === 'CALF_DELIVERED')
+                                       .sort((x, y) => y.eventDate.localeCompare(x.eventDate));
+          return evts.length > 0 ? new Date(evts[0].eventDate).getTime() : 0;
+        }
+        if (col === 'aiDate') {
+          const evts = allGlobalEvents.filter(e => e.herdId === item.id && e.eventType === 'SEMEN_GIVEN')
                                        .sort((x, y) => y.eventDate.localeCompare(x.eventDate));
           return evts.length > 0 ? new Date(evts[0].eventDate).getTime() : 0;
         }
@@ -508,6 +533,14 @@ export default function HerdsPage() {
             </button>
           </div>
           <button
+            onClick={() => setFilterSemenPending(!filterSemenPending)}
+            className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm ${filterSemenPending ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-border-custom bg-white hover:bg-surface text-text3 hover:text-brand'}`}
+            title="Filter Semen Pending Cows/Heifers/Dry"
+          >
+            <Syringe size={14} />
+            <span className="hidden md:inline">Semen Pending</span>
+          </button>
+          <button
             onClick={() => setShowDisposedModal(true)}
             className="flex items-center gap-1.5 px-3 py-2 border border-border-custom bg-white hover:bg-surface text-text3 hover:text-brand rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm"
             title="View Disposed Animals Archive"
@@ -544,6 +577,7 @@ export default function HerdsPage() {
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('avgMilk')}>Avg Milk {getSortIcon('avgMilk')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('targetMissed')}>Target Missed {getSortIcon('targetMissed')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('dim')}>DIM {getSortIcon('dim')}</th>
+                    <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('aiDate')}>AI {getSortIcon('aiDate')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('heartGirth')}>Heart Girth {getSortIcon('heartGirth')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('weight')}>Weight {getSortIcon('weight')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-center cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('weightStatus')}>Weight Status {getSortIcon('weightStatus')}</th>
@@ -573,6 +607,11 @@ export default function HerdsPage() {
                     const herdEvents = allGlobalEvents.filter(e => e.herdId === item.id);
                     const semenEvents = herdEvents.filter(e => e.eventType === 'SEMEN_GIVEN').sort((a,b) => b.eventDate.localeCompare(a.eventDate));
                     const latestSemen = semenEvents[0]?.eventDate || '—';
+                    let daysSinceAI = 0;
+                    if (semenEvents[0]) {
+                      const diffTime = Math.abs(Date.now() - new Date(semenEvents[0].eventDate).getTime());
+                      daysSinceAI = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    }
                     const dewormEvents = herdEvents.filter(e => e.eventType === 'DEWORMING_DUE').sort((a,b) => b.eventDate.localeCompare(a.eventDate));
                     const latestDeworm = dewormEvents[0]?.eventDate || '—';
 
@@ -632,12 +671,13 @@ export default function HerdsPage() {
                           </div>
                         </td>
                         <td className="py-3 px-4 text-sm font-semibold text-text whitespace-nowrap min-w-[120px]">{item.breed || '—'}</td>
-                        <td className="py-3 px-4 text-xs font-semibold text-text3 whitespace-nowrap">{item.age || '—'}</td>
+                        <td className="py-3 px-4 text-xs font-semibold text-text3 whitespace-nowrap">{item.calculatedAge || item.age || '—'}</td>
                         <td className="py-3 px-4 text-xs font-semibold text-text whitespace-nowrap">{item.animalStatus || '—'}</td>
                         <td className="py-3 px-4 text-sm font-bold text-text text-right whitespace-nowrap" title={`Confidence: ${conf}`}>{pot > 0 ? `${pot} L/day` : '—'}</td>
                         <td className="py-3 px-4 text-sm font-bold text-text text-right whitespace-nowrap">{avgMilk > 0 ? `${avgMilk.toFixed(1)} L/day` : '—'}</td>
                         <td className="py-3 px-4 text-sm font-bold text-red-600 text-right whitespace-nowrap">{targetMissed !== '—' ? `${targetMissed} L` : '—'}</td>
                         <td className="py-3 px-4 text-sm font-bold text-text text-right whitespace-nowrap">{dim > 0 ? dim : '—'}</td>
+                        <td className="py-3 px-4 text-sm font-bold text-text text-right whitespace-nowrap">{daysSinceAI > 0 ? daysSinceAI : '—'}</td>
                         <td className="py-3 px-4 text-sm font-bold text-text text-right whitespace-nowrap">{hGirth > 0 ? `${hGirth} cm` : '—'}</td>
                         <td className="py-3 px-4 text-sm font-black text-brand text-right whitespace-nowrap">{weight > 0 ? `${weight} kg` : '—'}</td>
                         <td className="py-3 px-4 text-center whitespace-nowrap">
@@ -653,7 +693,7 @@ export default function HerdsPage() {
                     );
                   })}
                   {activeHerds.filter(h => h.animalType === 'COW').length === 0 && (
-                    <tr><td colSpan={9} className="py-8 text-center text-text3 italic">No cows found in herd.</td></tr>
+                    <tr><td colSpan={16} className="py-8 text-center text-text3 italic">No cows found in herd.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -862,7 +902,14 @@ function DisposedAnimalsModal({ isOpen, onClose, herds, onAnimalClick }: {
                       <p className="font-bold text-text text-[13px] truncate max-w-[120px]">{item.animalName || 'Unnamed'}</p>
                       <p className="text-[10px] text-text3 font-mono mt-0.5">{item.tagNumber}</p>
                     </div>
-                    <span className="text-[8px] font-black uppercase bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">{item.animalType}</span>
+                    <span className="text-[9px] font-bold bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
+                      Date: {(() => {
+                        const ds = item.disposedDate || item.updatedAt?.slice(0, 10);
+                        if (!ds) return '—';
+                        const [y, m, d] = ds.split('-').map(Number);
+                        return `${d} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]} ${y}`;
+                      })()}
+                    </span>
                   </div>
                 );
               })}
@@ -1114,7 +1161,7 @@ function AllEventsModal({ isOpen, onClose, events, herds, onAnimalClick, onRefre
                           <div className="font-black text-[12px] uppercase truncate text-text">{herd?.animalName || 'Unknown'}</div>
                           <div className="text-[10px] font-mono text-text3 truncate">ID: {herd?.tagNumber}</div>
                           {herd?.animalStatus && (
-                            <span className="text-[10px] font-bold uppercase bg-surface border border-border-custom text-text3 px-1 py-0.5 rounded">{herd.animalStatus.replace('_', ' ')}{herd.age ? ` • ${herd.age}` : ''}</span>
+                            <span className="text-[10px] font-bold uppercase bg-surface border border-border-custom text-text3 px-1 py-0.5 rounded">{herd.animalStatus.replace('_', ' ')}{(herd.calculatedAge || herd.age) ? ` • ${herd.calculatedAge || herd.age}` : ''}</span>
                           )}
                         </div>
                       </div>

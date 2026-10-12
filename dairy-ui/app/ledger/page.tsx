@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
-import { Plus, History, X, FolderPlus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 
 interface Category {
@@ -30,6 +30,12 @@ interface Transaction {
 function LedgerPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeTab, setActiveTab] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
+  const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>({});
+  const categoriesCollapsed = !!collapsedTabs[activeTab];
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    try { setIsAdmin(JSON.parse(localStorage.getItem('user') || '{}').role === 'ADMIN'); } catch {}
+  }, []);
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [herds, setHerds] = useState<any[]>([]);
@@ -226,6 +232,18 @@ function LedgerPage() {
     }
   };
 
+  const handleDeleteCategory = (cat: Category) => {
+    confirm(`Delete category "${cat.name}"? Existing records keep their category name.`, async () => {
+      try {
+        await api.delete(`/categories/${cat.id}`);
+        showToast(`Category "${cat.name}" deleted.`);
+        fetchData();
+      } catch (err: any) {
+        showToast(err.response?.data?.message || "Failed to delete category.", 'error');
+      }
+    }, 'danger');
+  };
+
   const handleDeleteTransaction = async (id: number, type: 'EXPENSE' | 'INCOME') => {
     confirm("Are you sure you want to delete this record?", async () => {
       try {
@@ -387,17 +405,32 @@ function LedgerPage() {
 
         {/* Category Selection Section */}
         <div className="mb-4 flex items-center justify-between px-1">
-          <h2 className="text-[12px] font-black text-text2 uppercase tracking-widest">Select Category</h2>
+          <button
+            onClick={() => setCollapsedTabs(p => ({ ...p, [activeTab]: !p[activeTab] }))}
+            className="flex items-center gap-1.5 text-[12px] font-black text-text2 uppercase tracking-widest hover:text-text"
+          >
+            Select Category
+            <ChevronDown size={16} className={`transition-transform ${categoriesCollapsed ? '-rotate-90' : ''}`} />
+          </button>
         </div>
         
-        <div className="bg-white p-4 sm:p-8 rounded-radius-custom-lg border border-border-custom card-shadow mb-8 relative overflow-hidden">
+        {!categoriesCollapsed && <div className="bg-white p-4 sm:p-8 rounded-radius-custom-lg border border-border-custom card-shadow mb-8 relative overflow-hidden">
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-y-8 sm:gap-y-10 gap-x-2 sm:gap-x-4 relative z-10">
             {filteredCategories.map((cat) => (
               <div 
                 key={cat.id} 
                 onClick={() => setSelectedCategory(cat)}
-                className="flex flex-col items-center gap-2 sm:gap-3 group cursor-pointer"
+                className="relative flex flex-col items-center gap-2 sm:gap-3 group cursor-pointer"
               >
+                {isAdmin && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat); }}
+                    title="Delete category"
+                    className="absolute -top-2 right-0 sm:right-2 z-20 w-6 h-6 rounded-full bg-white border border-border-custom text-danger flex items-center justify-center shadow opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-danger hover:text-white"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
                 <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] sm:rounded-[20px] flex items-center justify-center text-xl sm:text-2xl shadow-md sm:shadow-lg transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl ${activeTab === 'EXPENSE' ? 'bg-danger/10 text-danger border border-danger/20 group-hover:bg-danger group-hover:text-white' : 'bg-brand/10 text-brand border border-brand/20 group-hover:bg-brand group-hover:text-white'}`}>
                   {cat.iconCode || cat.icon || cat.name.charAt(0)}
                 </div>
@@ -414,7 +447,7 @@ function LedgerPage() {
               <span className="text-[11px] sm:text-[12px] font-black text-slate-500 uppercase tracking-tighter text-center">Add New<br/>Category</span>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Recent Transactions List */}
         <div className="bg-white rounded-radius-custom-lg border border-border-custom overflow-hidden card-shadow">

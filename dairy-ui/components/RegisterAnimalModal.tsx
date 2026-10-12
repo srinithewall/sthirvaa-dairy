@@ -15,6 +15,7 @@ interface FormData {
   healthStatus: string;
   source: string;
   birthDate: string;
+  birthTime: string;
   procuredDate: string;
   age: string;
   animalStatus: string;
@@ -35,6 +36,7 @@ interface Herd {
   healthStatus: string;
   source: string;
   birthDate: string;
+  birthTime?: string;
   procuredDate: string;
   age: string;
   animalStatus: string;
@@ -192,6 +194,7 @@ export default function RegisterAnimalModal({
     healthStatus: herdToEdit?.healthStatus || 'HEALTHY',
     source: herdToEdit?.source || '',
     birthDate: herdToEdit?.birthDate || '',
+    birthTime: herdToEdit?.birthTime || '',
     procuredDate: herdToEdit?.procuredDate || '',
     age: herdToEdit?.age || '',
     animalStatus: herdToEdit?.animalStatus || 'HEIFER',
@@ -200,21 +203,6 @@ export default function RegisterAnimalModal({
     motherName: herdToEdit?.motherName || '',
     fatherSemen: herdToEdit?.fatherSemen || '',
     heartGirth: herdToEdit?.heartGirth ? String(herdToEdit.heartGirth) : '',
-  });
-
-  const [ageYears, setAgeYears] = useState(() => {
-    if (herdToEdit?.age) {
-      const match = herdToEdit.age.match(/(\d+)y/);
-      return match ? match[1] : '';
-    }
-    return '';
-  });
-  const [ageMonths, setAgeMonths] = useState(() => {
-    if (herdToEdit?.age) {
-      const match = herdToEdit.age.match(/(\d+)m/);
-      return match ? match[1] : '';
-    }
-    return '';
   });
 
   const set = (key: keyof FormData, value: string) =>
@@ -266,15 +254,10 @@ export default function RegisterAnimalModal({
 
     setRegistering(true);
     try {
-      const computedAge =
-        ageYears || ageMonths
-          ? `${ageYears || '0'}y ${ageMonths || '0'}m`
-          : formData.age;
-
       const payload = {
         ...formData,
-        age: computedAge,
         birthDate: formData.birthDate || null,
+        birthTime: formData.birthTime || null,
         procuredDate: formData.procuredDate || null,
       };
 
@@ -524,28 +507,14 @@ export default function RegisterAnimalModal({
               />
             </Field>
 
-            {/* Age — split years/months */}
-            <Field label="Age">
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  max={30}
-                  placeholder="Years"
-                  value={ageYears}
-                  className={INPUT_CLS}
-                  onChange={(e) => setAgeYears(e.target.value)}
-                />
-                <input
-                  type="number"
-                  min={0}
-                  max={11}
-                  placeholder="Months"
-                  value={ageMonths}
-                  className={INPUT_CLS}
-                  onChange={(e) => setAgeMonths(e.target.value)}
-                />
-              </div>
+            {/* Birth Time (optional) */}
+            <Field label="Birth Time (optional)">
+              <input
+                type="time"
+                value={formData.birthTime}
+                onChange={(e) => set('birthTime', e.target.value)}
+                className={INPUT_CLS}
+              />
             </Field>
 
             {/* Heart Girth */}

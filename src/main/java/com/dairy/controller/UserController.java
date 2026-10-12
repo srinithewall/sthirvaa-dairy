@@ -87,7 +87,17 @@ public class UserController {
     public ResponseEntity<?> updateFcmToken(@RequestBody Map<String, String> payload) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        user.setFcmToken(payload.get("token"));
+        String token = payload.get("token");
+        // A token identifies a device, not a person - whoever signed in last on it owns it.
+        if (token != null && !token.isBlank()) {
+            for (User other : userRepository.findByFcmToken(token)) {
+                if (!other.getId().equals(user.getId())) {
+                    other.setFcmToken(null);
+                    userRepository.save(other);
+                }
+            }
+        }
+        user.setFcmToken(token);
         userRepository.save(user);
         return ResponseEntity.ok().build();
     }

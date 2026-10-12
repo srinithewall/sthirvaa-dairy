@@ -29,8 +29,9 @@ export default function AppLayout({ children, headerAction, noPadding }: { child
             permStatus = await PushNotifications.requestPermissions();
           }
           if (permStatus.receive === 'granted') {
-            await PushNotifications.register();
-            
+            // Listeners must be attached BEFORE register(): the token event can fire as soon as
+            // register() resolves, and a listener added afterwards misses it - the token then never
+            // reaches the backend and that user silently gets no reminders.
             PushNotifications.addListener('registration', (tokenData: { value: string }) => {
               console.log('Push registration success, token: ' + tokenData.value);
               api.post('/users/me/fcm-token', { token: tokenData.value })
@@ -54,6 +55,8 @@ export default function AppLayout({ children, headerAction, noPadding }: { child
                 router.push(route);
               }
             });
+
+            await PushNotifications.register();
           }
         }
       } catch (err) {

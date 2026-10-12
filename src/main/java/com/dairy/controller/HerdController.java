@@ -71,6 +71,7 @@ public class HerdController {
         return herdService.getHerdById(id)
                 .map(existing -> {
                     herd.setId(id);
+                    if (herd.getDisposedDate() == null) herd.setDisposedDate(existing.getDisposedDate());
                     return ResponseEntity.ok(herdService.saveHerd(herd));
                 })
                 .orElse(ResponseEntity.notFound().build());

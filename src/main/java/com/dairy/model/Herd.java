@@ -30,6 +30,14 @@ public class Herd {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthDate;
 
+    @Column(name = "birth_time")
+    @JsonFormat(pattern = "HH:mm")
+    private java.time.LocalTime birthTime;
+
+    @Column(name = "disposed_date")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate disposedDate;
+
     @Column(name = "procured_date")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate procuredDate;
@@ -117,6 +125,12 @@ public class Herd {
 
     public LocalDate getBirthDate() { return birthDate; }
     public void setBirthDate(LocalDate birthDate) { this.birthDate = birthDate; }
+
+    public java.time.LocalTime getBirthTime() { return birthTime; }
+    public void setBirthTime(java.time.LocalTime birthTime) { this.birthTime = birthTime; }
+
+    public LocalDate getDisposedDate() { return disposedDate; }
+    public void setDisposedDate(LocalDate disposedDate) { this.disposedDate = disposedDate; }
 
     public LocalDate getProcuredDate() { return procuredDate; }
     public void setProcuredDate(LocalDate procuredDate) { this.procuredDate = procuredDate; }

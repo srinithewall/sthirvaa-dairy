@@ -16,7 +16,7 @@ interface Herd {
   id: number; tagNumber: string; animalType: string; animalName: string;
   breed: string; milkType: string; healthStatus: string; source: string;
   birthDate: string; procuredDate: string; animalStatus: string;
-  status: string; age: string; imageUrl?: string;
+  status: string; age: string; calculatedAge?: string; imageUrl?: string;
 }
 interface HerdEvent {
   id: number; herdId: number; eventDate: string; eventType: string;
@@ -415,7 +415,7 @@ function SemenDetailsModal({ semen, onClose, onBook }: {
         <div className="bg-slate-50 px-5 py-4 border-t border-slate-100 flex items-center justify-between gap-4">
           <div>
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Price</div>
-            <div className="text-[22px] font-bold text-slate-800 leading-tight">₹{semen.price}</div>
+            <div className="text-[22px] font-bold text-slate-800 leading-tight">₹{Math.round(semen.price)}</div>
           </div>
           <button
             onClick={() => {
@@ -669,7 +669,7 @@ function AnimalInfoPanel({ herd, events, reproStats, onEdit }: {
 
   const stats = [
     { label: 'Breed', value: herd.breed || '—', icon: '🐄' },
-    { label: 'Age', value: herd.age || '—', icon: '📅' },
+    { label: 'Age', value: herd.calculatedAge || herd.age || '—', icon: '📅' },
     { label: 'Parity', value: parity, icon: '🔢' },
     { label: 'Last Calving', value: lastCalving ? fmtDate(lastCalving.eventDate) : '—', icon: '🐣' },
     { label: 'Milk Yield', value: milkYield ? `${milkYield} L/day` : '—', icon: '🥛' },
@@ -1622,7 +1622,7 @@ export default function AnimalWorkspace({
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="text-[12px] font-bold text-slate-800 truncate">{s.breedName}</div>
-                                <div className="text-[10px] text-slate-400 font-bold">{s.milkPotential} · ₹{s.price}</div>
+                                <div className="text-[10px] text-slate-400 font-bold">{s.milkPotential} · ₹{Math.round(s.price)}</div>
                               </div>
                               <div className="flex gap-1.5 flex-shrink-0">
                                 <button onClick={() => setSelectedSemen(s)} className="px-2 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold hover:bg-slate-50 transition-all">View</button>
@@ -1796,8 +1796,8 @@ export default function AnimalWorkspace({
                 {[
                   {l:'Name',v:herd.animalName||'—'},{l:'Tag No.',v:herd.tagNumber||'—'},
                   {l:'Breed',v:`${herd.breed||'—'}${herd.milkType&&herd.milkType!=='N/A'?` (${herd.milkType})`:''}`},
-                  {l:'Type',v:herd.animalType||'—'},{l:'Age',v:herd.age||'—'},
-                  {l:'Birth Date',v:herd.birthDate?fmtDate(herd.birthDate):'—'},
+                  {l:'Type',v:herd.animalType||'—'},{l:'Age',v:herd.calculatedAge||herd.age||'—'},
+                  {l:'Birth Date',v:herd.birthDate?fmtDate(herd.birthDate)+((herd as any).birthTime?' · '+(herd as any).birthTime:''):'—'},
                   {l:'Procured',v:herd.procuredDate?fmtDate(herd.procuredDate):'—'},
                   {l:'Source',v:herd.source||'—'},{l:'Health',v:herd.healthStatus||'—'},
                   {l:'Status',v:herd.animalStatus||'—'},{l:'Record',v:herd.status||'ACTIVE'},
@@ -1870,7 +1870,7 @@ export default function AnimalWorkspace({
                               <p className="text-[11px] font-bold text-slate-400 mt-0.5">Bull ID: {s.bullId}</p>
                             </div>
                             <div className="text-right">
-                              <div className="text-[15px] font-bold text-slate-800">₹{s.price}</div>
+                              <div className="text-[15px] font-bold text-slate-800">₹{Math.round(s.price)}</div>
                               <div className="text-[9px] text-slate-400 font-bold uppercase">per straw</div>
                             </div>
                           </div>
@@ -2033,7 +2033,7 @@ export default function AnimalWorkspace({
                       </div>
                       <div>
                         <div className="text-[11px] font-extrabold leading-tight">{s.breedName}</div>
-                        <div className="text-[8.5px] font-semibold text-slate-500 mt-0.5 font-mono">{s.semenCode} · ₹{s.price}</div>
+                        <div className="text-[8.5px] font-semibold text-slate-500 mt-0.5 font-mono">{s.semenCode} · ₹{Math.round(s.price)}</div>
                       </div>
                     </button>
                   );
@@ -2100,7 +2100,7 @@ export default function AnimalWorkspace({
                           if (row.key === 'calving') return <td key={id} className="py-2 px-3 text-center font-extrabold"><span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/60">{tr.calvingEase}</span></td>;
                           if (row.key === 'heat') return <td key={id} className="py-2 px-3 text-center font-extrabold text-slate-700"><span>{tr.heat}</span></td>;
                           if (row.key === 'disease') return <td key={id} className="py-4 px-4 text-center font-extrabold text-slate-700"><span>{tr.disease}</span></td>;
-                          if (row.key === 'price') return <td key={id} className="py-4 px-4 text-center font-bold text-slate-800 text-[14px]"><span>₹{s.price}</span></td>;
+                          if (row.key === 'price') return <td key={id} className="py-4 px-4 text-center font-bold text-slate-800 text-[14px]"><span>₹{Math.round(s.price)}</span></td>;
                           return null;
                         })}
                       </tr>

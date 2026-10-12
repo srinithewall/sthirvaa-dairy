@@ -34,6 +34,9 @@ public class HerdService {
     @Autowired
     private com.dairy.repo.BreedRepository breedRepository;
 
+    @Autowired
+    private com.dairy.repo.HerdWeightRecordRepository herdWeightRecordRepository;
+
     public List<Herd> getAllHerds() {
         return enrichAll(herdRepository.findAll());
     }
@@ -45,7 +48,22 @@ public class HerdService {
         });
     }
 
+    /**
+     * Several animals, enriched together. Calling getHerdById in a loop costs four queries
+     * per animal; this costs four in total, which matters for callers that evaluate a whole
+     * group at once (see PlanAdequacyService).
+     */
+    public List<Herd> getHerdsByIds(java.util.Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return new ArrayList<>();
+        return enrichAll(herdRepository.findAllById(ids));
+    }
+
     public Herd saveHerd(Herd herd) {
+        if ("DISPOSED".equals(herd.getStatus())) {
+            if (herd.getDisposedDate() == null) herd.setDisposedDate(java.time.LocalDate.now());
+        } else {
+            herd.setDisposedDate(null);
+        }
         return herdRepository.save(herd);
     }
 
@@ -110,6 +128,14 @@ public class HerdService {
             if (breed.getName() != null) breedsByName.put(breed.getName().toLowerCase(), breed);
         }
 
+        // 4. Latest weight records
+        Map<Long, Double> latestWeightsByHerd = new HashMap<>();
+        for (com.dairy.model.HerdWeightRecord weightRecord : herdWeightRecordRepository.findLatestByHerdIdIn(herdIds)) {
+            if (weightRecord.getWeightKg() != null) {
+                latestWeightsByHerd.put(weightRecord.getHerdId(), weightRecord.getWeightKg());
+            }
+        }
+
         for (Herd herd : herds) {
             List<HerdEvent> events = eventsByHerd.getOrDefault(herd.getId(), Collections.emptyList());
 
@@ -123,7 +149,8 @@ public class HerdService {
             }
             herd.setLactationNumber(lactationCount);
 
-            calculateWeightAndStatus(herd, breedsByName);
+            Double latestWeight = latestWeightsByHerd.get(herd.getId());
+            calculateWeightAndStatus(herd, breedsByName, latestWeight);
 
             MilkPotentialService.MilkPotentialResult potentialResult =
                     milkPotentialService.calculatePotential(herd, lactationCount);
@@ -201,8 +228,8 @@ public class HerdService {
         return (hGirth * hGirth * lengthCm) / 10830.0;
     }
 
-    private void calculateWeightAndStatus(Herd herd, Map<String, Breed> breedsByName) {
-        if (herd.getHeartGirth() == null || herd.getHeartGirth() <= 0) {
+    private void calculateWeightAndStatus(Herd herd, Map<String, Breed> breedsByName, Double latestWeight) {
+        if ((herd.getHeartGirth() == null || herd.getHeartGirth() <= 0) && latestWeight == null) {
             herd.setCalculatedWeight(0.0);
             herd.setWeightStatus("Unknown");
             return;
@@ -221,7 +248,12 @@ public class HerdService {
             return;
         }
 
-        double weight = applyBreedFormula(breedMaster, hGirth, null);
+        double weight;
+        if (latestWeight != null) {
+            weight = latestWeight;
+        } else {
+            weight = applyBreedFormula(breedMaster, hGirth, null);
+        }
 
         herd.setCalculatedWeight(Math.round(weight * 10.0) / 10.0); // 1 decimal place
 

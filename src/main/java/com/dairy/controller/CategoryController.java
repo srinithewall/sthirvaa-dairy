@@ -43,7 +43,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@ss.can('LEDGER', 'DELETE')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         if (categoryRepository.existsById(id)) {
             categoryRepository.deleteById(id);

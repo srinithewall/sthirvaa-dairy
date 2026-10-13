@@ -131,7 +131,7 @@ public class ChoreReminderService {
         try {
             if (!check.isSatisfied(log)) return false;
             activityService.updateLogStatus(
-                    log.getId(), ActivityStatus.COMPLETED, null, check.completionNote(log));
+                    log.getId(), ActivityStatus.COMPLETED, null, check.completionNote(log), null);
             logger.info("Chore {} ({}) closed automatically - its completion rule is satisfied.",
                     log.getId(), activity.getTitle());
             return true;

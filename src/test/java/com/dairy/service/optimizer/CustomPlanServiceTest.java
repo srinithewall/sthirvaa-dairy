@@ -1,5 +1,6 @@
 package com.dairy.service.optimizer;
 
+import com.dairy.dto.optimizer.AssignPlanRequestDTO;
 import com.dairy.dto.optimizer.PlanDetailDTO;
 import com.dairy.dto.optimizer.PlanSummaryDTO;
 import com.dairy.dto.optimizer.SavePlanRequestDTO;
@@ -8,9 +9,12 @@ import com.dairy.exception.AnimalNotFoundException;
 import com.dairy.exception.PlanNotFoundException;
 import com.dairy.model.FeedMaster;
 import com.dairy.model.FeedPlan;
+import com.dairy.model.FeedPlanAssignment;
 import com.dairy.model.FeedPlanItem;
+import com.dairy.model.Herd;
 import com.dairy.repo.HerdRepository;
 import com.dairy.repository.FeedMasterRepository;
+import com.dairy.repository.FeedPlanAssignmentRepository;
 import com.dairy.repository.FeedPlanItemRepository;
 import com.dairy.repository.FeedPlanRepository;
 import org.junit.jupiter.api.Test;
@@ -37,6 +41,7 @@ class CustomPlanServiceTest {
     @Mock private FeedPlanItemRepository feedPlanItemRepository;
     @Mock private FeedMasterRepository feedMasterRepository;
     @Mock private HerdRepository herdRepository;
+    @Mock private FeedPlanAssignmentRepository assignmentRepository;
 
     @InjectMocks
     private CustomPlanService service;
@@ -93,6 +98,51 @@ class CustomPlanServiceTest {
 
         // cost = 2.0/kg * 5kg = 10.0, saved back onto the plan
         verify(feedPlanRepository, times(2)).save(any(FeedPlan.class));
+
+        ArgumentCaptor<List<FeedPlanAssignment>> assignCaptor = ArgumentCaptor.forClass(List.class);
+        verify(assignmentRepository).saveAll(assignCaptor.capture());
+        assertThat(assignCaptor.getValue()).hasSize(1);
+        assertThat(assignCaptor.getValue().get(0).getHerdId()).isEqualTo(1L);
+    }
+
+    @Test
+    void savePlan_multipleAnimals_createsOnePlanWithManyAssignments() {
+        when(herdRepository.existsById(1L)).thenReturn(true);
+        when(herdRepository.existsById(2L)).thenReturn(true);
+        FeedPlan saved = new FeedPlan();
+        saved.setId(100L);
+        saved.setPlanName("Group Ration");
+        when(feedPlanRepository.save(any(FeedPlan.class))).thenReturn(saved);
+        when(feedMasterRepository.findById(10L)).thenReturn(Optional.of(feedWithCost(10L, 2.0)));
+
+        SavePlanRequestDTO req = saveRequest(null);
+        req.setAnimalIds(List.of(1L, 2L));
+
+        PlanSummaryDTO summary = service.savePlan(req);
+
+        assertThat(summary.getAssignmentCount()).isEqualTo(2);
+        ArgumentCaptor<List<FeedPlanAssignment>> assignCaptor = ArgumentCaptor.forClass(List.class);
+        verify(assignmentRepository).saveAll(assignCaptor.capture());
+        assertThat(assignCaptor.getValue()).hasSize(2);
+    }
+
+    @Test
+    void savePlan_legacyAnimalIdAndAnimalIds_areUnionedNotDuplicated() {
+        when(herdRepository.existsById(1L)).thenReturn(true);
+        when(herdRepository.existsById(2L)).thenReturn(true);
+        FeedPlan saved = new FeedPlan();
+        saved.setId(100L);
+        when(feedPlanRepository.save(any(FeedPlan.class))).thenReturn(saved);
+        when(feedMasterRepository.findById(10L)).thenReturn(Optional.of(feedWithCost(10L, 2.0)));
+
+        SavePlanRequestDTO req = saveRequest(1L);
+        req.setAnimalIds(List.of(1L, 2L));
+
+        service.savePlan(req);
+
+        ArgumentCaptor<List<FeedPlanAssignment>> assignCaptor = ArgumentCaptor.forClass(List.class);
+        verify(assignmentRepository).saveAll(assignCaptor.capture());
+        assertThat(assignCaptor.getValue()).hasSize(2);
     }
 
     @Test
@@ -108,19 +158,34 @@ class CustomPlanServiceTest {
     }
 
     @Test
-    void listPlans_scopesToGivenAnimal_notOtherAnimals() {
+    void listPlans_resolvesThroughAssignments() {
         when(herdRepository.existsById(1L)).thenReturn(true);
-        FeedPlan planForAnimal1 = new FeedPlan();
-        planForAnimal1.setId(1L);
-        planForAnimal1.setHerdId(1L);
-        planForAnimal1.setPlanName("Animal 1 Plan");
-        when(feedPlanRepository.findByHerdIdOrderByUpdatedAtDesc(1L)).thenReturn(List.of(planForAnimal1));
+        when(assignmentRepository.findByHerdId(1L))
+                .thenReturn(List.of(new FeedPlanAssignment(7L, 1L)));
+
+        FeedPlan plan = new FeedPlan();
+        plan.setId(7L);
+        plan.setPlanName("Shared Ration");
+        plan.setUpdatedAt(LocalDateTime.now());
+        when(feedPlanRepository.findAllById(List.of(7L))).thenReturn(List.of(plan));
+        when(assignmentRepository.findByFeedPlanIdIn(List.of(7L)))
+                .thenReturn(List.of(new FeedPlanAssignment(7L, 1L), new FeedPlanAssignment(7L, 2L)));
 
         List<PlanSummaryDTO> plans = service.listPlans(1L);
 
         assertThat(plans).hasSize(1);
-        assertThat(plans.get(0).getPlanName()).isEqualTo("Animal 1 Plan");
-        verify(feedPlanRepository, never()).findByHerdIdOrderByUpdatedAtDesc(2L);
+        assertThat(plans.get(0).getPlanName()).isEqualTo("Shared Ration");
+        // The plan serves two animals even though we asked as animal 1.
+        assertThat(plans.get(0).getAssignmentCount()).isEqualTo(2);
+    }
+
+    @Test
+    void listPlans_animalWithNoAssignments_returnsEmpty() {
+        when(herdRepository.existsById(1L)).thenReturn(true);
+        when(assignmentRepository.findByHerdId(1L)).thenReturn(List.of());
+
+        assertThat(service.listPlans(1L)).isEmpty();
+        verify(feedPlanRepository, never()).findAllById(any());
     }
 
     @Test
@@ -139,11 +204,15 @@ class CustomPlanServiceTest {
         plan.setPlanType("CUSTOM");
         when(feedPlanRepository.findById(5L)).thenReturn(Optional.of(plan));
         when(feedPlanItemRepository.findByFeedPlanId(5L)).thenReturn(List.of(new FeedPlanItem(5L, 10L, 5.0)));
-        when(feedMasterRepository.findById(10L)).thenReturn(Optional.of(feedWithCost(10L, 2.0)));
+        // Feed names are now resolved in one batched lookup rather than per line.
+        when(feedMasterRepository.findAllById(List.of(10L))).thenReturn(List.of(feedWithCost(10L, 2.0)));
+        when(assignmentRepository.findByFeedPlanId(5L)).thenReturn(List.of());
 
         PlanDetailDTO detail = service.loadPlan(5L);
 
+        // No assignments yet, so animalId falls back to the deprecated herd_id column.
         assertThat(detail.getAnimalId()).isEqualTo(1L);
+        assertThat(detail.getAssignmentCount()).isZero();
         assertThat(detail.getFeeds()).hasSize(1);
         assertThat(detail.getFeeds().get(0).getFeedName()).isEqualTo("Grass");
         assertThat(detail.getFeeds().get(0).getQuantityKg()).isEqualTo(5.0);
@@ -261,5 +330,67 @@ class CustomPlanServiceTest {
         InOrder inOrder = inOrder(feedPlanItemRepository, feedPlanRepository);
         inOrder.verify(feedPlanItemRepository).deleteByFeedPlanId(5L);
         inOrder.verify(feedPlanRepository).deleteById(5L);
+        verify(assignmentRepository).deleteByFeedPlanId(5L);
+    }
+
+    @Test
+    void replaceAssignments_swapsTheAssignedSet() {
+        FeedPlan plan = existingPlan(5L);
+        when(feedPlanRepository.findById(5L)).thenReturn(Optional.of(plan));
+        when(herdRepository.existsById(2L)).thenReturn(true);
+        when(herdRepository.existsById(3L)).thenReturn(true);
+        when(assignmentRepository.findByFeedPlanId(5L))
+                .thenReturn(List.of(new FeedPlanAssignment(5L, 2L), new FeedPlanAssignment(5L, 3L)));
+        when(herdRepository.findAllById(List.of(2L, 3L)))
+                .thenReturn(List.of(herd(2L, "Gowri"), herd(3L, "Radha")));
+
+        AssignPlanRequestDTO req = new AssignPlanRequestDTO();
+        req.setAnimalIds(List.of(2L, 3L));
+
+        PlanDetailDTO detail = service.replaceAssignments(5L, req);
+
+        assertThat(detail.getAssignmentCount()).isEqualTo(2);
+        // Old rows must go before the new ones are written, or the unique constraint trips.
+        InOrder inOrder = inOrder(assignmentRepository);
+        inOrder.verify(assignmentRepository).deleteByFeedPlanId(5L);
+        inOrder.verify(assignmentRepository).flush();
+        inOrder.verify(assignmentRepository).saveAll(any());
+    }
+
+    @Test
+    void replaceAssignments_emptyList_unassignsWithoutDeletingThePlan() {
+        FeedPlan plan = existingPlan(5L);
+        when(feedPlanRepository.findById(5L)).thenReturn(Optional.of(plan));
+        when(assignmentRepository.findByFeedPlanId(5L)).thenReturn(List.of());
+
+        AssignPlanRequestDTO req = new AssignPlanRequestDTO();
+        req.setAnimalIds(List.of());
+
+        PlanDetailDTO detail = service.replaceAssignments(5L, req);
+
+        assertThat(detail.getAssignmentCount()).isZero();
+        assertThat(plan.getHerdId()).isNull();
+        verify(feedPlanRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void replaceAssignments_unknownAnimal_throwsBeforeChangingAnything() {
+        when(feedPlanRepository.findById(5L)).thenReturn(Optional.of(existingPlan(5L)));
+        when(herdRepository.existsById(99L)).thenReturn(false);
+
+        AssignPlanRequestDTO req = new AssignPlanRequestDTO();
+        req.setAnimalIds(List.of(99L));
+
+        assertThatThrownBy(() -> service.replaceAssignments(5L, req))
+                .isInstanceOf(AnimalNotFoundException.class);
+        verify(assignmentRepository, never()).deleteByFeedPlanId(any());
+    }
+
+    private Herd herd(Long id, String name) {
+        Herd h = new Herd();
+        h.setId(id);
+        h.setAnimalName(name);
+        h.setTagNumber("TAG-" + id);
+        return h;
     }
 }

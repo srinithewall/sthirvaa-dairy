@@ -81,8 +81,8 @@ function SubscribeModal({ plan, onClose }: { plan: SubscriptionPlan; onClose: ()
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`font-black text-base ${isSelected ? 'text-[#1B4332]' : 'text-gray-700'}`}>₹{price}<span className="text-[10px] font-bold text-gray-400">/mo</span></p>
-                    <p className="text-[10px] text-gray-400 font-medium">₹{total} total</p>
+                    <p className={`font-black text-base ${isSelected ? 'text-[#1B4332]' : 'text-gray-700'}`}>₹{Math.round(price)}<span className="text-[10px] font-bold text-gray-400">/mo</span></p>
+                    <p className="text-[10px] text-gray-400 font-medium">₹{Math.round(total)} total</p>
                   </div>
                 </button>
               );
@@ -95,7 +95,7 @@ function SubscribeModal({ plan, onClose }: { plan: SubscriptionPlan; onClose: ()
           <div className="bg-[#F0F4F1] rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider">You Pay</p>
-              <p className="text-2xl font-black text-[#1B4332]">₹{totalPayable}</p>
+              <p className="text-2xl font-black text-[#1B4332]">₹{Math.round(totalPayable)}</p>
               <p className="text-[10px] text-gray-400 font-medium">for {tier.durationMonths} month{tier.durationMonths > 1 ? 's' : ''}</p>
             </div>
             {tier.discountPercent > 0 && (
@@ -154,12 +154,12 @@ function SubscriptionCard({ plan, onSubscribe }: { plan: SubscriptionPlan; onSub
           <div>
             <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Market Price</p>
             {mrp > 0 ? (
-              <p className="text-sm font-bold text-gray-400 line-through">₹{mrp}<span className="text-[9px]">/mo</span></p>
+              <p className="text-sm font-bold text-gray-400 line-through">₹{Math.round(mrp)}<span className="text-[9px]">/mo</span></p>
             ) : <p className="text-sm text-gray-300">—</p>}
           </div>
           <div className="text-right">
             <p className="text-[9px] font-black text-[#C5A059] uppercase tracking-wider mb-0.5">Our Price</p>
-            <p className="text-2xl font-black text-[#1B4332] leading-none">₹{ourPrice}<span className="text-[10px] font-bold text-gray-400">/mo</span></p>
+            <p className="text-2xl font-black text-[#1B4332] leading-none">₹{Math.round(ourPrice)}<span className="text-[10px] font-bold text-gray-400">/mo</span></p>
           </div>
         </div>
 
@@ -173,10 +173,10 @@ function SubscriptionCard({ plan, onSubscribe }: { plan: SubscriptionPlan; onSub
               </div>
               <div className="flex-shrink-0 text-right">
                 {item.sellingPrice ? (
-                  <p className="text-[11px] font-black text-[#1B4332]">₹{item.sellingPrice}<span className="text-[8px] text-gray-400">/{item.unit}</span></p>
+                  <p className="text-[11px] font-black text-[#1B4332]">₹{Math.round(item.sellingPrice)}<span className="text-[8px] text-gray-400">/{item.unit}</span></p>
                 ) : null}
                 {item.mrp && item.sellingPrice && item.mrp > item.sellingPrice ? (
-                  <p className="text-[9px] text-gray-400 line-through">₹{item.mrp}</p>
+                  <p className="text-[9px] text-gray-400 line-through">₹{Math.round(item.mrp)}</p>
                 ) : null}
               </div>
             </div>
@@ -248,10 +248,10 @@ function ProductCard({ product, isInCart, cartQuantity, onAddToCart, onRemoveFro
         <div className="flex flex-col justify-between mt-auto gap-2 pt-1">
           <div>
             {product.slashedPrice && !isOutOfStock && (
-              <p className="text-[10px] text-gray-400 line-through leading-none mb-0.5">₹{product.slashedPrice}</p>
+              <p className="text-[10px] text-gray-400 line-through leading-none mb-0.5">₹{Math.round(product.slashedPrice)}</p>
             )}
             <p className="text-[15px] font-black text-[#1B4332] leading-tight">
-              ₹{product.price || 0}
+              ₹{Math.round(product.price || 0)}
               <span className="text-[10px] font-medium text-gray-400 ml-0.5">/{product.unit || 'unit'}</span>
             </p>
           </div>
@@ -381,7 +381,7 @@ export default function ConsumerShopPage() {
     <AppLayout headerAction={
       <button onClick={() => setShowCart(true)} className="flex bg-[#C5A059] hover:bg-[#EADAB8] border-none text-brand-dark py-1.5 px-3 rounded-md cursor-pointer text-[13px] items-center gap-2 transition-all font-bold shadow-sm relative">
         <ShoppingCart size={14} />
-        <span>{cartCount > 0 ? `${cartCount} item${cartCount > 1 ? 's' : ''} · ₹${cartTotal}` : 'Cart'}</span>
+        <span>{cartCount > 0 ? `${cartCount} item${cartCount > 1 ? 's' : ''} · ₹${Math.round(cartTotal)}` : 'Cart'}</span>
         {cartCount > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black">{cartCount}</span>}
       </button>
     }>
@@ -543,7 +543,7 @@ export default function ConsumerShopPage() {
                   <img src={formatImageUrl(item.imageUrl)} className="w-20 h-20 rounded-xl object-cover bg-gray-50" alt={item.name} />
                   <div className="flex-1 flex flex-col justify-center">
                     <h3 className="font-bold text-[#1B4332] text-sm leading-tight">{item.name}</h3>
-                    <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">₹{item.price} / {item.unit}</p>
+                    <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">₹{Math.round(item.price)} / {item.unit}</p>
                     {item.description && (
                       <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-tight">{item.description}</p>
                     )}
@@ -554,7 +554,7 @@ export default function ConsumerShopPage() {
                     </div>
                   </div>
                   <div className="flex flex-col justify-between items-end">
-                     <p className="font-black text-[#1B4332] text-base">₹{item.price * item.cartQuantity}</p>
+                     <p className="font-black text-[#1B4332] text-base">₹{Math.round(item.price * item.cartQuantity)}</p>
                      <button onClick={() => removeFromCart(item.id)} className="text-xs text-gray-400 hover:text-red-500 font-medium underline opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
                   </div>
                 </div>
@@ -565,7 +565,7 @@ export default function ConsumerShopPage() {
                 <div className="space-y-3 mb-6">
                    <div className="flex justify-between text-sm text-gray-500 font-medium">
                       <span>Subtotal</span>
-                      <span>₹{cartTotal}</span>
+                      <span>₹{Math.round(cartTotal)}</span>
                    </div>
                    <div className="flex justify-between text-sm text-green-600 font-medium">
                       <span>Delivery</span>
@@ -573,7 +573,7 @@ export default function ConsumerShopPage() {
                    </div>
                    <div className="pt-3 border-t border-gray-100 flex items-end justify-between">
                       <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total Payable</p>
-                      <p className="text-3xl font-black text-[#1B4332]">₹{cartTotal}</p>
+                      <p className="text-3xl font-black text-[#1B4332]">₹{Math.round(cartTotal)}</p>
                    </div>
                 </div>
                 <button 

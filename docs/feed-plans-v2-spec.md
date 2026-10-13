@@ -275,12 +275,35 @@ problem. Implemented in `CustomPlanService.updatePlan` / `deletePlan`; the cost
 calculation is now shared with `savePlan` via the private `writeItems` helper.
 Frontend is not yet wired to either endpoint.
 
-**Phase 2 — shared plans.**
-Assignments table, backfill, `POST` accepting `animalIds`, assignments endpoint,
-`GET ?animalId=` rerouted through assignments. `herd_id` kept but no longer written.
+**Phase 2 — shared plans. ✅ CODE DONE, MIGRATION NOT YET RUN.**
+Assignments table, `POST` accepting `animalIds`, `PUT /{id}/assignments`,
+`GET ?animalId=` rerouted through assignments, `GET` with no param listing all plans.
 
-**Phase 3 — adequacy + cleanup.**
-Adequacy endpoint, frontend assign screen with per-animal chips, drop `herd_id`.
+`herd_id` is still WRITTEN (with the first assigned animal), not merely kept — the column
+is `NOT NULL` in the database until §5 step 3 runs, so a plan that did not set it would
+fail to insert. Once the migration has run this dual-write becomes redundant and is
+removed in Phase 3.
+
+**The migration in §5 has not been run.** Until it is: existing plans do not appear in
+`GET ?animalId=` (their assignment rows do not exist yet), and creating a plan with no
+animals fails. Both resolve after steps 1–3.
+
+**Phase 3 — adequacy + cleanup. ✅ ADEQUACY DONE. `herd_id` REMOVAL DEFERRED.**
+`POST /{planId}/adequacy` (`PlanAdequacyService`) and the frontend assign screen with
+per-animal ADEQUATE/DEFICIENT/EXCESS chips are implemented.
+
+`herd_id` has deliberately NOT been dropped. Dropping the field while the database column
+is still `NOT NULL` makes every plan INSERT fail at runtime (§2), and the §5 migration has
+not been confirmed as run. Removal is a two-step job to do once it has:
+
+1. Confirm `SELECT COUNT(*) FROM feed_plan_assignments;` matches the plan count, and that
+   `herd_id` is nullable.
+2. Delete `FeedPlan.herdId` and its accessors, drop the `plan.setHerdId(...)` dual-writes
+   in `CustomPlanService.savePlan` / `replaceAssignments`, drop the `plan.getHerdId()`
+   fallback in `loadPlan`, then run §5 step 4.
+
+Until then the dual-write is harmless and keeps the app deployable either side of the
+migration.
 
 ---
 

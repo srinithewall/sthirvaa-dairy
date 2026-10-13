@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
 import TodayFarmActions from '@/components/TodayFarmActions';
-import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar, Sun, Moon, Clock } from 'lucide-react';
+import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar, Sun, Moon, Clock, BarChart3 } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -466,6 +466,10 @@ export default function DashboardPage() {
           <p className="text-[13px] text-text3 mt-1">{todayStr} · Sthirvaa Farms</p>
         </div>
         <div className="flex gap-2.5">
+          <Link href="/reports" className="bg-white border border-border-custom text-text2 flex items-center gap-2 py-2 px-4 rounded-radius-custom font-semibold text-[13px] hover:border-brand hover:text-brand transition-all shadow-sm">
+            <BarChart3 size={15} />
+            <span>Reports &amp; Analytics</span>
+          </Link>
           <Link href="/production" className="bg-accent text-brand-dark flex items-center gap-2 py-2 px-4 rounded-radius-custom font-semibold text-[13px] hover:bg-accent-dark transition-all shadow-sm">
             <PlusIcon />
             <span>Milk Entry</span>
@@ -493,7 +497,7 @@ export default function DashboardPage() {
         <StatCard 
           label={displayRevLabel} 
           value={`₹${Math.round(displayRev)}`} 
-          trend={revenuePeriod === 'daily' ? `₹${Math.abs(revenueTrend)} ${revenueTrend >= 0 ? 'more' : 'less'}` : undefined} 
+          trend={revenuePeriod === 'daily' ? `₹${Math.round(Math.abs(revenueTrend))} ${revenueTrend >= 0 ? 'more' : 'less'}` : undefined} 
           trendType={revenueTrend >= 0 ? "up" : "down"} 
           icon="💵" 
           variant="blue"
@@ -503,7 +507,7 @@ export default function DashboardPage() {
         <StatCard 
           label={displayExpLabel} 
           value={`₹${Math.round(displayExp)}`} 
-          trend={expensePeriod === 'daily' ? `₹${Math.abs(expenseTrend)} vs yesterday` : undefined} 
+          trend={expensePeriod === 'daily' ? `₹${Math.round(Math.abs(expenseTrend))} vs yesterday` : undefined} 
           trendType={expenseTrend <= 0 ? "down" : "up"} 
           icon="💸" 
           variant="amber"
@@ -579,7 +583,7 @@ export default function DashboardPage() {
                                   label += ': ';
                                 }
                                 if (context.parsed !== null) {
-                                  label += '₹' + context.parsed;
+                                  label += '₹' + Math.round(context.parsed);
                                   const total = context.dataset.data.reduce((acc: number, curr: number) => acc + curr, 0);
                                   const percentage = ((context.parsed / total) * 100).toFixed(1) + '%';
                                   label += ' (' + percentage + ')';
@@ -617,7 +621,7 @@ export default function DashboardPage() {
                         {selectedPieCategory} Entries
                       </h4>
                       <span className="text-sm font-bold text-text2">
-                        Total: ₹{modalPieDataMap[selectedPieCategory] || 0}
+                        Total: ₹{Math.round(modalPieDataMap[selectedPieCategory] || 0)}
                       </span>
                     </div>
                     {categoryExpenses.length === 0 ? (
@@ -631,7 +635,7 @@ export default function DashboardPage() {
                               <div className="text-[11px] text-text3">{new Date(expense.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                             </div>
                             <div className="font-bold text-danger text-sm">
-                              ₹{expense.amount}
+                              ₹{Math.round(expense.amount)}
                             </div>
                           </div>
                         ))}

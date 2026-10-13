@@ -388,7 +388,7 @@ export default function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-800 text-[13px] leading-tight truncate">{item.name}</p>
                       <p className="text-[10px] text-[#C5A059] font-bold mt-0.5">
-                        ₹{item.price} × {item.cartQuantity || 1} = <span className="text-[#1B4332]">₹{item.price * (item.cartQuantity || 1)}</span>
+                        ₹{Math.round(item.price)} × {item.cartQuantity || 1} = <span className="text-[#1B4332]">₹{Math.round(item.price * (item.cartQuantity || 1))}</span>
                       </p>
                       {item.description && (
                         <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-tight pr-2">{item.description}</p>
@@ -421,7 +421,7 @@ export default function CheckoutPage() {
               <button onClick={() => setShowPromo(p => !p)}
                 className="flex items-center gap-2 text-[#1B4332] text-[12px] font-bold hover:underline transition-colors">
                 <Tag size={13} />
-                {promoApplied ? `Promo applied: -₹${promoDiscount}` : 'Apply promo code or discount'}
+                {promoApplied ? `Promo applied: -₹${Math.round(promoDiscount)}` : 'Apply promo code or discount'}
                 {!promoApplied && <ChevronRight size={12} className={`transition-transform ${showPromo ? 'rotate-90' : ''}`} />}
                 {promoApplied && <span className="text-emerald-500 text-[10px]">✓</span>}
               </button>
@@ -448,24 +448,24 @@ export default function CheckoutPage() {
                 {cartItems.map((item, i) => (
                   <div key={item.id ?? i} className="flex justify-between text-[11px] text-gray-500 font-medium">
                     <span className="truncate mr-2">{item.name} × {item.cartQuantity || 1}</span>
-                    <span className="flex-shrink-0 font-bold text-gray-700">₹{item.price * (item.cartQuantity || 1)}</span>
+                    <span className="flex-shrink-0 font-bold text-gray-700">₹{Math.round(item.price * (item.cartQuantity || 1))}</span>
                   </div>
                 ))}
                 <div className="border-t border-[#E8F0EA] pt-2.5 space-y-2">
                   <div className="flex justify-between text-[12px] text-gray-500 font-medium">
                     <span>Delivery fee</span>
-                    <span>{deliveryFee === 0 ? <span className="text-emerald-600 font-bold">FREE</span> : `₹${deliveryFee}`}</span>
+                    <span>{deliveryFee === 0 ? <span className="text-emerald-600 font-bold">FREE</span> : `₹${Math.round(deliveryFee)}`}</span>
                   </div>
                   {totalDiscount > 0 && (
                     <div className="flex justify-between text-[12px] text-emerald-600 font-bold">
                       <span>Discount{autoDiscount > 0 ? ' (10% off above ₹1000)' : ''}</span>
-                      <span>-₹{totalDiscount}</span>
+                      <span>-₹{Math.round(totalDiscount)}</span>
                     </div>
                   )}
                   {gatewayFee > 0 && (
                     <div className="flex justify-between text-[11px] text-gray-400 font-medium">
                       <span>Gateway fee (1.5%)</span>
-                      <span>₹{gatewayFee.toFixed(2)}</span>
+                      <span>₹{gatewayFee.toFixed(0)}</span>
                     </div>
                   )}
                 </div>

@@ -1,6 +1,54 @@
 [
   {
     "version": "v0.1.1",
+    "date": "2026-10-13",
+    "commit": "3c3be7d",
+    "changes": [
+      "feat: animal birth time, disposal date, ledger category controls, push fix"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-09-15",
+    "commit": "347b989",
+    "changes": [
+      "feat(ledger): track and settle staff-paid expense reimbursements"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-09-06",
+    "commit": "095c02e",
+    "changes": [
+      "fix(chores): distinguish all-done from nothing-scheduled on the dashboard"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-09-06",
+    "commit": "770f762",
+    "changes": [
+      "feat(chores): manual reminder trigger and in-app chore banner"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-09-06",
+    "commit": "8c60e5b",
+    "changes": [
+      "fix(chores): show overdue chores in today's checklist"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-09-06",
+    "commit": "fb2e482",
+    "changes": [
+      "feat: Feed Optimizer UI/UX redesign - collapsible animal info, customize ration modal, daily schedule modal, fix double scrollbar"
+    ]
+  },
+  {
+    "version": "v0.1.0",
     "date": "2026-08-27",
     "commit": "f44c922",
     "changes": [
@@ -69,54 +117,6 @@
     "commit": "3823cd6",
     "changes": [
       "fix(herds): allow STAFF role to edit animals and logs"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-07-28",
-    "commit": "9f73a28",
-    "changes": [
-      "fix(dashboard): resolve decimal issues, adjust milk chart minimum/height, clean up top milkers layout, and correct net profit calculation"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-17",
-    "commit": "fc44950",
-    "changes": [
-      "UI: Fix mobile animal image upload tap target"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-16",
-    "commit": "fe17565",
-    "changes": [
-      "UI: Add sort functionality for assets table"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-16",
-    "commit": "4c0fe74",
-    "changes": [
-      "Fix Distribute Milk modal over-allocated error caused by hidden floating point decimals"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-16",
-    "commit": "250a261",
-    "changes": [
-      "UI: Improve dashboard filters layout and tooltip sorting"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-06-16",
-    "commit": "3cbf9d6",
-    "changes": [
-      "feat(backend): add marketValue column to Asset entity"
     ]
   }
 ]

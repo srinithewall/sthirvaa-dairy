@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, BarChart3, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api, { formatImageUrl } from '@/lib/api';
@@ -12,6 +12,8 @@ interface SidebarItem {
   icon: any;
   path: string;
   badge?: string | number;
+  /** Other path prefixes that should highlight this item. */
+  also?: string[];
 }
 
 interface SidebarSection {
@@ -21,7 +23,8 @@ interface SidebarSection {
 
 const sidebarItems: SidebarSection[] = [
   { group: 'Overview', items: [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' }
+    // Reports & Analytics is opened from a button on the Dashboard.
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', also: ['/reports'] }
   ]},
   { group: 'Farm Management', items: [
     { name: 'Herd Management', icon: Layout, path: '/herds' },
@@ -30,10 +33,10 @@ const sidebarItems: SidebarSection[] = [
     { name: 'Farm Chores', icon: ClipboardList, path: '/activities' }
   ]},
   { group: 'Business', items: [
-    { name: 'Reports & Analytics', icon: BarChart3, path: '/reports' },
+    // Opens the shop's New Bill (used most); the Shop | Farm toggle switches to farm inventory.
+    { name: 'Inventory', icon: Package, path: '/store/billing', also: ['/store', '/inventory'] },
     { name: 'Digital Ledger', icon: FileText, path: '/ledger' },
-    { name: 'Sales', icon: ShoppingCart, path: '/sales' },
-    { name: 'Inventory', icon: Package, path: '/inventory' }
+    { name: 'Sales', icon: ShoppingCart, path: '/sales' }
   ]},
   { group: 'Operations', items: [
     { name: 'Staff Management', icon: Users, path: '/staff' }
@@ -294,7 +297,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
             {section.group}
           </div>
           {section.items.map((item) => {
-            const isActive = pathname === item.path;
+            const isActive = pathname === item.path
+              || !!item.also?.some((p) => pathname.startsWith(p));
             const Icon = item.icon;
             return (
               <Link

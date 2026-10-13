@@ -16,6 +16,7 @@ public interface FarmActivityLogRepository extends JpaRepository<FarmActivityLog
     List<FarmActivityLog> findByDueDateAndStatusIn(LocalDate dueDate, List<ActivityStatus> statuses);
     List<FarmActivityLog> findByDueDateLessThanAndStatusIn(LocalDate dueDate, List<ActivityStatus> statuses);
     List<FarmActivityLog> findByActivityIdOrderByDueDateDesc(Long activityId);
+    List<FarmActivityLog> findByActivityIdInOrderByDueDateDesc(List<Long> activityIds);
     List<FarmActivityLog> findByDueDateLessThanEqualAndStatusIn(LocalDate dueDate, List<ActivityStatus> statuses);
     List<FarmActivityLog> findByActivityIdAndDueDateGreaterThanEqualAndStatusIn(
             Long activityId, LocalDate dueDate, List<ActivityStatus> statuses);

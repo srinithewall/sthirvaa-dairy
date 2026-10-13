@@ -199,7 +199,14 @@ public class FarmActivityService {
         return enrich(single).get(0);
     }
 
-    public FarmActivityLog updateLogStatus(Long logId, ActivityStatus status, Long staffId, String notes) {
+    public List<FarmActivityLog> getHistoryForChain(String chainId) {
+        List<FarmActivity> activities = activityRepository.findByChainId(chainId);
+        if (activities.isEmpty()) return new ArrayList<>();
+        List<Long> ids = activities.stream().map(FarmActivity::getId).collect(java.util.stream.Collectors.toList());
+        return enrich(logRepository.findByActivityIdInOrderByDueDateDesc(ids));
+    }
+
+    public FarmActivityLog updateLogStatus(Long logId, ActivityStatus status, Long staffId, String notes, FarmActivity followUpRequest) {
         FarmActivityLog log = logRepository.findById(logId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found: " + logId));
 
@@ -214,7 +221,26 @@ public class FarmActivityService {
             log.setCompletedByStaffId(null);
         }
         if (notes != null) log.setNotes(notes);
-        return logRepository.save(log);
+        
+        FarmActivityLog savedLog = logRepository.save(log);
+
+        if (status == ActivityStatus.COMPLETED && followUpRequest != null) {
+            FarmActivity parentActivity = activityRepository.findById(log.getActivityId()).orElse(null);
+            if (parentActivity != null) {
+                String chainId = parentActivity.getChainId();
+                if (chainId == null || chainId.isBlank()) {
+                    chainId = java.util.UUID.randomUUID().toString();
+                    parentActivity.setChainId(chainId);
+                    activityRepository.save(parentActivity);
+                }
+                followUpRequest.setChainId(chainId);
+                // Inherit some fields from parent if not specified
+                if (followUpRequest.getCategory() == null) followUpRequest.setCategory(parentActivity.getCategory());
+                if (followUpRequest.getDueTime() == null) followUpRequest.setDueTime(parentActivity.getDueTime());
+                saveActivity(followUpRequest);
+            }
+        }
+        return savedLog;
     }
 
     public FarmActivityLog assignLog(Long logId, Long staffId) {

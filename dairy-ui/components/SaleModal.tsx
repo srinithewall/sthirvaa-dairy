@@ -204,7 +204,7 @@ export default function SaleModal({ isOpen, onClose, onSuccess, sale }: SaleModa
 
           <div className="bg-surface2 p-3 rounded-lg border border-border-custom flex justify-between items-center">
             <span className="text-xs font-bold text-text3 uppercase">Total Amount</span>
-            <span className="text-lg font-black text-brand">₹{formData.totalAmount.toLocaleString()}</span>
+            <span className="text-lg font-black text-brand">₹{formData.totalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
           </div>
 
           <div>

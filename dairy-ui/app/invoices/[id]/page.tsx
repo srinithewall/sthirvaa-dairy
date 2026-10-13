@@ -182,8 +182,8 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                         <p className="text-[9px] text-gray-400 font-medium leading-none mt-1">{item.description}</p>
                       </div>
                       <p className="text-[12px] text-gray-600 font-bold text-center">{item.qty}</p>
-                      <p className="text-[12px] text-gray-600 font-medium text-right">₹{item.price?.toFixed(2)}</p>
-                      <p className="text-[12px] text-gray-800 font-black text-right">₹{item.amount?.toFixed(2)}</p>
+                      <p className="text-[12px] text-gray-600 font-medium text-right">₹{item.price?.toFixed(0)}</p>
+                      <p className="text-[12px] text-gray-800 font-black text-right">₹{item.amount?.toFixed(0)}</p>
                     </div>
                   ))}
                 </div>
@@ -191,21 +191,21 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                 <div className="border-t border-gray-100 bg-[#F9FBF9]/40 divide-y divide-gray-50 px-4">
                   <div className="flex items-center justify-between py-2.5">
                     <p className="text-[11px] text-gray-500 font-semibold">Subtotal</p>
-                    <p className="text-[11px] text-gray-800 font-bold">₹{inv.subtotal?.toFixed(2)}</p>
+                    <p className="text-[11px] text-gray-800 font-bold">₹{inv.subtotal?.toFixed(0)}</p>
                   </div>
                   {inv.discount > 0 && (
                     <div className="flex items-center justify-between py-2.5">
                       <p className="text-[11px] text-gray-500 font-semibold">Discount</p>
-                      <p className="text-[11px] text-red-500 font-bold">-{inv.discount?.toFixed(2)}</p>
+                      <p className="text-[11px] text-red-500 font-bold">-{inv.discount?.toFixed(0)}</p>
                     </div>
                   )}
                   <div className="flex items-center justify-between py-2.5">
                     <p className="text-[11px] text-gray-500 font-semibold">Gateway Fee</p>
-                    <p className="text-[11px] text-gray-800 font-bold">₹{inv.gatewayFee?.toFixed(2)}</p>
+                    <p className="text-[11px] text-gray-800 font-bold">₹{inv.gatewayFee?.toFixed(0)}</p>
                   </div>
                   <div className="flex items-center justify-between py-3.5">
                     <p className="text-[12px] font-black text-[#1B4332] uppercase tracking-wide">Total Amount</p>
-                    <p className="text-[16px] font-black text-[#1B4332]">₹ {inv.total?.toFixed(2)}</p>
+                    <p className="text-[16px] font-black text-[#1B4332]">₹ {inv.total?.toFixed(0)}</p>
                   </div>
                 </div>
               </div>
@@ -218,7 +218,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                   href="/checkout"
                   className="w-full py-4 bg-[#1B4332] text-white rounded-xl font-black text-[12px] uppercase tracking-[0.15em] shadow-lg hover:bg-[#081C15] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
-                  <ShieldCheck size={16} /> Pay ₹ {inv.total?.toFixed(2)} Now
+                  <ShieldCheck size={16} /> Pay ₹ {inv.total?.toFixed(0)} Now
                 </Link>
               </div>
             )}

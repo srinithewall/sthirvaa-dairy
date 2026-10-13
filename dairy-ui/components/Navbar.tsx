@@ -78,8 +78,8 @@ export default function Navbar({ onToggleSidebar, headerAction }: { onToggleSide
           showCartButton ? (
             <button onClick={() => router.push('/checkout')} className="flex bg-[#C5A059] hover:bg-[#EADAB8] border-none text-brand-dark py-1.5 px-2.5 sm:px-3 rounded-md cursor-pointer text-[13px] items-center gap-1.5 transition-all font-bold shadow-sm relative flex-shrink-0">
               <ShoppingCart size={14} />
-              <span className="sm:hidden">{cartCount > 0 ? `₹${cartTotal}` : 'Kart'}</span>
-              <span className="hidden sm:inline">{cartCount > 0 ? `${cartCount} item${cartCount > 1 ? 's' : ''} · ₹${cartTotal}` : 'Cart'}</span>
+              <span className="sm:hidden">{cartCount > 0 ? `₹${Math.round(cartTotal)}` : 'Kart'}</span>
+              <span className="hidden sm:inline">{cartCount > 0 ? `${cartCount} item${cartCount > 1 ? 's' : ''} · ₹${Math.round(cartTotal)}` : 'Cart'}</span>
               {cartCount > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white/90 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black">{cartCount}</span>}
             </button>
           ) : (

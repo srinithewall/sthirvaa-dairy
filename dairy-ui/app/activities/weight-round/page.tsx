@@ -4,29 +4,8 @@ import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import api from "@/lib/api";
-import {
-  ArrowLeft, Check, ChevronDown, ChevronUp, RefreshCw, Save, TrendingDown, TrendingUp, Minus,
-} from "lucide-react";
-
-interface RoundRow {
-  herdId: number;
-  tagNumber?: string;
-  animalName?: string;
-  animalType?: string;
-  breed?: string;
-  animalStatus?: string;
-  lastWeightKg?: number | null;
-  lastRecordDate?: string | null;
-  lastHeartGirthCm?: number | null;
-  lastBodyLengthCm?: number | null;
-  daysSinceLastRecord?: number | null;
-  measuredInRound?: boolean;
-}
-
-interface Entry {
-  girth: string;
-  length: string;
-}
+import { ArrowLeft, Check, RefreshCw, Play, X, TrendingDown, TrendingUp, Minus, Clock } from "lucide-react";
+import WeightUpdateModal, { AnimalWeightTarget } from "@/components/WeightUpdateModal";
 
 const localDate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -36,15 +15,13 @@ function WeightRoundInner() {
   const searchParams = useSearchParams();
   const logId = searchParams.get("logId");
 
-  const [rows, setRows] = useState<RoundRow[]>([]);
-  const [entries, setEntries] = useState<Record<number, Entry>>({});
+  const [rows, setRows] = useState<AnimalWeightTarget[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
   const [task, setTask] = useState<any | null>(null);
-  const [expanded, setExpanded] = useState<number | null>(null);
+  
+  const [wizardAnimals, setWizardAnimals] = useState<AnimalWeightTarget[]>([]);
+  const [historyModalOpen, setHistoryModalOpen] = useState<number | null>(null);
   const [historyByHerd, setHistoryByHerd] = useState<Record<number, any[]>>({});
 
   const roundDate = localDate(new Date());
@@ -55,37 +32,21 @@ function WeightRoundInner() {
       const res = await api.get(`/herds/weight/round?date=${roundDate}`);
       setRows(res.data || []);
     } catch (err) {
-      console.error(err);
       setError("Could not load the herd list.");
     } finally {
       setLoading(false);
     }
   }, [roundDate]);
 
-  useEffect(() => {
-    loadRound();
-  }, [loadRound]);
+  useEffect(() => { loadRound(); }, [loadRound]);
 
   useEffect(() => {
     if (!logId) return;
-    api.get(`/activities/logs/${logId}`)
-      .then(res => setTask(res.data))
-      .catch(() => {});
+    api.get(`/activities/logs/${logId}`).then(res => setTask(res.data)).catch(() => {});
   }, [logId]);
 
-  const setEntry = (herdId: number, field: keyof Entry, value: string) => {
-    setEntries(prev => {
-      const current = prev[herdId] || { girth: "", length: "" };
-      return { ...prev, [herdId]: { ...current, [field]: value } };
-    });
-  };
-
   const toggleHistory = async (herdId: number) => {
-    if (expanded === herdId) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(herdId);
+    setHistoryModalOpen(herdId);
     if (historyByHerd[herdId]) return;
     try {
       const res = await api.get(`/herds/${herdId}/weight`);
@@ -95,48 +56,22 @@ function WeightRoundInner() {
     }
   };
 
-  const filledEntries = Object.entries(entries).filter(([, e]) => e.girth && parseFloat(e.girth) > 0);
-  const measuredCount = rows.filter(r => r.measuredInRound).length;
+  const measuredCount = rows.filter((r: any) => r.measuredInRound).length;
   const alreadyDone = task?.status === "COMPLETED";
 
-  const handleSave = async () => {
-    if (filledEntries.length === 0) {
-      setError("Enter a girth for at least one animal.");
-      return;
-    }
-    setError("");
-    setMessage("");
-    setSaving(true);
-    try {
-      const payload = filledEntries.map(([herdId, e]) => ({
-        herdId: parseInt(herdId, 10),
-        recordDate: roundDate,
-        measurementMethod: "HEART_GIRTH_TAPE",
-        heartGirthCm: parseFloat(e.girth),
-        bodyLengthCm: e.length ? parseFloat(e.length) : null,
-      }));
-      const query = logId ? `?logId=${logId}&date=${roundDate}` : `?date=${roundDate}`;
-      const res = await api.post(`/herds/weight/bulk${query}`, payload);
-      const result = res.data || {};
-      setEntries({});
-      setHistoryByHerd({});
-
-      if (result.taskCompleted) {
-        setMessage(`All ${result.totalCount} animals measured. The chore is done - reminders have stopped.`);
-        setTask((prev: any) => (prev ? { ...prev, status: "COMPLETED" } : prev));
-      } else {
-        setMessage(`Saved ${(result.saved || []).length} readings. ${result.measuredCount} of ${result.totalCount} animals measured.`);
-      }
-      await loadRound();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Could not save the readings.");
-    } finally {
-      setSaving(false);
-    }
+  const handleStartAll = () => {
+    setWizardAnimals(rows.filter((r: any) => !r.measuredInRound));
   };
 
-  // The round closes itself once every animal is measured. This is the way out when one
-  // cannot be measured at all - a sick or absent animal should not nag staff all day.
+  const handleStartSingle = (row: AnimalWeightTarget) => {
+    setWizardAnimals([row]);
+  };
+
+  const handleWizardClose = () => {
+    setWizardAnimals([]);
+    loadRound();
+  };
+
   const handleMarkDone = async () => {
     if (!logId) return;
     const remaining = rows.length - measuredCount;
@@ -155,10 +90,7 @@ function WeightRoundInner() {
   return (
     <AppLayout>
       <div className="flex flex-col max-w-2xl mx-auto pb-28">
-        <button
-          onClick={() => router.push("/activities")}
-          className="flex items-center gap-1 text-text3 hover:text-text text-sm mb-3"
-        >
+        <button onClick={() => router.push("/activities")} className="flex items-center gap-1 text-text3 hover:text-text text-sm mb-3">
           <ArrowLeft size={16} /> Back to chores
         </button>
 
@@ -168,139 +100,51 @@ function WeightRoundInner() {
         </p>
 
         {rows.length > 0 && (
-          <div className="mt-3 h-2 bg-surface border border-border rounded-full overflow-hidden">
-            <div
-              className="h-full bg-brand transition-all"
-              style={{ width: `${Math.round((measuredCount / rows.length) * 100)}%` }}
-            />
+          <div className="mt-3 h-2.5 bg-slate-100 border border-slate-200 rounded-full overflow-hidden relative">
+            <div className="h-full bg-brand transition-all" style={{ width: `${Math.round((measuredCount / rows.length) * 100)}%` }} />
           </div>
         )}
 
-        {message && (
-          <div className="mt-4 text-sm text-green-800 bg-surface-green border border-border-green rounded-md p-3">
-            {message}
-          </div>
-        )}
-        {error && (
-          <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">{error}</div>
-        )}
+        {error && <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">{error}</div>}
 
         {loading ? (
-          <div className="flex items-center justify-center p-8 text-text3">
-            <RefreshCw className="animate-spin w-5 h-5 mr-2" /> Loading herd...
-          </div>
+          <div className="flex items-center justify-center p-8 text-text3"><RefreshCw className="animate-spin w-5 h-5 mr-2" /> Loading herd...</div>
         ) : rows.length === 0 ? (
-          <div className="mt-6 text-center p-8 bg-surface border border-border rounded-radius-custom text-text3 text-sm">
-            No active animals to weigh.
-          </div>
+          <div className="mt-6 text-center p-8 bg-surface border border-border rounded-radius-custom text-text3 text-sm">No active animals to weigh.</div>
         ) : (
           <div className="mt-5 space-y-3">
-            {rows.map(row => {
-              const entry = entries[row.herdId] || { girth: "", length: "" };
-              const history = historyByHerd[row.herdId];
-              const isOpen = expanded === row.herdId;
-              return (
-                <div
-                  key={row.herdId}
-                  className={`bg-white rounded-radius-custom border shadow-sm ${
-                    row.measuredInRound ? "border-border-green" : "border-border"
-                  }`}
-                >
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="font-medium text-text text-[15px] flex items-center gap-2">
-                          {row.animalName || row.tagNumber || `#${row.herdId}`}
-                          {row.measuredInRound && (
-                            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-green-50 text-green-700">
-                              <Check size={10} /> Done
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-xs text-text3 mt-0.5">
-                          {[row.tagNumber, row.breed, row.animalStatus].filter(Boolean).join(" · ")}
-                        </p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-semibold text-text">
-                          {row.lastWeightKg != null ? `${row.lastWeightKg.toFixed(1)} kg` : "--"}
-                        </p>
-                        <p className="text-[11px] text-text3">
-                          {row.daysSinceLastRecord != null
-                            ? row.daysSinceLastRecord === 0
-                              ? "today"
-                              : `${row.daysSinceLastRecord}d ago`
-                            : "never weighed"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 mt-3">
-                      <div>
-                        <label className="block text-[11px] font-medium text-text3 mb-1">Heart girth (cm)</label>
-                        <input
-                          type="number" inputMode="decimal" step="0.1" value={entry.girth}
-                          onChange={e => setEntry(row.herdId, "girth", e.target.value)}
-                          placeholder={row.lastHeartGirthCm ? String(row.lastHeartGirthCm) : ""}
-                          className="w-full border border-border rounded-md p-2 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium text-text3 mb-1">Body length (cm, optional)</label>
-                        <input
-                          type="number" inputMode="decimal" step="0.1" value={entry.length}
-                          onChange={e => setEntry(row.herdId, "length", e.target.value)}
-                          placeholder={row.lastBodyLengthCm ? String(row.lastBodyLengthCm) : ""}
-                          className="w-full border border-border rounded-md p-2 text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => toggleHistory(row.herdId)}
-                      className="mt-3 text-xs font-medium text-brand flex items-center gap-1 hover:underline"
-                    >
-                      {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      {isOpen ? "Hide history" : "View history"}
-                    </button>
+            {rows.map((row: any) => (
+              <div key={row.herdId} className={`bg-white p-3 rounded-xl border flex items-center justify-between shadow-sm transition-colors ${row.measuredInRound ? 'border-green-200 bg-green-50/30' : 'border-border'}`}>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-lg font-black">
+                    {(row.animalName || row.tagNumber || "#")[0].toUpperCase()}
                   </div>
-
-                  {isOpen && (
-                    <div className="border-t border-border bg-surface px-4 py-3">
-                      {!history ? (
-                        <div className="flex items-center text-xs text-text3">
-                          <RefreshCw className="animate-spin w-3 h-3 mr-2" /> Loading...
-                        </div>
-                      ) : history.length === 0 ? (
-                        <p className="text-xs text-text3">No readings recorded yet.</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {history.slice(0, 8).map((h: any) => {
-                            const change = h.weightChangeKg ?? 0;
-                            return (
-                              <div key={h.id} className="flex items-center justify-between text-xs">
-                                <span className="text-text3">{h.recordDate}</span>
-                                <span className="font-medium text-text">
-                                  {h.weightKg != null ? `${h.weightKg.toFixed(1)} kg` : "--"}
-                                </span>
-                                <span
-                                  className={`inline-flex items-center gap-1 font-medium ${
-                                    change > 0 ? "text-green-700" : change < 0 ? "text-red-600" : "text-text3"
-                                  }`}
-                                >
-                                  {change > 0 ? <TrendingUp size={12} /> : change < 0 ? <TrendingDown size={12} /> : <Minus size={12} />}
-                                  {change === 0 ? "--" : `${change > 0 ? "+" : ""}${change.toFixed(1)} kg`}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                      {row.animalName || row.tagNumber || `#${row.herdId}`}
+                      {row.measuredInRound && <Check size={14} className="text-green-600 bg-green-100 rounded-full p-0.5" />}
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
+                      {[row.tagNumber, row.breed, row.animalStatus].filter(Boolean).join(" · ")}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                      <span className="opacity-70">Last:</span>
+                      <span className="font-bold text-slate-700">{row.lastWeightKg ? `${row.lastWeightKg.toFixed(1)} kg` : "--"}</span>
+                    </p>
+                  </div>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-2">
+                   <button onClick={() => toggleHistory(row.herdId)} className="p-2 text-slate-400 hover:text-brand bg-slate-50 hover:bg-brand/10 rounded-lg transition-colors" title="Weight History">
+                     <Clock size={16} />
+                   </button>
+                   {!row.measuredInRound && (
+                     <button onClick={() => handleStartSingle(row)} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors">
+                       Weigh
+                     </button>
+                   )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -308,28 +152,62 @@ function WeightRoundInner() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border p-3 flex gap-2 justify-center z-40">
         <div className="w-full max-w-2xl flex gap-2">
           <button
-            onClick={handleSave}
-            disabled={saving || filledEntries.length === 0}
-            className="flex-1 inline-flex items-center justify-center gap-2 bg-brand text-white text-sm font-medium rounded-md py-2.5 hover:bg-brand-dark disabled:opacity-50"
+            onClick={handleStartAll}
+            disabled={measuredCount === rows.length}
+            className="flex-[2] inline-flex items-center justify-center gap-2 bg-brand text-white text-sm font-bold rounded-xl py-3 hover:bg-brand-dark disabled:opacity-50"
           >
-            <Save size={16} />
-            {saving ? "Saving..." : `Save ${filledEntries.length || ""} reading${filledEntries.length === 1 ? "" : "s"}`}
+            <Play size={18} /> {measuredCount === rows.length ? "All Done!" : `Start Measuring (${rows.length - measuredCount})`}
           </button>
           {logId && !alreadyDone && (
-            <button
-              onClick={handleMarkDone}
-              className="flex-1 inline-flex items-center justify-center gap-2 border border-brand text-brand text-sm font-medium rounded-md py-2.5 hover:bg-brand/5"
-            >
-              <Check size={16} /> Close without the rest
+            <button onClick={handleMarkDone} className="flex-1 inline-flex items-center justify-center gap-2 border-2 border-slate-200 text-slate-600 text-sm font-bold rounded-xl py-3 hover:bg-slate-50">
+              <Check size={18} /> Close Chore
             </button>
-          )}
-          {alreadyDone && (
-            <span className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-medium text-green-700">
-              <Check size={16} /> Chore completed
-            </span>
           )}
         </div>
       </div>
+
+      <WeightUpdateModal
+        isOpen={wizardAnimals.length > 0}
+        onClose={handleWizardClose}
+        animals={wizardAnimals}
+        onComplete={handleWizardClose}
+        logId={logId}
+      />
+
+      {historyModalOpen !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={() => setHistoryModalOpen(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-border flex items-center justify-between bg-slate-50">
+              <h2 className="font-bold text-slate-800 text-[15px]">Weight History</h2>
+              <button onClick={() => setHistoryModalOpen(null)} className="text-slate-400 hover:text-slate-800"><X size={20} /></button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+              {(() => {
+                const history = historyByHerd[historyModalOpen];
+                if (!history) return <div className="text-center text-sm text-slate-500 py-4"><RefreshCw className="animate-spin w-4 h-4 mx-auto mb-2" /> Loading...</div>;
+                if (history.length === 0) return <div className="text-center text-sm text-slate-500 py-4">No readings recorded yet.</div>;
+                return (
+                  <div className="space-y-3">
+                    {history.map((h: any) => {
+                      const change = h.weightChangeKg ?? 0;
+                      return (
+                         <div key={h.id} className="flex items-center justify-between text-sm border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                           <span className="text-slate-500 font-medium">{new Date(h.recordDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                           <span className="font-bold text-slate-800">{h.weightKg != null ? `${h.weightKg.toFixed(1)} kg` : "--"}</span>
+                           <span className={`inline-flex items-center gap-1 font-bold text-xs ${change > 0 ? "text-emerald-600" : change < 0 ? "text-red-500" : "text-slate-400"}`}>
+                             {change > 0 ? <TrendingUp size={14} /> : change < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
+                             {change === 0 ? "--" : `${change > 0 ? "+" : ""}${change.toFixed(1)} kg`}
+                           </span>
+                         </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

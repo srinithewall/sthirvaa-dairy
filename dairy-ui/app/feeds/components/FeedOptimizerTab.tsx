@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '@/lib/api';
 import {
   Calculator, Plus, Trash2, AlertCircle, ChevronDown, ChevronUp,
-  Save, Leaf, Activity, X, Settings2, Calendar
+  Save, Leaf, Activity, X, Settings2, Calendar, Users, CheckCircle2
 } from 'lucide-react';
 import FeedingSchedule from './FeedingSchedule';
 import { useNotification } from '@/components/NotificationContext';
@@ -36,13 +36,19 @@ const pick = (map: any, key: string) => {
   return hit ? map[hit] : undefined;
 };
 
+const ADEQUACY_STYLE: Record<string, string> = {
+  ADEQUATE:  'bg-green-100 text-green-700',
+  DEFICIENT: 'bg-red-100 text-red-700',
+  EXCESS:    'bg-amber-100 text-amber-700',
+};
+
 interface Props {
   /** Raw { feed, nutrition, knowledge } rows, owned by the page and shared across tabs. */
   feeds: any[];
 }
 
 export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
-  const { showToast } = useNotification();
+  const { showToast, confirm } = useNotification();
 
   const [herds, setHerds] = useState<any[]>([]);
   const feeds = useMemo(() => (feedRows || []).map((d: any) => d.feed || d), [feedRows]);
@@ -66,11 +72,23 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
 
-  // Save-as-custom-plan dialog (replaces window.prompt so the app styles its own dialogs)
+  // Save dialog, for creating new plans (optionally across several animals). Updating an
+  // existing plan does not come through here - it saves directly from the footer.
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [planName, setPlanName] = useState('');
   const [planAnimalIds, setPlanAnimalIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Assign-animals screen for a shared plan, with a per-animal adequacy check.
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignAnimalIds, setAssignAnimalIds] = useState<string[]>([]);
+  const [adequacy, setAdequacy] = useState<Record<string, any>>({});
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignSaving, setAssignSaving] = useState(false);
+
+  const isCustomPlanSelected = selectedPlan !== 'default';
+  const selectedPlanName =
+    customPlans.find(p => String(p.id) === String(selectedPlan))?.planName || '';
 
   useEffect(() => {
     fetchInitialData();
@@ -78,12 +96,13 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
 
   // Escape closes the topmost overlay; body scroll is locked while any is open.
   useEffect(() => {
-    const anyOpen = isScheduleModalOpen || isCustomizeModalOpen || isSaveDialogOpen;
+    const anyOpen = isScheduleModalOpen || isCustomizeModalOpen || isSaveDialogOpen || isAssignModalOpen;
     if (!anyOpen) return;
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (isSaveDialogOpen) setIsSaveDialogOpen(false);
+      else if (isAssignModalOpen) setIsAssignModalOpen(false);
       else if (isScheduleModalOpen) setIsScheduleModalOpen(false);
       else if (isCustomizeModalOpen) setIsCustomizeModalOpen(false);
     };
@@ -95,7 +114,7 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [isScheduleModalOpen, isCustomizeModalOpen, isSaveDialogOpen]);
+  }, [isScheduleModalOpen, isCustomizeModalOpen, isSaveDialogOpen, isAssignModalOpen]);
 
   useEffect(() => {
     if (!selectedAnimalId) {
@@ -167,6 +186,42 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
     }
   };
 
+  /** Feed lines from a saved plan, in the shape /feeds/optimize expects. */
+  const toFeedEntries = (planFeeds: any[]) =>
+    (planFeeds || [])
+      .map((f: any) => ({
+        feedId: f.feedId != null ? Number(f.feedId) : null,
+        quantityKg: f.quantityKg != null ? Number(f.quantityKg) : null,
+      }))
+      .filter(e => e.feedId && e.quantityKg);
+
+  /**
+   * Evaluates a ration against the selected animal. Takes the lines explicitly rather
+   * than reading `entries`, because callers that have just loaded a plan would otherwise
+   * race the state update and evaluate the previous plan's feeds.
+   */
+  const evaluateRation = async (feedEntries: { feedId: number | null; quantityKg: number | null }[]) => {
+    if (!selectedAnimalId || feedEntries.length === 0) {
+      setResults(null);
+      return;
+    }
+    setCalculating(true);
+    try {
+      const res = await api.post('/feeds/optimize', {
+        animalId: parseInt(selectedAnimalId, 10),
+        animalStage: selectedAnimal?.animalStatus || null,
+        feedEntries,
+      });
+      setResults(res.data);
+    } catch (err) {
+      console.error('Failed to calculate ration', err);
+      showToast('Could not calculate the ration. Please try again.', 'error');
+      setResults(null);
+    } finally {
+      setCalculating(false);
+    }
+  };
+
   const handlePlanChange = async (value: string) => {
     setSelectedPlan(value);
     if (!selectedAnimalId) return;
@@ -177,10 +232,14 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
     setLoading(true);
     try {
       const res = await api.get(`/feed-plans/${value}`);
-      applyPlanFeeds(res.data?.feeds);
-      setResults(null);
+      const planFeeds = res.data?.feeds;
+      applyPlanFeeds(planFeeds);
+      // Evaluate straight away so the results panel matches the plan just loaded,
+      // rather than going blank until the user finds the Calculate button.
+      await evaluateRation(toFeedEntries(planFeeds));
     } catch (err) {
       console.error('Failed to load plan', err);
+      setResults(null);
     } finally {
       setLoading(false);
     }
@@ -199,20 +258,7 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
     const feedEntries = buildFeedEntries();
     if (feedEntries.length === 0) return showToast('Add at least one feed with a quantity.', 'warning');
 
-    setCalculating(true);
-    try {
-      const res = await api.post('/feeds/optimize', {
-        animalId: parseInt(selectedAnimalId, 10),
-        animalStage: selectedAnimal?.animalStatus || null,
-        feedEntries,
-      });
-      setResults(res.data);
-    } catch (err) {
-      console.error('Failed to calculate ration', err);
-      showToast('Could not calculate the ration. Please try again.', 'error');
-    } finally {
-      setCalculating(false);
-    }
+    await evaluateRation(feedEntries);
   };
 
   const openSaveDialog = () => {
@@ -225,6 +271,98 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
     setIsSaveDialogOpen(true);
   };
 
+  /**
+   * Saves straight over the selected plan and closes - no confirmation step, since the
+   * user reached this from an explicit "Update Plan" click on a named plan.
+   */
+  const handleUpdatePlan = async () => {
+    if (!isCustomPlanSelected) return;
+    const feedEntries = buildFeedEntries();
+    if (feedEntries.length === 0)
+      return showToast('Add at least one feed with a quantity.', 'warning');
+
+    setSaving(true);
+    try {
+      await api.put(`/feed-plans/${selectedPlan}`, {
+        planName: selectedPlanName,
+        feedEntries,
+      });
+      await loadCustomPlans(selectedAnimalId);
+      setIsCustomizeModalOpen(false);
+      showToast(`Plan "${selectedPlanName}" updated.`, 'success');
+      await evaluateRation(feedEntries);
+    } catch (err) {
+      console.error('Failed to update plan', err);
+      showToast('Could not update the plan. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * Opens the assign screen: current assignments, plus an adequacy check across every
+   * active animal so the user can see who this ration actually suits before ticking them.
+   */
+  const openAssignModal = async () => {
+    if (!isCustomPlanSelected) return;
+    setIsAssignModalOpen(true);
+    setAssignLoading(true);
+    setAdequacy({});
+    try {
+      const detail = await api.get(`/feed-plans/${selectedPlan}`);
+      setAssignAnimalIds(
+        (detail.data?.assignments || []).map((a: any) => String(a.animalId))
+      );
+
+      const res = await api.post(`/feed-plans/${selectedPlan}/adequacy`, {
+        animalIds: herds.map(h => Number(h.id)),
+      });
+      const byAnimal: Record<string, any> = {};
+      (res.data || []).forEach((row: any) => {
+        byAnimal[String(row.animalId)] = row;
+      });
+      setAdequacy(byAnimal);
+    } catch (err) {
+      console.error('Failed to load plan assignments', err);
+      showToast('Could not load this plan\u2019s animals.', 'error');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const toggleAssignAnimal = (id: string) => {
+    setAssignAnimalIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSaveAssignments = async () => {
+    setAssignSaving(true);
+    try {
+      // Replaces the whole set - the checkbox list is the source of truth.
+      await api.put(`/feed-plans/${selectedPlan}/assignments`, {
+        animalIds: assignAnimalIds.map(id => Number(id)),
+      });
+      await loadCustomPlans(selectedAnimalId);
+      setIsAssignModalOpen(false);
+      showToast(
+        assignAnimalIds.length === 0
+          ? `"${selectedPlanName}" is no longer assigned to any animal.`
+          : `"${selectedPlanName}" now applies to ${assignAnimalIds.length} animal(s).`,
+        'success'
+      );
+    } catch (err) {
+      console.error('Failed to save assignments', err);
+      showToast('Could not save the animals. Please try again.', 'error');
+    } finally {
+      setAssignSaving(false);
+    }
+  };
+
+  const deficientAssignedCount = assignAnimalIds.filter(
+    id => adequacy[id]?.overallStatus === 'DEFICIENT'
+  ).length;
+
   const togglePlanAnimal = (id: string) => {
     setPlanAnimalIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -234,6 +372,7 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
   const handleSavePlan = async () => {
     const name = planName.trim();
     if (!name) return showToast('Give the plan a name.', 'warning');
+
     if (planAnimalIds.length === 0) return showToast('Pick at least one animal.', 'warning');
 
     const feedEntries = buildFeedEntries();
@@ -264,6 +403,30 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDeletePlan = () => {
+    if (!isCustomPlanSelected) return;
+    const planId = selectedPlan;
+    const name = selectedPlanName;
+
+    confirm(
+      `Delete the plan "${name}"? This cannot be undone.`,
+      async () => {
+        try {
+          await api.delete(`/feed-plans/${planId}`);
+          // Fall back to the default plan, which is always available.
+          setSelectedPlan('default');
+          await loadCustomPlans(selectedAnimalId);
+          await loadDefaultPlan(selectedAnimalId);
+          showToast(`Plan "${name}" deleted.`, 'success');
+        } catch (err) {
+          console.error('Failed to delete plan', err);
+          showToast('Could not delete the plan. Please try again.', 'error');
+        }
+      },
+      'danger'
+    );
   };
 
   const updateEntry = (index: number, field: string, value: string) => {
@@ -396,19 +559,45 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
               <LeafIcon /> 2. Select Plan
             </h3>
 
-            <select
-              value={selectedPlan}
-              onChange={e => handlePlanChange(e.target.value)}
-              disabled={!selectedAnimalId}
-              className="w-full border border-border-custom rounded-xl p-2.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-brand bg-white disabled:bg-surface2 disabled:text-text3"
-            >
-              <option value="default">Default Plan (Recommended)</option>
-              {customPlans.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.planName}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedPlan}
+                onChange={e => handlePlanChange(e.target.value)}
+                disabled={!selectedAnimalId}
+                className="flex-1 min-w-0 border border-border-custom rounded-xl p-2.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-brand bg-white disabled:bg-surface2 disabled:text-text3"
+              >
+                <option value="default">Default Plan (Recommended)</option>
+                {customPlans.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.planName}
+                  </option>
+                ))}
+              </select>
+              {isCustomPlanSelected && (
+                <button
+                  onClick={handleDeletePlan}
+                  title="Delete this plan"
+                  aria-label="Delete this plan"
+                  className="flex-shrink-0 p-2.5 text-danger border border-border-custom rounded-xl hover:bg-danger/10 hover:border-danger transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+
+            {isCustomPlanSelected && (
+              <>
+                <button
+                  onClick={openAssignModal}
+                  className="mt-3 w-full flex items-center justify-center gap-2 border border-border-custom text-text2 font-semibold py-2 rounded-xl hover:border-brand hover:text-brand transition-colors text-[12px]"
+                >
+                  <Users size={16} /> Manage Animals
+                </button>
+                <p className="text-[11px] text-text3 mt-1.5">
+                  Editing a saved plan — use Customize Ration to change its feeds.
+                </p>
+              </>
+            )}
 
             <button
               onClick={() => setIsCustomizeModalOpen(true)}
@@ -643,11 +832,11 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex-shrink-0 flex items-center justify-end gap-3 px-5 py-4 border-t border-border-custom">
+            {/* Footer - wraps because the custom-plan case adds a fourth button */}
+            <div className="flex-shrink-0 flex flex-wrap items-center justify-end gap-2 sm:gap-3 px-5 py-4 border-t border-border-custom">
               <button
                 onClick={() => setIsCustomizeModalOpen(false)}
-                className="text-[13px] font-semibold text-text3 px-3 py-2 rounded-xl hover:bg-surface2 hover:text-text transition-colors"
+                className="text-[13px] font-semibold text-text3 px-3 py-2 rounded-xl hover:bg-surface2 hover:text-text transition-colors mr-auto"
               >
                 Cancel
               </button>
@@ -655,14 +844,141 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
                 onClick={openSaveDialog}
                 className="flex items-center gap-2 border border-border-custom text-text2 font-semibold px-4 py-2 rounded-xl hover:border-brand hover:text-brand transition-colors text-[13px]"
               >
-                <Save size={16} /> Save as Custom Plan
+                <Save size={16} /> {isCustomPlanSelected ? 'Save as New' : 'Save as Custom Plan'}
               </button>
+              {isCustomPlanSelected && (
+                <button
+                  onClick={handleUpdatePlan}
+                  disabled={saving}
+                  className="flex items-center gap-2 border border-brand text-brand font-semibold px-4 py-2 rounded-xl hover:bg-brand/5 transition-colors text-[13px] disabled:opacity-60"
+                >
+                  <Save size={16} /> {saving ? 'Updating...' : 'Update Plan'}
+                </button>
+              )}
               <button
                 onClick={handleCalculate}
                 disabled={calculating}
                 className="flex items-center gap-2 bg-brand text-white font-bold px-5 py-2 rounded-xl hover:bg-brand-dark transition-colors text-[13px] disabled:opacity-60"
               >
                 <Calculator size={16} /> {calculating ? 'Calculating...' : 'Calculate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Assign animals to this plan ---------- */}
+      {isAssignModalOpen && (
+        <div
+          className={`fixed inset-0 ${Z_DIALOG} bg-black/50 backdrop-blur-sm flex items-center justify-center p-4`}
+          onClick={() => !assignSaving && setIsAssignModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex-shrink-0 flex items-start justify-between px-5 py-4 border-b border-border-custom">
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-bold flex items-center gap-2">
+                  <Users size={18} /> Animals on this Plan
+                </h3>
+                <p className="text-[12px] text-text3 mt-0.5 truncate">{selectedPlanName}</p>
+              </div>
+              <button
+                onClick={() => setIsAssignModalOpen(false)}
+                aria-label="Close"
+                className="flex-shrink-0 ml-3 p-1.5 rounded-lg text-text3 hover:bg-surface2 hover:text-text transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto">
+              {assignLoading ? (
+                <div className="h-32 flex items-center justify-center text-text3 italic text-[13px]">
+                  Checking this ration against each animal...
+                </div>
+              ) : (
+                <>
+                  <p className="text-[12px] text-text2 mb-3">
+                    The badge shows whether this ration meets each animal&rsquo;s own
+                    requirement — the same feeds suit animals differently depending on
+                    weight, yield and stage.
+                  </p>
+
+                  <div className="border border-border-custom rounded-xl max-h-72 overflow-y-auto divide-y divide-border-custom/60">
+                    {herds.map(h => {
+                      const row = adequacy[String(h.id)];
+                      const status = row?.overallStatus;
+                      return (
+                        <label
+                          key={h.id}
+                          className="flex items-center gap-3 px-3 py-2.5 text-[12px] cursor-pointer hover:bg-surface2 transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={assignAnimalIds.includes(String(h.id))}
+                            onChange={() => toggleAssignAnimal(String(h.id))}
+                            className="accent-brand w-4 h-4 flex-shrink-0"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="font-semibold text-text block truncate">
+                              {h.animalName || h.tagNumber}
+                            </span>
+                            <span className="text-text3 text-[11px]">
+                              {row?.resolvedStage || h.breed || '—'}
+                            </span>
+                          </span>
+                          {status && (
+                            <span
+                              className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide ${
+                                ADEQUACY_STYLE[status] || 'bg-surface2 text-text3'
+                              }`}
+                            >
+                              {status}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {deficientAssignedCount > 0 && (
+                    <div className="mt-3 bg-[#FFF8E6] border border-accent/30 rounded-xl p-3 text-[12px] text-text2 flex gap-2">
+                      <AlertCircle size={16} className="flex-shrink-0 mt-0.5 text-accent-dark" />
+                      <span>
+                        This ration is <span className="font-bold text-text">DEFICIENT</span> for{' '}
+                        {deficientAssignedCount} of the animals you have ticked. They will be
+                        underfed unless you adjust the plan for them separately.
+                      </span>
+                    </div>
+                  )}
+
+                  {assignAnimalIds.length === 0 && (
+                    <p className="text-[11px] text-text3 mt-3">
+                      With nobody ticked the plan is kept but applies to no animal.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="flex-shrink-0 flex items-center justify-end gap-3 px-5 py-4 border-t border-border-custom">
+              <span className="text-[11px] text-text3 mr-auto">
+                {assignAnimalIds.length} selected
+              </span>
+              <button
+                onClick={() => setIsAssignModalOpen(false)}
+                className="text-[13px] font-semibold text-text3 px-3 py-2 rounded-xl hover:bg-surface2 hover:text-text transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAssignments}
+                disabled={assignSaving || assignLoading}
+                className="flex items-center gap-2 bg-brand text-white font-bold px-5 py-2 rounded-xl hover:bg-brand-dark transition-colors text-[13px] disabled:opacity-60"
+              >
+                <CheckCircle2 size={16} /> {assignSaving ? 'Saving...' : 'Save Animals'}
               </button>
             </div>
           </div>
@@ -751,7 +1067,8 @@ export default function FeedOptimizerTab({ feeds: feedRows }: Props) {
                 disabled={saving}
                 className="flex items-center gap-2 bg-brand text-white font-bold px-5 py-2 rounded-xl hover:bg-brand-dark transition-colors text-[13px] disabled:opacity-60"
               >
-                <Save size={16} /> {saving ? 'Saving...' : 'Save Plan'}
+                <Save size={16} />
+                {saving ? 'Saving...' : 'Save Plan'}
               </button>
             </div>
           </div>

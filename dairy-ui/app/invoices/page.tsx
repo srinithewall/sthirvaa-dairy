@@ -87,7 +87,7 @@ export default function InvoicesListPage() {
                     <div className="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-50">
                       <div className="text-left sm:text-right">
                         <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Total Amount</p>
-                        <p className="font-black text-[#1B4332] text-[15px]">₹{inv.total?.toFixed(2)}</p>
+                        <p className="font-black text-[#1B4332] text-[15px]">₹{inv.total?.toFixed(0)}</p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border ${

@@ -134,7 +134,7 @@ public class HerdWeightService {
             if (log.getStatus() == ActivityStatus.COMPLETED) return true;
 
             activityService.updateLogStatus(logId, ActivityStatus.COMPLETED, staffId,
-                    "Completed automatically - all " + animalCount + " animals measured.");
+                    "Completed automatically - all " + animalCount + " animals measured.", null);
             return true;
         } catch (Exception ex) {
             // The readings are saved either way; the chore can still be closed by hand.

@@ -95,7 +95,29 @@ public class FarmActivityController {
         ActivityStatus status = ActivityStatus.valueOf((String) updates.get("status"));
         Long staffId = updates.get("staffId") != null ? ((Number) updates.get("staffId")).longValue() : null;
         String notes = updates.containsKey("notes") ? (String) updates.get("notes") : null;
-        return activityService.updateLogStatus(id, status, staffId, notes);
+        
+        FarmActivity followUpRequest = null;
+        if (updates.containsKey("followUp")) {
+            Map<String, Object> fmap = (Map<String, Object>) updates.get("followUp");
+            if (fmap != null && !fmap.isEmpty()) {
+                followUpRequest = new FarmActivity();
+                followUpRequest.setTitle((String) fmap.get("title"));
+                followUpRequest.setFrequency(com.dairy.model.ActivityFrequency.ONCE);
+                if (fmap.containsKey("anchorDate")) {
+                    followUpRequest.setAnchorDate(LocalDate.parse((String) fmap.get("anchorDate")));
+                } else if (fmap.containsKey("daysAfter")) {
+                    int daysAfter = ((Number) fmap.get("daysAfter")).intValue();
+                    followUpRequest.setAnchorDate(LocalDate.now().plusDays(daysAfter));
+                }
+            }
+        }
+        
+        return activityService.updateLogStatus(id, status, staffId, notes, followUpRequest);
+    }
+
+    @GetMapping("/chains/{chainId}/history")
+    public List<FarmActivityLog> getChainHistory(@PathVariable String chainId) {
+        return activityService.getHistoryForChain(chainId);
     }
 
     @PatchMapping("/logs/{id}/assign")

@@ -219,7 +219,7 @@ export default function ProductManagementPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[12px] font-bold text-text truncate">{p.name}</p>
-                    <p className="text-[10px] text-text3 font-medium">{p.category} · <span className="text-brand font-black">₹{p.price}</span></p>
+                    <p className="text-[10px] text-text3 font-medium">{p.category} · <span className="text-brand font-black">₹{Math.round(p.price)}</span></p>
                   </div>
                   <div className="flex gap-2 items-center flex-shrink-0">
                     <button onClick={() => handleProductSave({ ...p, inStock: !p.inStock })} className={`w-8 h-4 rounded-full relative transition-all ${p.inStock ? 'bg-brand' : 'bg-gray-300'}`}>
@@ -257,7 +257,7 @@ export default function ProductManagementPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3"><span className="px-2 py-0.5 bg-surface rounded-sm text-[10px] font-black text-text3 uppercase">{p.category}</span></td>
-                    <td className="px-5 py-3 text-center font-black text-brand">₹{p.price}</td>
+                    <td className="px-5 py-3 text-center font-black text-brand">₹{Math.round(p.price)}</td>
                     <td className="px-5 py-3 text-center">
                        <button onClick={() => handleProductSave({ ...p, inStock: !p.inStock })} className={`w-8 h-4 rounded-full relative transition-all inline-block align-middle ${p.inStock ? 'bg-brand' : 'bg-gray-300'}`}>
                          <span className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${p.inStock ? 'left-4' : 'left-1'}`} />
@@ -307,10 +307,10 @@ export default function ProductManagementPage() {
 
                   {/* Price row */}
                   <div className="flex items-baseline gap-2">
-                    <p className="text-brand font-black text-sm">₹{plan.monthlyPrice}</p>
+                    <p className="text-brand font-black text-sm">₹{Math.round(plan.monthlyPrice)}</p>
                     <span className="text-[9px] text-text3 uppercase font-bold">/mo</span>
                     {plan.totalMrp && plan.totalMrp > plan.monthlyPrice && (
-                      <p className="text-[10px] text-text3 line-through ml-auto">₹{plan.totalMrp}</p>
+                      <p className="text-[10px] text-text3 line-through ml-auto">₹{Math.round(plan.totalMrp)}</p>
                     )}
                   </div>
 
@@ -319,7 +319,7 @@ export default function ProductManagementPage() {
                     {plan.items?.slice(0, 3).map((item, i) => (
                       <div key={i} className="flex items-center justify-between gap-1">
                         <p className="text-[9px] text-text2 font-bold truncate">{item.description}</p>
-                        {item.sellingPrice ? <p className="text-[9px] text-brand font-black flex-shrink-0">₹{item.sellingPrice}</p> : null}
+                        {item.sellingPrice ? <p className="text-[9px] text-brand font-black flex-shrink-0">₹{Math.round(item.sellingPrice)}</p> : null}
                       </div>
                     ))}
                     {(plan.items?.length ?? 0) > 3 && (

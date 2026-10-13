@@ -1,15 +1,20 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import api from '@/lib/api';
 import ChoreBanner from './ChoreBanner';
 
+const BUSINESS_PATHS = ['/store', '/inventory', '/ledger', '/sales'];
+
 export default function AppLayout({ children, headerAction, noPadding }: { children: React.ReactNode, headerAction?: React.ReactNode, noPadding?: boolean }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  // Farm chore reminders aren't shown on the Business screens (shop, inventory, ledger, sales).
+  const isBusinessScreen = BUSINESS_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -70,7 +75,7 @@ export default function AppLayout({ children, headerAction, noPadding }: { child
   return (
     <div className="flex flex-col h-screen overflow-hidden relative">
       <Navbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} headerAction={headerAction} />
-      <ChoreBanner />
+      {!isBusinessScreen && <ChoreBanner />}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
         <main className={`flex-1 overflow-y-auto bg-[#F0F4F1] ${noPadding ? '' : 'p-4 md:p-6'}`}>

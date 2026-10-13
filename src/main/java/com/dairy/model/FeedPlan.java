@@ -10,7 +10,17 @@ public class FeedPlan {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "herd_id", nullable = false)
+    /**
+     * DEPRECATED - superseded by FeedPlanAssignment, which lets one plan serve many animals.
+     *
+     * Deliberately still mapped and still written (with the first assigned animal) rather
+     * than deleted. ddl-auto=update never drops or alters an existing column, so the
+     * database column stays NOT NULL until the Phase 2 migration in
+     * docs/feed-plans-v2-spec.md is run by hand; removing this field first would make every
+     * plan INSERT fail at runtime. Drop the field and the column together in Phase 3.
+     */
+    @Deprecated
+    @Column(name = "herd_id")
     private Long herdId;
 
     @Column(name = "plan_name", nullable = false)

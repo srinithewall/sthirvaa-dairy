@@ -103,7 +103,7 @@ export default function SalesPage() {
         <div className="bg-brand-dark text-white p-5 rounded-radius-custom-lg shadow-lg relative overflow-hidden group">
           <IndianRupee size={40} className="absolute -right-2 -bottom-2 text-white/10 group-hover:scale-110 transition-transform" />
           <div className="text-[11px] opacity-70 uppercase font-bold tracking-wider mb-1">Total Revenue</div>
-          <div className="text-2xl font-black">₹{totalRevenue.toLocaleString()}</div>
+          <div className="text-2xl font-black">₹{totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
         </div>
         <div className="bg-white p-5 rounded-radius-custom-lg border border-border-custom card-shadow relative overflow-hidden group">
           <div className="text-[11px] text-text3 uppercase font-bold tracking-wider mb-1">Liters Sold</div>
@@ -117,7 +117,7 @@ export default function SalesPage() {
         <div className="bg-white p-5 rounded-radius-custom-lg border border-border-custom card-shadow">
           <div className="text-[11px] text-text3 uppercase font-bold tracking-wider mb-1">Pending Payments</div>
           <div className="text-2xl font-black text-danger">
-            ₹{pendingAmount.toLocaleString()}
+            ₹{pendingAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </div>
         </div>
       </div>
@@ -148,8 +148,8 @@ export default function SalesPage() {
                   <td className="p-4 font-bold text-text">{sale.customer?.name || 'Walk-in'}</td>
                   <td className="p-4 font-bold text-text">{sale.itemName}</td>
                   <td className="p-4 text-center">{sale.quantity}</td>
-                  <td className="p-4 text-center text-text2">₹{sale.price}</td>
-                  <td className="p-4 text-center font-black text-brand-dark">₹{sale.totalAmount.toLocaleString()}</td>
+                  <td className="p-4 text-center text-text2">₹{Math.round(sale.price)}</td>
+                  <td className="p-4 text-center font-black text-brand-dark">₹{sale.totalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                   <td className="p-4 text-center">
                     <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                       sale.paymentStatus === 'PAID' ? 'bg-green-100 text-brand' : 'bg-amber-100 text-[#7a4e08]'

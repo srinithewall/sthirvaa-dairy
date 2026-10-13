@@ -7,6 +7,7 @@ import { Package, Plus, AlertTriangle, CheckCircle2, Pencil, Trash2, Search, Box
 import { useNotification } from '@/components/NotificationContext';
 import InventoryModal from '@/components/InventoryModal';
 import AssetModal from '@/components/AssetModal';
+import InventoryScopeToggle from '@/components/InventoryScopeToggle';
 
 interface InventoryItem {
   id: number;
@@ -172,6 +173,7 @@ export default function InventoryPage() {
 
   return (
     <AppLayout>
+      <InventoryScopeToggle />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text tracking-tight">Inventory Management</h1>
@@ -251,7 +253,7 @@ export default function InventoryPage() {
             <div>
               <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Market Value</span>
               <span className="text-xl font-black text-brand-dark">
-                ₹{filteredAssets.reduce((sum, a) => sum + ((a.marketValue ?? a.value) || 0), 0).toLocaleString()}
+                ₹{filteredAssets.reduce((sum, a) => sum + ((a.marketValue ?? a.value) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
             </div>
           </div>
@@ -465,8 +467,8 @@ export default function InventoryPage() {
                         <td className="p-4 text-center text-text2 font-medium">
                           {formatDate(asset.purchaseDate) || 'N/A'}
                         </td>
-                        <td className="p-4 text-center font-bold text-text2">₹{asset.value.toLocaleString()}</td>
-                        <td className="p-4 text-center font-bold text-brand">₹{(asset.marketValue ?? asset.value).toLocaleString()}</td>
+                        <td className="p-4 text-center font-bold text-text2">₹{asset.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                        <td className="p-4 text-center font-bold text-brand">₹{(asset.marketValue ?? asset.value).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                         <td className="p-4 text-center text-text2">{asset.location || 'N/A'}</td>
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -557,13 +559,13 @@ export default function InventoryPage() {
                           <div>
                             <span className="text-text3 block text-[9px] uppercase font-bold tracking-wider">Purchase Cost</span>
                             <span className="font-bold text-text2 text-xs">
-                              ₹{asset.value.toLocaleString()}
+                              ₹{asset.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </span>
                           </div>
                           <div>
                             <span className="text-text3 block text-[9px] uppercase font-bold tracking-wider">Market Value</span>
                             <span className="font-black text-brand text-xs">
-                              ₹{(asset.marketValue ?? asset.value).toLocaleString()}
+                              ₹{(asset.marketValue ?? asset.value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </span>
                           </div>
                         </div>

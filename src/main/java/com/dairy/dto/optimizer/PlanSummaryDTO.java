@@ -9,6 +9,8 @@ public class PlanSummaryDTO {
     private String planType;
     private Double totalEstimatedCost;
     private LocalDateTime updatedAt;
+    /** How many animals this plan is assigned to. */
+    private int assignmentCount;
 
     public PlanSummaryDTO() {}
 
@@ -34,4 +36,7 @@ public class PlanSummaryDTO {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public int getAssignmentCount() { return assignmentCount; }
+    public void setAssignmentCount(int assignmentCount) { this.assignmentCount = assignmentCount; }
 }

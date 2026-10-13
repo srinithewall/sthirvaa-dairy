@@ -431,7 +431,7 @@ export default function ComboFormModal({ isOpen, plan, onSave, onClose, fetchPla
                         </div>
                       </div>
                       <div className="col-span-2 text-center">
-                        <p className="text-[11px] font-black text-brand leading-tight">₹{effPrice}</p>
+                        <p className="text-[11px] font-black text-brand leading-tight">₹{Math.round(effPrice)}</p>
                         <p className="text-[8px] text-text3">/mo</p>
                       </div>
                       <div className="col-span-1 flex justify-center">

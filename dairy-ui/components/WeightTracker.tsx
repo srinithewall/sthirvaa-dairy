@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import WeightUpdateModal from "./WeightUpdateModal";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -23,10 +24,6 @@ export default function WeightTracker({ herdId }: WeightTrackerProps) {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  
-  const [girth, setGirth] = useState<string>("");
-  const [length, setLength] = useState<string>("");
-  const [date, setDate] = useState<string>(new Date().toISOString().split("T")[0]);
 
   useEffect(() => {
     fetchHistory();
@@ -41,31 +38,6 @@ export default function WeightTracker({ herdId }: WeightTrackerProps) {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const g = parseFloat(girth);
-      const l = parseFloat(length || "0");
-      // Calculate weight locally for preview or just send to server if server does it.
-      // Wait, server expects weightKg in HerdWeightRecord. Let's do Schaeffer here:
-      const weightKg = (g * g * l) / 10830.0;
-
-      await api.post(`/herds/${herdId}/weight`, {
-        recordDate: date,
-        measurementMethod: "HEART_GIRTH_TAPE",
-        heartGirthCm: g,
-        bodyLengthCm: l,
-        weightKg: Math.round(weightKg * 10) / 10
-      });
-      setShowForm(false);
-      setGirth("");
-      setLength("");
-      fetchHistory();
-    } catch (err) {
-      alert("Failed to save weight record");
     }
   };
 
@@ -84,6 +56,16 @@ export default function WeightTracker({ herdId }: WeightTrackerProps) {
     ]
   };
 
+  // Mock basic animal details since this component only gets herdId right now.
+  // The backend might return basic details in history, or we just pass the herdId.
+  const animalDetails = {
+    herdId: herdId,
+    lastWeightKg: history.length > 0 ? history[0].weightKg : null,
+    // Calculate days since last record
+    daysSinceLastRecord: history.length > 0 ? 
+      Math.floor((new Date().getTime() - new Date(history[0].recordDate).getTime()) / (1000 * 3600 * 24)) : null
+  };
+
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
@@ -91,43 +73,22 @@ export default function WeightTracker({ herdId }: WeightTrackerProps) {
           <Activity className="text-emerald-600" /> 15-Day Weight Tracking
         </h2>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setShowForm(true)}
           className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 hover:bg-emerald-700"
         >
           <Plus size={16} /> Record Weight
         </button>
       </div>
 
-      {showForm && (
-        <form onSubmit={handleSave} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Date</label>
-              <input type="date" required value={date} onChange={e => setDate(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm bg-slate-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Heart Girth (cm)</label>
-              <input type="number" step="0.1" required value={girth} onChange={e => setGirth(e.target.value)} placeholder="e.g. 150" className="w-full border border-slate-200 rounded-lg p-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Body Length (cm)</label>
-              <input type="number" step="0.1" required value={length} onChange={e => setLength(e.target.value)} placeholder="e.g. 130" className="w-full border border-slate-200 rounded-lg p-2 text-sm" />
-            </div>
-          </div>
-          
-          {girth && length && (
-            <div className="bg-emerald-50 p-3 rounded-lg flex items-center justify-between border border-emerald-100">
-              <span className="text-emerald-800 text-sm flex items-center gap-2"><Calculator size={16} /> Estimated Weight (Schaeffer)</span>
-              <span className="font-bold text-emerald-700">{Math.round((parseFloat(girth) * parseFloat(girth) * parseFloat(length)) / 10830.0 * 10) / 10} kg</span>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm font-semibold text-slate-500">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700">Save Record</button>
-          </div>
-        </form>
-      )}
+      <WeightUpdateModal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        animals={[animalDetails]}
+        onComplete={() => {
+          setShowForm(false);
+          fetchHistory();
+        }}
+      />
 
       {history.length > 0 && (
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm h-64">

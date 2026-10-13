@@ -101,7 +101,12 @@ function ActivitiesPageInner() {
     setHistoryFor(routine);
     setHistoryLoading(true);
     try {
-      const res = await api.get(`/activities/templates/${routine.id}/history`);
+      let res;
+      if (routine.chainId) {
+        res = await api.get(`/activities/chains/${routine.chainId}/history`);
+      } else {
+        res = await api.get(`/activities/templates/${routine.id}/history`);
+      }
       setHistory(res.data);
     } catch (err) {
       console.error(err);
@@ -111,9 +116,31 @@ function ActivitiesPageInner() {
     }
   };
 
-  const handleComplete = async (id: number) => {
+  const [completingLog, setCompletingLog] = useState<any | null>(null);
+  const [completeNotes, setCompleteNotes] = useState("");
+  const [scheduleFollowUp, setScheduleFollowUp] = useState(false);
+  const [followUpTitle, setFollowUpTitle] = useState("");
+  const [followUpDays, setFollowUpDays] = useState("80");
+
+  const handleComplete = (log: any) => {
+    setCompletingLog(log);
+    setCompleteNotes("");
+    setScheduleFollowUp(false);
+    setFollowUpTitle("");
+    setFollowUpDays("80");
+  };
+
+  const handleConfirmComplete = async (id: number) => {
     try {
-      await api.patch(`/activities/logs/${id}/status`, { status: "COMPLETED" });
+      const payload: any = { status: "COMPLETED", notes: completeNotes };
+      if (scheduleFollowUp && followUpTitle) {
+        payload.followUp = {
+          title: followUpTitle,
+          daysAfter: parseInt(followUpDays, 10) || 1
+        };
+      }
+      await api.patch(`/activities/logs/${id}/status`, payload);
+      setCompletingLog(null);
       fetchTodayLogs();
     } catch (err) {
       alert("Failed to complete task");
@@ -209,7 +236,7 @@ function ActivitiesPageInner() {
                             }`}
                           >
                             <button
-                              onClick={() => handleComplete(log.id)}
+                              onClick={() => handleComplete(log)}
                               aria-label="Mark as done"
                               className="mt-0.5 w-6 h-6 rounded-full border-2 border-border flex items-center justify-center hover:border-brand hover:bg-brand/5 text-transparent hover:text-brand transition-colors flex-shrink-0"
                             >
@@ -257,16 +284,25 @@ function ActivitiesPageInner() {
                     <h2 className="text-sm font-semibold text-text3 uppercase mb-3 px-1">Completed ({completedLogs.length})</h2>
                     <div className="space-y-3">
                       {completedLogs.map(log => (
-                        <div key={log.id} className="bg-surface p-4 rounded-radius-custom border border-border flex items-start gap-4">
-                          <div className="mt-0.5 w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0">
-                            <Check size={16} />
+                        <div key={log.id} className="bg-surface p-4 rounded-radius-custom border border-border flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <div className="mt-0.5 w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0">
+                              <Check size={16} />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-medium text-text line-through">{log.activityDetails?.title}</h3>
+                              {log.staffDetails?.name && (
+                                <p className="text-[11px] text-text3 mt-1">Done by {log.staffDetails.name}</p>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-medium text-text line-through">{log.activityDetails?.title}</h3>
-                            {log.staffDetails?.name && (
-                              <p className="text-[11px] text-text3 mt-1">Done by {log.staffDetails.name}</p>
-                            )}
-                          </div>
+                          <button
+                            onClick={() => openHistory(log.activityDetails || log)}
+                            aria-label="View history"
+                            className="text-text3 hover:text-brand p-2 flex-shrink-0"
+                          >
+                            <History size={17} />
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -318,6 +354,16 @@ function ActivitiesPageInner() {
                           </p>
                         </div>
                         <div className="flex items-center flex-shrink-0">
+                          {t.actionRoute && (
+                            <button
+                              onClick={() => router.push(t.actionRoute)}
+                              aria-label="Open task"
+                              title="Open task"
+                              className="text-brand hover:text-brand-dark p-2 mr-1"
+                            >
+                              <ChevronRight size={17} />
+                            </button>
+                          )}
                           <button
                             onClick={() => openHistory(t)}
                             aria-label="View history"
@@ -366,8 +412,21 @@ function ActivitiesPageInner() {
           <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-radius-custom shadow-xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white">
               <div>
-                <h2 className="font-semibold text-text">{historyFor.title}</h2>
-                <p className="text-xs text-text3">Tracking history</p>
+                <h2 className="font-semibold text-text">{historyFor.title || historyFor.activityDetails?.title}</h2>
+                <div className="text-xs text-text3 flex items-center gap-2">
+                  <span>Tracking history</span>
+                  {historyFor.actionRoute && (
+                    <>
+                      <span>&bull;</span>
+                      <button
+                        onClick={() => router.push(historyFor.actionRoute)}
+                        className="text-brand hover:underline font-medium flex items-center"
+                      >
+                        Open task records <ChevronRight size={12} />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               <button onClick={() => setHistoryFor(null)} className="text-text3 hover:text-text text-sm font-medium px-2">
                 Close
@@ -383,28 +442,101 @@ function ActivitiesPageInner() {
               ) : (
                 <div className="space-y-2">
                   {history.map(h => (
-                    <div key={h.id} className="flex items-center justify-between border border-border rounded-md p-3">
-                      <div>
-                        <p className="text-sm font-medium text-text">{h.dueDate}</p>
-                        {h.staffDetails?.name && <p className="text-[11px] text-text3">{h.staffDetails.name}</p>}
+                    <div key={h.id} className="flex flex-col border border-border rounded-md p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-text">{h.activityDetails?.title} - {h.dueDate}</p>
+                          {h.staffDetails?.name && <p className="text-[11px] text-text3">{h.staffDetails.name}</p>}
+                        </div>
+                        <span
+                          className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${
+                            h.status === "COMPLETED"
+                              ? "bg-green-50 text-green-700"
+                              : h.status === "OVERDUE"
+                              ? "bg-red-50 text-red-700"
+                              : h.status === "SKIPPED"
+                              ? "bg-surface text-text3"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {h.status}
+                        </span>
                       </div>
-                      <span
-                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${
-                          h.status === "COMPLETED"
-                            ? "bg-green-50 text-green-700"
-                            : h.status === "OVERDUE"
-                            ? "bg-red-50 text-red-700"
-                            : h.status === "SKIPPED"
-                            ? "bg-surface text-text3"
-                            : "bg-amber-50 text-amber-700"
-                        }`}
-                      >
-                        {h.status}
-                      </span>
+                      {h.notes && (
+                        <div className="mt-2 text-xs text-text bg-surface p-2 rounded border border-border">
+                          {h.notes}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {completingLog && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white w-full max-w-sm rounded-xl shadow-xl p-5">
+            <h2 className="font-bold text-lg text-text mb-1">Complete Task</h2>
+            <p className="text-sm text-text3 mb-4">{completingLog.activityDetails?.title}</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-text3 mb-1">Completion Notes</label>
+                <textarea
+                  value={completeNotes}
+                  onChange={e => setCompleteNotes(e.target.value)}
+                  className="w-full border border-border rounded-md p-2 text-sm"
+                  rows={2}
+                  placeholder="Any details..."
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm font-medium text-text">
+                <input
+                  type="checkbox" checked={scheduleFollowUp}
+                  onChange={e => setScheduleFollowUp(e.target.checked)}
+                  className="w-4 h-4 accent-[color:var(--brand,#2F855A)]"
+                />
+                Schedule follow-up task?
+              </label>
+
+              {scheduleFollowUp && (
+                <div className="space-y-3 pl-6 border-l-2 border-border ml-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-text3 mb-1">Follow-up Title</label>
+                    <input
+                      type="text" value={followUpTitle} onChange={e => setFollowUpTitle(e.target.value)}
+                      className="w-full border border-border rounded-md p-2 text-sm"
+                      placeholder="e.g. Prepare cut off"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-text3 mb-1">Days after today</label>
+                    <input
+                      type="number" value={followUpDays} onChange={e => setFollowUpDays(e.target.value)}
+                      className="w-full border border-border rounded-md p-2 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => { setCompletingLog(null); setCompleteNotes(""); setScheduleFollowUp(false); }}
+                className="px-4 py-2 text-sm font-medium text-text3 hover:text-text"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleConfirmComplete(completingLog.id)}
+                className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-md hover:bg-brand-dark"
+              >
+                Mark Done
+              </button>
             </div>
           </div>
         </div>

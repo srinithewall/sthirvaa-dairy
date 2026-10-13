@@ -70,7 +70,7 @@ function OrderCard({ order, onViewDetails }: { order: Order; onViewDetails: (o: 
           {(order.items ?? []).slice(0, 3).map((item, idx) => (
             <div key={idx} className="flex items-center justify-between text-[11px]">
               <span className="text-text font-semibold">{item.product?.name || item.name || 'Unknown Product'}</span>
-              <span className="text-text3">₹{item.price} × {item.quantity}</span>
+              <span className="text-text3">₹{Math.round(item.price)} × {item.quantity}</span>
             </div>
           ))}
           {(order.items?.length ?? 0) > 3 && (

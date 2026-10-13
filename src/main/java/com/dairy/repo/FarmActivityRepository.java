@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface FarmActivityRepository extends JpaRepository<FarmActivity, Long> {
     List<FarmActivity> findByIsActiveTrue();
     Optional<FarmActivity> findBySystemKey(String systemKey);
+    List<FarmActivity> findByChainId(String chainId);
 }

@@ -61,6 +61,10 @@ public class FarmActivity {
     @Column(name = "action_route")
     private String actionRoute;
 
+    // Links related activities together (e.g. planting -> fertilizing -> harvest)
+    @Column(name = "chain_id")
+    private String chainId;
+
     @Column(name = "reminder_enabled")
     private Boolean reminderEnabled = false;
 
@@ -140,6 +144,9 @@ public class FarmActivity {
 
     public String getActionRoute() { return actionRoute; }
     public void setActionRoute(String actionRoute) { this.actionRoute = actionRoute; }
+
+    public String getChainId() { return chainId; }
+    public void setChainId(String chainId) { this.chainId = chainId; }
 
     public Boolean getReminderEnabled() { return reminderEnabled; }
     public void setReminderEnabled(Boolean reminderEnabled) { this.reminderEnabled = reminderEnabled; }

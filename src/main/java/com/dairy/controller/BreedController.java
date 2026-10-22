@@ -25,4 +25,14 @@ public class BreedController {
     public Breed createBreed(@RequestBody Breed breed) {
         return breedRepository.save(breed);
     }
+
+    /** Updates the valuation inputs (base price, normal yield) of a breed. */
+    @PutMapping("/{id}/valuation")
+    public org.springframework.http.ResponseEntity<Breed> updateValuation(@PathVariable Long id, @RequestBody Breed body) {
+        return breedRepository.findById(id).map(b -> {
+            b.setBasePrice(body.getBasePrice());
+            b.setNormalYield(body.getNormalYield());
+            return org.springframework.http.ResponseEntity.ok(breedRepository.save(b));
+        }).orElse(org.springframework.http.ResponseEntity.notFound().build());
+    }
 }

@@ -175,6 +175,29 @@ public class StoreStockService {
                 "PURCHASE", purchaseId, deleting ? "Purchase deleted" : "Purchase edited");
     }
 
+    /**
+     * Puts back the stock a bill took out, batch by batch. Works from the net of every SALE move
+     * recorded for the bill, so a bill that was edited before is not restored twice.
+     */
+    @Transactional
+    public void restoreSale(Long saleId, String reason) {
+        Map<Long, BigDecimal> netByBatch = new LinkedHashMap<>();
+        for (StoreStockMove move : moveRepository.findByRefTypeAndRefId("SALE", saleId)) {
+            if (move.getBatchId() == null || move.getMoveType() != StoreMoveType.SALE) continue;
+            netByBatch.merge(move.getBatchId(), move.getQty(), BigDecimal::add);
+        }
+        for (Map.Entry<Long, BigDecimal> entry : netByBatch.entrySet()) {
+            BigDecimal back = entry.getValue().negate();
+            if (back.signum() <= 0) continue;
+            StoreStockBatch batch = batchRepository.findById(entry.getKey()).orElse(null);
+            if (batch == null) continue;
+            batch.setQtyRemaining(batch.getQtyRemaining().add(back));
+            batchRepository.save(batch);
+            recordMove(batch.getItem().getId(), batch.getId(), StoreMoveType.SALE, back, batch.getUnitCost(),
+                    "SALE", saleId, reason);
+        }
+    }
+
     public StoreStockBatch purchaseBatch(Long purchaseLineId) {
         return batchRepository.findFirstByPurchaseLineId(purchaseLineId);
     }

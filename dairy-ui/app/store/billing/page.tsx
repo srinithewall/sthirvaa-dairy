@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import StoreTabs from '@/components/store/StoreTabs';
 import Portal from '@/components/store/Portal';
+import BillHistoryModal from '@/components/store/BillHistoryModal';
 import ItemFilter, { ItemFilterValue, NO_FILTER, matchesItemFilter } from '@/components/store/ItemFilter';
 import api from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
@@ -12,7 +13,7 @@ import {
   printBill, paymentLabel, daysAgo, loadShopDetails, StoreSupplier, StoreItemCategory, CATEGORIES, categoryLabel,
   cachedGet, brandMatches,
 } from '@/lib/store';
-import { Minus, Plus, Search, Send, Trash2, UserPlus, X, CheckCircle2, Printer, Wallet, SlidersHorizontal } from 'lucide-react';
+import { Minus, Plus, Search, Send, Trash2, UserPlus, X, CheckCircle2, Printer, Wallet, SlidersHorizontal, History } from 'lucide-react';
 
 interface CartLine { row: StockRow; qty: number; price: number; }
 
@@ -36,6 +37,31 @@ export default function BillingPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<StoreSale | null>(null);
   const [savedBalance, setSavedBalance] = useState<number | undefined>();
+
+  // Bill history. Only the owner account (user id 1) may edit or delete a bill that was already generated.
+  const [showHistory, setShowHistory] = useState(false);
+  const [canModify, setCanModify] = useState(false);
+  const [editing, setEditing] = useState<StoreSale | null>(null);
+  useEffect(() => {
+    api.get('/store/sales/permissions').then((r) => setCanModify(!!r.data?.canModify)).catch(() => setCanModify(false));
+  }, []);
+
+  // Loads a saved bill back into the cart so it can be changed and saved over itself.
+  const startEdit = (sale: StoreSale) => {
+    setEditing(sale);
+    setShowHistory(false);
+    setFarmer(sale.farmer ?? null);
+    setFarmerQuery('');
+    setDiscount(sale.discount || 0);
+    setMode(sale.paymentMode);
+    setPaidNow(sale.paymentMode === 'MIXED' ? sale.paidAmount : '');
+    setCart(sale.lines.map((l) => {
+      const row = stock.find((r) => r.item.id === l.item.id);
+      // The bill's own quantity is not in stock any more, so allow up to what was sold plus what is left.
+      const base: StockRow = row ?? { item: l.item, qtyOnHand: 0, stockValue: 0, lowStock: false };
+      return { row: { ...base, qtyOnHand: base.qtyOnHand + l.qty }, qty: l.qty, price: l.unitPrice };
+    }));
+  };
 
   // Balance and last visit for the picked farmer; credit options need a farmer.
   useEffect(() => {
@@ -124,7 +150,7 @@ export default function BillingPage() {
   };
 
   const reset = () => {
-    setCart([]); setFarmer(null); setFarmerQuery(''); setDiscount(0); setMode('CASH'); setPaidNow(''); setSaved(null); setSavedBalance(undefined);
+    setCart([]); setFarmer(null); setFarmerQuery(''); setDiscount(0); setMode('CASH'); setPaidNow(''); setSaved(null); setSavedBalance(undefined); setEditing(null);
     loadStock();
   };
 
@@ -132,16 +158,19 @@ export default function BillingPage() {
     if (cart.length === 0) return;
     setSaving(true);
     try {
-      const r = await api.post('/store/sales', {
+      const body = {
         farmerId: farmer?.id,
+        ...(editing && !farmer ? { customerName: editing.customerName, customerPhone: editing.customerPhone } : {}),
+        ...(editing ? { saleDate: editing.saleDate } : {}),
         discount,
         paymentMode: mode,
         paidAmount: mode === 'MIXED' ? paidNow : undefined,
         lines: cart.map((l) => ({ itemId: l.row.item.id, qty: l.qty, unitPrice: l.price })),
-      });
+      };
+      const r = editing ? await api.put(`/store/sales/${editing.id}`, body) : await api.post('/store/sales', body);
       setSaved(r.data);
       setSavedBalance(account ? account.balance + (r.data.total - r.data.paidAmount) : undefined);
-      showToast(`Bill ${r.data.billNo} saved`, 'success');
+      showToast(`Bill ${r.data.billNo} ${editing ? 'updated' : 'saved'}`, 'success');
     } catch (err) {
       showToast(apiError(err, 'Could not save bill'), 'error');
     } finally {
@@ -189,6 +218,20 @@ export default function BillingPage() {
   return (
     <AppLayout>
       <StoreTabs />
+
+      <div className="flex items-center justify-between gap-2 mb-3">
+        {editing ? (
+          <div className="flex-1 flex items-center justify-between gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm">
+            <span>Editing bill <b>{editing.billNo}</b>. Saving replaces it and redoes its stock and credit.</span>
+            <button onClick={reset} className="text-amber-800 font-bold hover:underline shrink-0">Cancel edit</button>
+          </div>
+        ) : <span />}
+        <button onClick={() => setShowHistory(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border-custom bg-white text-sm font-bold text-text2 hover:bg-surface2 shrink-0">
+          <History size={16} /> History
+        </button>
+      </div>
+      {showHistory && <BillHistoryModal onClose={() => setShowHistory(false)} canModify={canModify} onEdit={startEdit} />}
 
       <div className="grid lg:grid-cols-[1fr_420px] gap-4">
         {/* Items */}
@@ -382,7 +425,7 @@ export default function BillingPage() {
           <button onClick={submit}
             disabled={saving || cart.length === 0 || (mode === 'MIXED' && (paidOnBill <= 0 || paidOnBill >= total))}
             className="w-full bg-brand text-white py-3 rounded-lg font-bold disabled:opacity-50">
-            {saving ? 'Saving…' : `Save bill · ${rupees(total)}`}
+            {saving ? 'Saving…' : `${editing ? 'Update bill' : 'Save bill'} · ${rupees(total)}`}
           </button>
         </div>
       </div>

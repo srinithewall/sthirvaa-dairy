@@ -15,6 +15,8 @@ public interface StoreLedgerRepository extends JpaRepository<StoreLedgerEntry, L
 
     List<StoreLedgerEntry> findTop50ByFarmerIdOrderByEntryDateDescIdDesc(Long farmerId);
 
+    void deleteBySaleId(Long saleId);
+
     /** Rows of [farmerId, balance]. */
     @Query("SELECT e.farmer.id, SUM(e.amount) FROM StoreLedgerEntry e GROUP BY e.farmer.id")
     List<Object[]> balances();

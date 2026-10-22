@@ -26,6 +26,9 @@ public class HerdEvent {
     @Column(length = 1000)
     private String details;
 
+    /** Count for poultry events: birds died (BIRD_DEATH) or eggs collected (EGGS_COLLECTED). */
+    private Integer quantity;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -90,6 +93,14 @@ public class HerdEvent {
 
     public void setDetails(String details) {
         this.details = details;
+    }
+
+    public Integer getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(Integer quantity) {
+        this.quantity = quantity;
     }
 
     public LocalDateTime getCreatedAt() {

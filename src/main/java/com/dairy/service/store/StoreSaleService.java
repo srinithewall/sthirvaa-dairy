@@ -3,11 +3,17 @@ package com.dairy.service.store;
 import com.dairy.dto.store.StoreDtos.SaleLineRequest;
 import com.dairy.dto.store.StoreDtos.SaleRequest;
 import com.dairy.model.store.*;
+import com.dairy.model.User;
+import com.dairy.repo.UserRepository;
 import com.dairy.repo.store.StoreFarmerRepository;
 import com.dairy.repo.store.StoreItemRepository;
 import com.dairy.repo.store.StoreSaleRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -25,15 +31,17 @@ public class StoreSaleService {
     private final StoreFarmerRepository farmerRepository;
     private final StoreStockService stockService;
     private final StoreLedgerService ledgerService;
+    private final UserRepository userRepository;
 
     public StoreSaleService(StoreSaleRepository saleRepository, StoreItemRepository itemRepository,
                             StoreFarmerRepository farmerRepository, StoreStockService stockService,
-                            StoreLedgerService ledgerService) {
+                            StoreLedgerService ledgerService, UserRepository userRepository) {
         this.saleRepository = saleRepository;
         this.itemRepository = itemRepository;
         this.farmerRepository = farmerRepository;
         this.stockService = stockService;
         this.ledgerService = ledgerService;
+        this.userRepository = userRepository;
     }
 
     public List<StoreSale> list(LocalDate from, LocalDate to) {
@@ -44,8 +52,54 @@ public class StoreSaleService {
         return saleRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Bill not found"));
     }
 
+    /** Only the user with id 1 may change or remove a bill once it has been generated. */
+    public boolean canModifyBills() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || auth.getName() == null) return false;
+            User user = userRepository.findByEmail(auth.getName())
+                    .orElseGet(() -> userRepository.findByUsername(auth.getName()).orElse(null));
+            return user != null && Long.valueOf(1L).equals(user.getId());
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private void requireBillEditor() {
+        if (!canModifyBills()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the owner account can edit or delete a generated bill.");
+        }
+    }
+
+    /** Deletes a bill, putting its stock back and removing any credit it put on the contact's account. */
+    @Transactional
+    public void delete(Long id) {
+        requireBillEditor();
+        StoreSale sale = get(id);
+        stockService.restoreSale(sale.getId(), "Bill " + sale.getBillNo() + " deleted");
+        ledgerService.removeCredit(sale.getId());
+        saleRepository.delete(sale);
+    }
+
+    /** Replaces a bill's contents in place: same bill number, stock and credit redone from the new lines. */
+    @Transactional
+    public StoreSale update(Long id, SaleRequest req) {
+        requireBillEditor();
+        StoreSale sale = get(id);
+        stockService.restoreSale(sale.getId(), "Bill " + sale.getBillNo() + " edited");
+        ledgerService.removeCredit(sale.getId());
+        sale.getLines().clear();
+        return populate(sale, req);
+    }
+
     @Transactional
     public StoreSale create(SaleRequest req) {
+        return populate(new StoreSale(), req);
+    }
+
+    /** Builds a new bill, or rebuilds an existing one, from the request, and consumes the stock. */
+    private StoreSale populate(StoreSale sale, SaleRequest req) {
+        boolean isNew = sale.getId() == null;
         if (req.lines() == null || req.lines().isEmpty()) {
             throw new IllegalArgumentException("Add at least one item to the bill");
         }
@@ -56,7 +110,6 @@ public class StoreSaleService {
             throw new IllegalArgumentException("Pick a contact to give credit — walk-in bills must be paid in full");
         }
 
-        StoreSale sale = new StoreSale();
         sale.setSaleDate(req.saleDate() != null ? req.saleDate() : LocalDate.now());
         if (sale.getSaleDate().isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("Bill date cannot be in the future");
@@ -68,6 +121,7 @@ public class StoreSaleService {
             sale.setCustomerName(farmer.getName());
             sale.setCustomerPhone(farmer.getPhone());
         } else {
+            sale.setFarmer(null);
             sale.setCustomerName(blankToNull(req.customerName()));
             sale.setCustomerPhone(StoreMasterService.normalisePhone(req.customerPhone()));
         }
@@ -75,7 +129,7 @@ public class StoreSaleService {
         sale.setPaymentMode(mode);
         sale.setNotes(req.notes());
         String user = StoreSecurity.currentUser();
-        sale.setCreatedBy(user);
+        if (isNew) sale.setCreatedBy(user);
         sale.setUpdatedBy(user);
 
         boolean admin = StoreSecurity.isAdmin();
@@ -141,7 +195,7 @@ public class StoreSaleService {
             costTotal = costTotal.add(cost);
         }
         sale.setCostTotal(costTotal.setScale(2, RoundingMode.HALF_UP));
-        sale.setBillNo(BILL_PREFIX + String.format("%06d", sale.getId()));
+        if (sale.getBillNo() == null) sale.setBillNo(BILL_PREFIX + String.format("%06d", sale.getId()));
         if (due.signum() > 0) ledgerService.recordCredit(sale, due);
         return saleRepository.save(sale);
     }

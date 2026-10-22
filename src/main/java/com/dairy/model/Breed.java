@@ -40,6 +40,19 @@ public class Breed {
 
     // No max for Overweight, anything above slightlyOverweightMax is Overweight
 
+    /** Typical market price of a healthy adult in its 2nd-3rd lactation, in rupees. */
+    @Column(name = "base_price")
+    private Double basePrice;
+
+    /** Normal daily milk yield for the breed, litres. */
+    @Column(name = "normal_yield")
+    private Double normalYield;
+
+    public Double getBasePrice() { return basePrice; }
+    public void setBasePrice(Double basePrice) { this.basePrice = basePrice; }
+    public Double getNormalYield() { return normalYield; }
+    public void setNormalYield(Double normalYield) { this.normalYield = normalYield; }
+
     public Breed() {}
 
     public Breed(String name, String description, Double lengthRatio, String formulaType,

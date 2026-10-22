@@ -63,6 +63,11 @@ public class StoreLedgerService {
         ledgerRepository.save(e);
     }
 
+    /** Drops the unpaid amount recorded for a bill, when the bill is edited or deleted. */
+    void removeCredit(Long saleId) {
+        ledgerRepository.deleteBySaleId(saleId);
+    }
+
     @Transactional
     public FarmerAccount receivePayment(Long farmerId, PaymentRequest req) {
         StoreStockService.requirePositive(req.amount(), "Payment amount");

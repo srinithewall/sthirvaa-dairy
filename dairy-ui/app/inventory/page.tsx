@@ -8,6 +8,7 @@ import { useNotification } from '@/components/NotificationContext';
 import InventoryModal from '@/components/InventoryModal';
 import AssetModal from '@/components/AssetModal';
 import InventoryScopeToggle from '@/components/InventoryScopeToggle';
+import BreedPricesModal from '@/components/BreedPricesModal';
 
 interface InventoryItem {
   id: number;
@@ -27,7 +28,39 @@ interface Asset {
   serialNumber: string;
   location: string;
   marketValue?: number;
+  marketValueManual?: boolean | null;
+  marketValueNote?: string | null;
+  suggestedValue?: number | null;
+  suggestedLow?: number | null;
+  suggestedHigh?: number | null;
+  valuationBasis?: string | null;
+  valuationFactors?: string[] | null;
+  effectiveMarketValue?: number | null;
 }
+
+/** Value shown and totalled: manual override, else the suggestion, else what was entered. */
+const marketOf = (a: Asset) => (a.effectiveMarketValue ?? a.marketValue ?? a.value) || 0;
+
+/** Hover text explaining where a market value came from. */
+const valueTitle = (a: Asset) => {
+  const inr = (n?: number | null) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
+  const lines: string[] = [];
+  if (a.marketValueManual) {
+    lines.push(`Set manually${a.marketValueNote ? `: ${a.marketValueNote}` : ''}`);
+    if (a.suggestedValue != null) lines.push(`Suggested ${inr(a.suggestedValue)}`);
+  } else if (a.suggestedValue != null) {
+    lines.push(a.suggestedLow != null && a.suggestedHigh != null && a.suggestedLow !== a.suggestedHigh
+      ? `Suggested range ${inr(a.suggestedLow)} – ${inr(a.suggestedHigh)}` : 'Suggested value');
+  }
+  (a.valuationFactors || []).forEach(f => lines.push(`• ${f}`));
+  return lines.join('\n') || undefined;
+};
+
+/** Small tag next to the value: Manual (owner set it) or Auto (from the rules). */
+const ValueTag = ({ a }: { a: Asset }) =>
+  a.marketValueManual ? <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase align-middle">Manual</span>
+  : a.suggestedValue != null ? <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase align-middle">Auto</span>
+  : null;
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
@@ -72,6 +105,7 @@ export default function InventoryPage() {
 
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [showBreedPrices, setShowBreedPrices] = useState(false);
 
   useEffect(() => {
     setSearchQuery('');
@@ -135,7 +169,7 @@ export default function InventoryPage() {
     if (asset.status === 'DISPOSED') return false;
 
     // Check linked herd: if category is 'Cow' and matches a disposed herd, exclude it
-    if (asset.category === 'Cow' && asset.serialNumber) {
+    if (['Cow', 'Calf', 'Buffalo', 'Goat'].includes(asset.category) && asset.serialNumber) {
       const linkedHerd = herds.find(h => h.tagNumber === asset.serialNumber);
       if (linkedHerd && linkedHerd.status === 'DISPOSED') {
         return false;
@@ -161,8 +195,8 @@ export default function InventoryPage() {
       }
       if (key === 'marketValue') {
         // use marketValue if present, else fallback to purchase cost (value)
-        const valA = (a.marketValue ?? a.value) || 0;
-        const valB = (b.marketValue ?? b.value) || 0;
+        const valA = marketOf(a);
+        const valB = marketOf(b);
         return direction === 'asc' ? valA - valB : valB - valA;
       }
     }
@@ -188,6 +222,9 @@ export default function InventoryPage() {
             >
               <option value="ALL">All Categories</option>
               <option value="Cow">Cow</option>
+              <option value="Calf">Calf</option>
+              <option value="Buffalo">Buffalo</option>
+              <option value="Goat">Goat</option>
               <option value="Equipment">Equipment</option>
               <option value="Vehicle">Vehicle</option>
               <option value="Land">Land</option>
@@ -251,15 +288,22 @@ export default function InventoryPage() {
               <Construction size={20} />
             </div>
             <div>
+              <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Purchase Cost</span>
+              <span className="text-xl font-black text-brand-dark">
+                ₹{filteredAssets.reduce((sum, a) => sum + (a.value || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="pl-4 ml-1 border-l border-brand/20">
               <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Market Value</span>
               <span className="text-xl font-black text-brand-dark">
-                ₹{filteredAssets.reduce((sum, a) => sum + ((a.marketValue ?? a.value) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                ₹{filteredAssets.reduce((sum, a) => sum + marketOf(a), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
             </div>
           </div>
           <div className="text-right">
             <span className="text-[10px] font-bold text-text3 uppercase tracking-widest block">Assets Registered</span>
             <span className="text-sm font-extrabold text-text mt-0.5 block">{filteredAssets.length} Items</span>
+            <button onClick={() => setShowBreedPrices(true)} className="mt-1 text-[11px] font-bold text-brand hover:underline">Breed prices</button>
           </div>
         </div>
       )}
@@ -468,7 +512,7 @@ export default function InventoryPage() {
                           {formatDate(asset.purchaseDate) || 'N/A'}
                         </td>
                         <td className="p-4 text-center font-bold text-text2">₹{asset.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                        <td className="p-4 text-center font-bold text-brand">₹{(asset.marketValue ?? asset.value).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                        <td className="p-4 text-center font-bold text-brand whitespace-nowrap cursor-help" title={valueTitle(asset)}>₹{marketOf(asset).toLocaleString(undefined, { maximumFractionDigits: 0 })}<ValueTag a={asset} /></td>
                         <td className="p-4 text-center text-text2">{asset.location || 'N/A'}</td>
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -507,6 +551,9 @@ export default function InventoryPage() {
                 >
                   <option value="ALL">All Categories</option>
                   <option value="Cow">Cow</option>
+                  <option value="Calf">Calf</option>
+                  <option value="Buffalo">Buffalo</option>
+                  <option value="Goat">Goat</option>
                   <option value="Equipment">Equipment</option>
                   <option value="Vehicle">Vehicle</option>
                   <option value="Land">Land</option>
@@ -564,8 +611,8 @@ export default function InventoryPage() {
                           </div>
                           <div>
                             <span className="text-text3 block text-[9px] uppercase font-bold tracking-wider">Market Value</span>
-                            <span className="font-black text-brand text-xs">
-                              ₹{(asset.marketValue ?? asset.value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            <span className="font-black text-brand text-xs" title={valueTitle(asset)}>
+                              ₹{marketOf(asset).toLocaleString(undefined, { maximumFractionDigits: 0 })}<ValueTag a={asset} />
                             </span>
                           </div>
                         </div>
@@ -612,6 +659,7 @@ export default function InventoryPage() {
         onSuccess={fetchData}
         asset={selectedAsset}
       />
+      {showBreedPrices && <BreedPricesModal onClose={() => setShowBreedPrices(false)} onSaved={fetchData} />}
     </AppLayout>
   );
 }

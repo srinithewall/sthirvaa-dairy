@@ -174,7 +174,9 @@ public class DashboardService {
             milkerMap.put(cowId, tm);
         }
         
+        // Cows with nothing recorded (0 L) today are not worth a row.
         List<DashboardDTO.TopMilkerDTO> topMilkers = new ArrayList<>(milkerMap.values());
+        topMilkers.removeIf(tm -> tm.getTotalYield() == null || tm.getTotalYield() <= 0);
         topMilkers.sort((a, b) -> b.getTotalYield().compareTo(a.getTotalYield())); // Descending order
         
         dto.setTopMilkers(topMilkers.stream().limit(5).collect(Collectors.toList()));

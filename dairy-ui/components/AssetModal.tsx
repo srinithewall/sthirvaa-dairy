@@ -15,7 +15,22 @@ interface Asset {
   status: string;
   serialNumber: string;
   location: string;
+  marketValueManual?: boolean | null;
+  marketValueNote?: string | null;
+  suggestedValue?: number | null;
+  suggestedLow?: number | null;
+  suggestedHigh?: number | null;
+  valuationBasis?: string | null;
+  valuationFactors?: string[] | null;
 }
+
+// Linked to a herd record by tag number and priced by the valuation model.
+const ANIMAL_CATEGORIES = ['Cow', 'Calf', 'Buffalo', 'Goat'];
+// Lose 15% of purchase cost every 6 months, down to 25%.
+const EQUIPMENT_CATEGORIES = ['Equipment', 'Vehicle'];
+const hasValueRule = (category: string) => ANIMAL_CATEGORIES.includes(category) || EQUIPMENT_CATEGORIES.includes(category);
+
+const inr = (n?: number | null) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 
 interface AssetModalProps {
   isOpen: boolean;
@@ -85,11 +100,19 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
     e.preventDefault();
     setLoading(true);
     try {
+      const manual = !hasValueRule(formData.category) || !!formData.marketValueManual;
+      const { suggestedValue, suggestedLow, suggestedHigh, valuationBasis, valuationFactors, ...rest } = formData as any;
+      const payload = {
+        ...rest,
+        marketValueManual: hasValueRule(formData.category) ? manual : null,
+        marketValueNote: manual && hasValueRule(formData.category) ? (formData.marketValueNote || '').trim() : null,
+        marketValue: manual ? formData.marketValue : (formData.marketValue ?? null),
+      };
       if (asset?.id) {
-        await api.put(`/assets/${asset.id}`, formData);
+        await api.put(`/assets/${asset.id}`, payload);
         showToast('Asset updated successfully', 'success');
       } else {
-        await api.post('/assets', formData);
+        await api.post('/assets', payload);
         showToast('Asset added successfully', 'success');
       }
       onSuccess();
@@ -116,7 +139,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-bold text-text3 uppercase mb-1">Asset Name</label>
-            {formData.category === 'Cow' ? (
+            {ANIMAL_CATEGORIES.includes(formData.category) ? (
               <select
                 required
                 className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
@@ -126,13 +149,13 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
                   const selectedCow = cows.find(c => c.tagNumber === selectedTag);
                   setFormData({
                     ...formData,
-                    name: selectedCow ? `${selectedCow.animalName || 'Cow'} (${selectedCow.tagNumber})` : '',
+                    name: selectedCow ? `${selectedCow.animalName || formData.category} (${selectedCow.tagNumber})` : '',
                     serialNumber: selectedTag,
                     purchaseDate: selectedCow?.procuredDate ? selectedCow.procuredDate.split('T')[0] : formData.purchaseDate
                   });
                 }}
               >
-                <option value="">Select a Cow from Herd...</option>
+                <option value="">Select the animal from the herd...</option>
                 {cows.map((cow) => (
                   <option key={cow.id} value={cow.tagNumber}>
                     {cow.animalName || 'Unnamed'} ({cow.tagNumber})
@@ -158,6 +181,9 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
                 <option value="Cow">Cow</option>
+                <option value="Calf">Calf</option>
+                <option value="Buffalo">Buffalo</option>
+                <option value="Goat">Goat</option>
                 <option value="Equipment">Equipment</option>
                 <option value="Vehicle">Vehicle</option>
                 <option value="Land">Land</option>
@@ -189,17 +215,71 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
                 onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
               />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-text3 uppercase mb-1">Market Value (₹)</label>
-              <input
-                type="number"
-                required
-                className="w-full bg-surface2 border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
-                value={formData.marketValue}
-                onChange={(e) => setFormData({ ...formData, marketValue: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
           </div>
+          {/* Market value: suggested by the rules, or set by hand with a reason */}
+          <div className="rounded-xl border border-border-custom bg-surface2/50 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-text3 uppercase">Market Value</span>
+              {hasValueRule(formData.category) && (
+                <label className="flex items-center gap-1.5 text-[12px] font-semibold text-text2 cursor-pointer">
+                  <input type="checkbox" checked={!!formData.marketValueManual}
+                    onChange={(e) => setFormData({ ...formData, marketValueManual: e.target.checked,
+                      marketValue: e.target.checked ? (formData.marketValue || asset?.suggestedValue || formData.value) : formData.marketValue })} />
+                  Set manually
+                </label>
+              )}
+            </div>
+
+            {hasValueRule(formData.category) && asset?.suggestedValue != null && (
+              <div className={formData.marketValueManual ? 'opacity-60' : ''}>
+                <p className="text-sm">
+                  <span className="text-text3">Suggested </span>
+                  <b className="text-brand">{inr(asset.suggestedValue)}</b>
+                  {asset.suggestedLow != null && asset.suggestedHigh != null && asset.suggestedLow !== asset.suggestedHigh && (
+                    <span className="text-text3 text-[12px]"> · range {inr(asset.suggestedLow)} – {inr(asset.suggestedHigh)}</span>
+                  )}
+                </p>
+                {!!asset.valuationFactors?.length && (
+                  <ul className="mt-1 text-[11px] text-text3 space-y-0.5">
+                    {asset.valuationFactors.map((f, i) => <li key={i}>• {f}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
+            {hasValueRule(formData.category) && asset?.suggestedValue == null && !formData.marketValueManual && (
+              <p className="text-[12px] text-text3">
+                {ANIMAL_CATEGORIES.includes(formData.category)
+                  ? 'Worked out from the animal\'s age, lactation, milk and pregnancy once saved.'
+                  : 'Worked out from the purchase cost and date once saved (−15% every 6 months, down to 25%).'}
+              </p>
+            )}
+
+            {(!hasValueRule(formData.category) || formData.marketValueManual) && (
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  aria-label="Market value"
+                  className="w-full bg-white border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                  value={formData.marketValue ?? ''}
+                  onChange={(e) => setFormData({ ...formData, marketValue: parseFloat(e.target.value) || 0 })}
+                />
+                {hasValueRule(formData.category) && (
+                  <input
+                    type="text"
+                    required
+                    maxLength={300}
+                    placeholder="Reason, e.g. pregnant, high demand"
+                    className="w-full bg-white border border-border-custom rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                    value={formData.marketValueNote ?? ''}
+                    onChange={(e) => setFormData({ ...formData, marketValueNote: e.target.value })}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-text3 uppercase mb-1">Purchase Date</label>

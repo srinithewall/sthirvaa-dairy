@@ -67,6 +67,28 @@ public class Herd {
     @Column(nullable = false)
     private String status = "ACTIVE";
 
+    // Poultry batches (CHICKEN, DUCK) are one record per batch rather than per bird.
+    @Column(name = "bird_count")
+    private Integer birdCount;
+
+    @Column(name = "cost_per_bird")
+    private Double costPerBird;
+
+    /** EGGS, MEAT or BOTH - poultry only. */
+    private String purpose;
+
+    @Column(length = 500)
+    private String notes;
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
+
+    public Integer getBirdCount() { return birdCount; }
+    public void setBirdCount(Integer birdCount) { this.birdCount = birdCount; }
+    public Double getCostPerBird() { return costPerBird; }
+    public void setCostPerBird(Double costPerBird) { this.costPerBird = costPerBird; }
+    public String getPurpose() { return purpose; }
+    public void setPurpose(String purpose) { this.purpose = purpose; }
+
     // Computed / UI Fields
     @Transient
     private Double calculatedWeight;

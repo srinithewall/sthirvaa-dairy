@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { X, Camera, ChevronDown } from 'lucide-react';
+import BatchIcon from '@/components/BatchIcon';
+import { BATCH_TYPES, batchType } from '@/lib/poultry';
 import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 
@@ -45,6 +47,10 @@ interface Herd {
   motherName?: string;
   fatherSemen?: string;
   heartGirth?: number;
+  birdCount?: number;
+  costPerBird?: number;
+  purpose?: string;
+  notes?: string;
 }
 
 // ─── Reusable styled select dropdown ────────
@@ -144,6 +150,36 @@ function Field({
 const INPUT_CLS =
   'w-full bg-white border border-border-custom rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-brand focus:ring-1 focus:ring-brand/10 transition-all placeholder:text-text3/50';
 
+const isPoultryType = (t?: string) => BATCH_TYPES.some(b => b.type === (t || '').toUpperCase());
+
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const shiftIso = (iso: string, days: number) => {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const daysBetween = (from: string, to: string) =>
+  Math.round((new Date(to + 'T00:00:00').getTime() - new Date(from + 'T00:00:00').getTime()) / 86400000);
+
+interface PoultryForm {
+  animalType: string;
+  batchName: string;
+  breed: string;
+  birdCount: string;
+  ageAtArrival: string;
+  batchDate: string;
+  purpose: string;
+  costPerBird: string;
+  source: string;
+  notes: string;
+  status: string;
+}
+
 // ─── Main modal ───────────────────────────────────────────────────────────────
 export default function RegisterAnimalModal({
   onClose,
@@ -166,6 +202,29 @@ export default function RegisterAnimalModal({
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [breedOptions, setBreedOptions] = useState<{value: string, label: string}[]>([]);
+
+  // C = cattle (one record per animal), P = poultry (one record per batch of birds).
+  const [mode, setMode] = useState<'C' | 'P'>(isPoultryType(herdToEdit?.animalType) ? 'P' : 'C');
+  const [poultry, setPoultry] = useState<PoultryForm>(() => {
+    const batchDate = herdToEdit?.procuredDate || todayIso();
+    const age = herdToEdit?.birthDate && herdToEdit?.procuredDate
+      ? String(Math.max(0, daysBetween(herdToEdit.birthDate, herdToEdit.procuredDate))) : '';
+    return {
+      animalType: isPoultryType(herdToEdit?.animalType) ? herdToEdit!.animalType.toUpperCase() : 'CHICKEN',
+      batchName: herdToEdit?.animalName || '',
+      breed: herdToEdit?.breed || '',
+      birdCount: herdToEdit?.birdCount != null ? String(herdToEdit.birdCount) : '',
+      ageAtArrival: age,
+      batchDate,
+      purpose: herdToEdit?.purpose || 'EGGS',
+      costPerBird: herdToEdit?.costPerBird != null ? String(herdToEdit.costPerBird) : '',
+      source: herdToEdit?.source || '',
+      notes: herdToEdit?.notes || '',
+      status: herdToEdit?.status || 'ACTIVE',
+    };
+  });
+  const setP = (key: keyof PoultryForm, value: string) => setPoultry((p) => ({ ...p, [key]: value }));
+  const poultryTotal = Math.round((parseFloat(poultry.birdCount) || 0) * (parseFloat(poultry.costPerBird) || 0));
 
   React.useEffect(() => {
     // Fetch customers
@@ -234,8 +293,83 @@ export default function RegisterAnimalModal({
     }
   };
 
+  const handlePoultrySubmit = async () => {
+    const newErrors: Record<string, string> = {};
+    if (!poultry.batchName.trim()) newErrors.batchName = 'Batch name is required';
+    else if (poultry.batchName.trim().length > 50) newErrors.batchName = 'Batch name can be at most 50 characters';
+    if (!(parseInt(poultry.birdCount) > 0)) newErrors.birdCount = `Enter the number of ${batchType(poultry.animalType).unit}`;
+    if (!poultry.batchDate) newErrors.batchDate = 'Batch date is required';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      showToast('Please fill in all mandatory fields.', 'error');
+      return;
+    }
+
+    setRegistering(true);
+    try {
+      const prefix = batchType(poultry.animalType).prefix;
+      const stamp = new Date().toISOString().replace(/\D/g, '').slice(2, 14);
+      const ageDays = parseInt(poultry.ageAtArrival) || 0;
+      const payload = {
+        ...(herdToEdit || {}),
+        tagNumber: herdToEdit?.tagNumber || `${prefix}-${stamp}`,
+        animalType: poultry.animalType,
+        animalName: poultry.batchName.trim(),
+        breed: poultry.breed.trim() || null,
+        birdCount: parseInt(poultry.birdCount),
+        costPerBird: poultry.costPerBird ? parseFloat(poultry.costPerBird) : null,
+        purpose: batchType(poultry.animalType).laysEggs ? poultry.purpose : 'MEAT',
+        notes: poultry.notes.trim() || null,
+        source: poultry.source.trim() || null,
+        procuredDate: poultry.batchDate,
+        // Age is kept as a hatch date so it keeps counting up from the batch date.
+        birthDate: shiftIso(poultry.batchDate, -ageDays),
+        healthStatus: herdToEdit?.healthStatus || 'HEALTHY',
+        status: poultry.status,
+        imageUrl: null,
+      };
+
+      const response = herdToEdit
+        ? await api.put(`/herds/${herdToEdit.id}`, payload)
+        : await api.post('/herds', payload);
+
+      // A new batch's purchase cost goes into the Digital Ledger as a Poultry expense.
+      if (!herdToEdit && poultryTotal > 0) {
+        try {
+          const cats = (await api.get('/categories')).data || [];
+          if (!cats.some((c: any) => c.type === 'EXPENSE' && c.name === 'Poultry')) {
+            await api.post('/categories', { name: 'Poultry', type: 'EXPENSE', iconCode: '🐔' });
+          }
+          await api.post('/expenses', {
+            category: 'Poultry',
+            amount: poultryTotal,
+            description: `${payload.animalName}: ${payload.birdCount} ${batchType(poultry.animalType).label.toLowerCase()} @ ₹${Math.round(parseFloat(poultry.costPerBird) || 0)}`,
+            date: poultry.batchDate,
+            herdId: response.data?.id,
+          });
+        } catch (expErr) {
+          console.error('Failed to record poultry purchase expense:', expErr);
+          showToast('Batch saved, but the cost could not be added to the ledger.', 'error');
+        }
+      }
+
+      showToast(herdToEdit ? 'Batch updated' : 'Poultry batch registered');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      showToast(`Operation failed: ${err.response?.data?.message || err.message}`, 'error');
+    } finally {
+      setRegistering(false);
+    }
+  };
+
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'P') {
+      await handlePoultrySubmit();
+      return;
+    }
     
     // Client-side validation for mandatory fields
     const newErrors: Record<string, string> = {};
@@ -352,11 +486,23 @@ export default function RegisterAnimalModal({
         >
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight leading-tight">
-              {herdToEdit ? 'Edit animal record' : 'Register new animal'}
+              {herdToEdit
+                ? (mode === 'P' ? 'Edit poultry batch' : 'Edit animal record')
+                : (mode === 'P' ? 'Register poultry batch' : 'Register new animal')}
             </h2>
             <p className="text-xs text-white/70 mt-0.5 italic">
-              {herdToEdit ? `Updating tag ${herdToEdit.tagNumber}` : 'Add to Sthirvaa inventory'}
+              {herdToEdit ? `Updating ${herdToEdit.tagNumber}` : 'Add to Sthirvaa inventory'}
             </p>
+            {!herdToEdit && (
+              <div className="mt-3 inline-flex rounded-lg bg-white/10 p-0.5" role="group" aria-label="Cattle or poultry">
+                {([['C', 'Cattle: cow, buffalo, goat'], ['P', 'Poultry and fish batches']] as const).map(([m, label]) => (
+                  <button key={m} type="button" title={label} aria-label={label} onClick={() => { setMode(m); setErrors({}); }}
+                    className={`w-9 py-1 rounded-md text-[11px] font-black uppercase tracking-wider transition-colors ${mode === m ? 'bg-white text-[#1b4332]' : 'text-white/80 hover:text-white'}`}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <button
             type="button"
@@ -373,6 +519,79 @@ export default function RegisterAnimalModal({
           className="flex-1 overflow-y-auto px-6 py-5"
           style={{ overscrollBehavior: 'contain' }}
         >
+          {mode === 'P' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+              {/* Bird type: shown as a symbol on the herds page instead of a photo */}
+              <div className="col-span-1 sm:col-span-2">
+                <label className="text-[11px] font-bold text-text3 uppercase mb-2 block tracking-wider">Type</label>
+                <div className="flex flex-wrap gap-2">
+                  {BATCH_TYPES.map((bt) => (
+                    <button key={bt.type} type="button" onClick={() => setP('animalType', bt.type)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold border transition-all ${poultry.animalType === bt.type ? 'bg-brand text-white border-brand shadow-md' : 'bg-white text-text3 border-border-custom hover:border-brand hover:text-brand'}`}>
+                      <BatchIcon type={bt.type} size={16} /> {bt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Field label="Batch name" required error={errors.batchName}>
+                <input maxLength={50} value={poultry.batchName} onChange={(e) => setP('batchName', e.target.value)}
+                  placeholder={`e.g. ${batchType(poultry.animalType).breeds[0]} batch Oct-26`} className={INPUT_CLS} />
+              </Field>
+              <Field label="Breed">
+                <input value={poultry.breed} onChange={(e) => setP('breed', e.target.value)} list="poultry-breeds"
+                  placeholder={`e.g. ${batchType(poultry.animalType).breeds[0]}`} className={INPUT_CLS} />
+                <datalist id="poultry-breeds">
+                  {batchType(poultry.animalType).breeds.map((b) => <option key={b} value={b} />)}
+                </datalist>
+              </Field>
+              <Field label={`Number of ${batchType(poultry.animalType).unit}`} required error={errors.birdCount}>
+                <input type="number" min={1} inputMode="numeric" value={poultry.birdCount}
+                  onChange={(e) => setP('birdCount', e.target.value)} placeholder="100" className={INPUT_CLS} />
+              </Field>
+              <Field label="Age at arrival (days)">
+                <input type="number" min={0} inputMode="numeric" value={poultry.ageAtArrival}
+                  onChange={(e) => setP('ageAtArrival', e.target.value)} placeholder="1" className={INPUT_CLS} />
+              </Field>
+              <Field label="Batch date" required error={errors.batchDate}>
+                <input type="date" value={poultry.batchDate} max={todayIso()}
+                  onChange={(e) => setP('batchDate', e.target.value)} className={INPUT_CLS} />
+              </Field>
+              {batchType(poultry.animalType).laysEggs ? (
+                <CustomSelect label="Purpose" value={poultry.purpose} onChange={(v) => setP('purpose', v)}
+                  options={[{ value: 'EGGS', label: 'Eggs' }, { value: 'MEAT', label: 'Meat' }, { value: 'BOTH', label: 'Both' }]} />
+              ) : (
+                <Field label="Purpose">
+                  <input readOnly value="Meat" className={`${INPUT_CLS} bg-surface2 text-text2`} />
+                </Field>
+              )}
+              <Field label={`Cost per ${batchType(poultry.animalType).unit === 'fish' ? 'fish' : 'bird'} (₹)`}>
+                <input type="number" min={0} inputMode="decimal" value={poultry.costPerBird}
+                  onChange={(e) => setP('costPerBird', e.target.value)} placeholder="45" className={INPUT_CLS} />
+              </Field>
+              <Field label="Total cost (₹)">
+                <input readOnly value={poultryTotal ? poultryTotal.toLocaleString('en-IN') : ''} placeholder="Auto"
+                  className={`${INPUT_CLS} bg-surface2 text-text2`} />
+              </Field>
+              <Field label="Supplier / source">
+                <input value={poultry.source} onChange={(e) => setP('source', e.target.value)}
+                  placeholder="e.g. Sri Hatchery, Mandya" className={INPUT_CLS} />
+              </Field>
+              {herdToEdit ? (
+                <CustomSelect label="Record Status" value={poultry.status} onChange={(v) => setP('status', v)}
+                  options={[{ value: 'ACTIVE', label: 'Active' }, { value: 'DISPOSED', label: 'Disposed' }]} />
+              ) : <div className="hidden sm:block" />}
+              <Field label="Notes" fullWidth>
+                <input value={poultry.notes} onChange={(e) => setP('notes', e.target.value)}
+                  placeholder="e.g. Vaccinated at hatchery" className={INPUT_CLS} />
+              </Field>
+              {!herdToEdit && poultryTotal > 0 && (
+                <p className="col-span-1 sm:col-span-2 text-[11px] text-text3 -mt-1">
+                  ₹{poultryTotal.toLocaleString('en-IN')} will be added to the Digital Ledger as a Poultry expense.
+                </p>
+              )}
+            </div>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
 
             {/* Tag Number */}
@@ -627,6 +846,7 @@ export default function RegisterAnimalModal({
               </div>
             </div>
           </div>
+          )}
 
           {/* Submit */}
           <div className="mt-6 pt-4 border-t border-border-custom">
@@ -640,7 +860,7 @@ export default function RegisterAnimalModal({
                   : 'linear-gradient(135deg,#2d6a4f 0%,#1b4332 100%)',
               }}
             >
-              {registering ? 'Processing Data…' : uploadingImage ? 'Finishing Upload…' : herdToEdit ? 'Save Changes' : 'Register Animal'}
+              {registering ? 'Processing Data…' : uploadingImage ? 'Finishing Upload…' : herdToEdit ? 'Save Changes' : mode === 'P' ? 'Register Batch' : 'Register Animal'}
             </button>
           </div>
         </form>

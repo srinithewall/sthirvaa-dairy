@@ -70,6 +70,7 @@ public class HerdService {
     @org.springframework.transaction.annotation.Transactional
     public void deleteHerd(Long id) {
         milkRecordRepository.deleteByHerdId(id);
+        herdEventRepository.deleteByHerdId(id);
         herdRepository.deleteById(id);
     }
 

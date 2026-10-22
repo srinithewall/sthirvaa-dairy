@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface StoreStockMoveRepository extends JpaRepository<StoreStockMove, Long> {
     List<StoreStockMove> findTop200ByItemIdOrderByMovedAtDescIdDesc(Long itemId);
+
+    List<StoreStockMove> findByRefTypeAndRefId(String refType, Long refId);
 }

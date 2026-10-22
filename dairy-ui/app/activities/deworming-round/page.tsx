@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import api from "@/lib/api";
-import { ArrowLeft, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, Baby, Check, Droplets, Heart, Leaf, RefreshCw } from "lucide-react";
 
 interface DewormingRow {
   herdId: number;
@@ -27,6 +27,21 @@ const localDate = (d: Date) =>
 
 const fmt = (iso?: string | null) =>
   iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Never";
+
+// Status as a small symbol (full name on hover) so rows stay short on a phone.
+function StatusIcon({ status }: { status?: string }) {
+  const key = (status || "").toUpperCase();
+  const map: Record<string, { Icon: React.ElementType; cls: string; label: string }> = {
+    LACTATING: { Icon: Droplets, cls: "text-blue-600", label: "Lactating" },
+    DRY: { Icon: Leaf, cls: "text-amber-600", label: "Dry" },
+    CALF: { Icon: Baby, cls: "text-green-600", label: "Calf" },
+    HEIFER: { Icon: Baby, cls: "text-teal-600", label: "Heifer" },
+    PREGNANT: { Icon: Heart, cls: "text-pink-600", label: "Pregnant" },
+  };
+  const m = map[key];
+  if (!m) return status ? <span>{status}</span> : null;
+  return <span title={m.label} aria-label={m.label} className={`inline-flex items-center ${m.cls}`}><m.Icon size={13} /></span>;
+}
 
 function duePill(row: DewormingRow) {
   const label = row.dose > 0 ? `Dose ${row.dose}` : "Routine";
@@ -96,7 +111,7 @@ function DewormingRoundInner() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col max-w-2xl mx-auto pb-28">
+      <div className="flex flex-col max-w-2xl mx-auto">
         <button onClick={() => router.push("/activities")} className="flex items-center gap-1 text-text3 hover:text-text text-sm mb-3">
           <ArrowLeft size={16} /> Back to chores
         </button>
@@ -131,51 +146,56 @@ function DewormingRoundInner() {
               const pill = duePill(row);
               const isTicked = row.herdId in ticked;
               return (
-                <div key={row.herdId} className={`bg-white p-3 rounded-xl border flex items-center gap-3 shadow-sm transition-colors ${row.dewormedInRound ? "border-green-200 bg-green-50/30" : "border-border"}`}>
-                  {row.dewormedInRound ? (
-                    <Check size={22} className="flex-none text-green-600 bg-green-100 rounded-md p-0.5" />
-                  ) : (
-                    <input
-                      type="checkbox"
-                      checked={isTicked}
-                      onChange={() => toggle(row.herdId)}
-                      aria-label={`${row.animalName || row.tagNumber} dewormed`}
-                      className="w-[22px] h-[22px] flex-none cursor-pointer"
-                    />
-                  )}
-                  <div className="w-11 h-11 flex-none bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-base font-black">
-                    {(row.animalName || row.tagNumber || "#")[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 flex-wrap">
-                      <span className="truncate">{row.animalName || row.tagNumber || `#${row.herdId}`}</span>
-                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${pill.cls}`}>{pill.text}</span>
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                      {[row.tagNumber, row.animalStatus, row.age && row.age !== "N/A" ? row.age : null].filter(Boolean).join(" · ")}
-                      {" · last dewormed "}{fmt(row.lastDewormedDate)}
-                    </p>
-                  </div>
+                <div key={row.herdId} className={`bg-white p-3 rounded-xl border shadow-sm transition-colors ${row.dewormedInRound ? "border-green-200 bg-green-50/30" : "border-border"}`}>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    {row.dewormedInRound ? (
+                      <Check size={22} className="flex-none text-green-600 bg-green-100 rounded-md p-0.5" />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={isTicked}
+                        onChange={() => toggle(row.herdId)}
+                        aria-label={`${row.animalName || row.tagNumber} dewormed`}
+                        className="w-[22px] h-[22px] flex-none cursor-pointer"
+                      />
+                    )}
+                    <div className="w-10 h-10 flex-none bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-base font-black">
+                      {(row.animalName || row.tagNumber || "#")[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 flex-wrap">
+                        <span>{row.animalName || row.tagNumber || `#${row.herdId}`}</span>
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${pill.cls}`}>{pill.text}</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-500 mt-1 flex items-center flex-wrap gap-x-1.5 leading-4">
+                        <StatusIcon status={row.animalStatus} />
+                        {row.age && row.age !== "N/A" && <span>{row.age}</span>}
+                        <span>·</span><span>Last dewormed on <span className={row.lastDewormedDate ? "" : "text-red-600 font-bold"}>{fmt(row.lastDewormedDate)}</span></span>
+                      </p>
+                    </div>
                   {isTicked && (
-                    <input
-                      type="date"
-                      value={ticked[row.herdId]}
-                      max={today}
-                      onChange={e => setTicked(prev => ({ ...prev, [row.herdId]: e.target.value }))}
-                      aria-label="Date dewormed"
-                      className="flex-none text-xs border border-border rounded-lg px-2 py-1.5 w-[132px]"
-                    />
+                    <div className="flex items-center gap-2 w-full pl-[86px] sm:w-auto sm:pl-0">
+                      <span className="text-[11px] text-slate-500">Dewormed on</span>
+                      <input
+                        type="date"
+                        value={ticked[row.herdId]}
+                        max={today}
+                        onChange={e => setTicked(prev => ({ ...prev, [row.herdId]: e.target.value }))}
+                        aria-label="Date dewormed"
+                        className="text-xs border border-border rounded-lg px-2 py-1.5"
+                      />
+                    </div>
                   )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
         <p className="text-xs text-text3 mt-3">Tick an animal to confirm it was dewormed. The date defaults to today; change it if it was done earlier.</p>
-      </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border p-3 flex justify-center z-40">
-        <div className="w-full max-w-2xl">
+        {/* Sticks to the bottom of the content column, so it lines up with the cards. */}
+        <div className="sticky bottom-0 z-30 mt-4 -mx-1 px-1 pb-3 pt-2 bg-gradient-to-t from-[#F0F4F1] via-[#F0F4F1] to-transparent">
           <button
             onClick={handleSave}
             disabled={tickedCount === 0 || saving}

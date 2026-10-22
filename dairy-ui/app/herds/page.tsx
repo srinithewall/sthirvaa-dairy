@@ -7,10 +7,13 @@ import {
   Plus, X, Activity, Calendar, Trash2, Edit2, Archive, Clock,
   CheckCircle, AlertTriangle, Syringe, Baby, Droplets, Leaf,
   ChevronRight, ShieldCheck, Heart, TrendingUp, AlarmClock,
-  PlusCircle, Info, ShieldAlert, AlertCircle
+  PlusCircle, Info, ShieldAlert, AlertCircle, Egg, Bird
 } from 'lucide-react';
 import RegisterAnimalModal from '@/components/RegisterAnimalModal';
 import AnimalWorkspace from '@/components/AnimalWorkspace';
+import PoultryWorkspace from '@/components/PoultryWorkspace';
+import BatchIcon from '@/components/BatchIcon';
+import { BATCH_TYPES, batchType, isPoultryType, liveBirds } from '@/lib/poultry';
 import { useNotification } from '@/components/NotificationContext';
 
 interface Herd {
@@ -36,6 +39,8 @@ interface Herd {
   lactationNumber?: number;
   calculatedWeight?: number;
   weightStatus?: string;
+  birdCount?: number;
+  purpose?: string;
   lastDewormingDate?: string | null;
   nextDewormingDate?: string | null;
   nextDewormingDose?: number | null;
@@ -48,6 +53,7 @@ interface HerdEvent {
   eventType: string;
   title: string;
   details?: string;
+  quantity?: number | null;
   createdAt: string;
 }
 
@@ -100,7 +106,7 @@ export default function HerdsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDisposedModal, setShowDisposedModal] = useState(false);
   const [showAllEventsModal, setShowAllEventsModal] = useState(false);
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({ 'COW': true });
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [userRole, setUserRole] = useState<string>('');
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
@@ -159,10 +165,14 @@ export default function HerdsPage() {
   };
 
   const handleDeleteHerd = (id: number) => {
-    confirm('Are you sure you want to permanently delete this animal record?', async () => {
+    const target = herds.find(h => h.id === id);
+    const isBatch = isPoultryType(target?.animalType);
+    confirm(isBatch
+      ? 'Delete this poultry batch with all its death and egg records? This cannot be undone.'
+      : 'Are you sure you want to permanently delete this animal record?', async () => {
       try {
         await api.delete(`/herds/${id}`);
-        showToast('Animal record deleted successfully!');
+        showToast(isBatch ? 'Batch deleted' : 'Animal record deleted successfully!');
         setShowModal(false);
         fetchHerds();
       } catch (err: any) {
@@ -257,13 +267,13 @@ export default function HerdsPage() {
   };
 
   /* ─────────────────────────────── CATEGORY ROW ─────────────────────────────── */
-  const CategoryRow = ({ title, count, items, isSub = false, canExpand = false, type = '' }: any) => {
+  const CategoryRow = ({ title, count, items, isSub = false, canExpand = false, type = '', compact = false }: any) => {
     const isExpanded = expandedRows[type];
     return (
       <div className={`flex flex-col md:flex-row border-b border-border-custom transition-colors overflow-visible ${isSub ? 'bg-surface2/10' : 'hover:bg-surface'}`}>
         <div className="flex items-center justify-between md:contents">
           <div
-            className={`flex-1 md:flex-none md:w-[220px] py-4 px-4 font-bold text-text md:border-r border-border-custom flex items-center gap-3 ${isSub ? 'pl-8 md:pl-10 text-[12px] md:text-[13px] font-medium' : 'text-[14px]'} ${canExpand ? 'cursor-pointer' : ''}`}
+            className={`flex-1 md:flex-none md:w-[220px] ${compact ? 'py-2' : 'py-4'} px-4 font-bold text-text md:border-r border-border-custom flex items-center gap-3 ${isSub ? 'pl-8 md:pl-10 text-[12px] md:text-[13px] font-medium' : 'text-[14px]'} ${canExpand ? 'cursor-pointer' : ''}`}
             onClick={() => canExpand && toggleExpand(type)}
           >
             {canExpand && (
@@ -275,13 +285,28 @@ export default function HerdsPage() {
             )}
             <span className="uppercase tracking-wide">{title}</span>
           </div>
-          <div className="w-[60px] py-4 text-center border-l md:border-l-0 md:border-r border-border-custom font-bold text-text bg-surface md:bg-transparent text-[14px]">
+          <div className={`w-[60px] ${compact ? 'py-2' : 'py-4'} text-center border-l md:border-l-0 md:border-r border-border-custom font-bold text-text bg-surface md:bg-transparent text-[14px]`}>
             {count || 0}
           </div>
         </div>
-        <div className="flex-1 p-3 flex flex-wrap gap-2 items-start justify-start bg-white/50 overflow-visible">
+        <div className={`flex-1 ${compact ? 'px-3 py-1.5 items-center' : 'p-3 items-start'} flex flex-wrap gap-2 justify-start bg-white/50 overflow-visible`}>
           {items.map((item: Herd) => {
             const isCalf = item.animalStatus === 'CALF';
+            const isPoultry = isPoultryType(item.animalType);
+            if (isPoultry) {
+              const bt = batchType(item.animalType);
+              const ageDays = item.birthDate ? Math.max(0, Math.floor((Date.now() - new Date(item.birthDate).getTime()) / 86400000)) : null;
+              const ageLbl = ageDays == null ? '' : ageDays >= 60 ? ` · ${Math.floor(ageDays / 30)} mo` : ` · ${ageDays} d`;
+              return (
+                <button key={item.id} type="button" onClick={() => handleHerdClick(item.id)}
+                  title={item.purpose ? `Purpose: ${item.purpose.toLowerCase()}` : undefined}
+                  className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-lg border text-left transition-colors ${bt.chip}`}>
+                  <BatchIcon type={item.animalType} size={16} className={`${bt.icon} shrink-0`} />
+                  <span className="text-[12px] font-bold text-text truncate max-w-[120px]">{item.animalName || item.tagNumber}</span>
+                  <span className="text-[11px] text-text3 whitespace-nowrap">{liveBirds(item.birdCount, allGlobalEvents, item.id)} {bt.unit}{ageLbl}</span>
+                </button>
+              );
+            }
             const showAge = isCalf || item.animalStatus === 'HEIFER';
             
             // Get animal events
@@ -292,8 +317,12 @@ export default function HerdsPage() {
             const breedingEvents = herdEvents
               .filter(e => ['SEMEN_GIVEN', 'AI_DONE', 'PREGNANCY_CONFIRMED', 'CALF_DELIVERED'].includes(e.eventType))
               .sort((a, b) => b.eventDate.localeCompare(a.eventDate));
-            const hasSemen = breedingEvents.length > 0 && 
-              (breedingEvents[0].eventType === 'SEMEN_GIVEN' || breedingEvents[0].eventType === 'PREGNANCY_CONFIRMED');
+            // NONE: no breeding since last calving; GIVEN: semen/AI done, awaiting PD; PD: pregnancy confirmed
+            const latestBreeding = breedingEvents[0]?.eventType;
+            const semenState: 'NONE' | 'GIVEN' | 'PD' =
+              latestBreeding === 'PREGNANCY_CONFIRMED' ? 'PD'
+              : latestBreeding === 'SEMEN_GIVEN' || latestBreeding === 'AI_DONE' ? 'GIVEN'
+              : 'NONE';
 
             // 2. DIM Check (Days in Milk)
             const lastCalving = herdEvents
@@ -355,8 +384,12 @@ export default function HerdsPage() {
                 className="flex flex-col w-[85px] md:w-[105px] bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-95 select-none"
               >
                 {/* Photo Section */}
-                <div className={`relative h-[65px] md:h-[80px] w-full flex items-center justify-center overflow-hidden ${tagColor}`}>
-                  {imgUrl ? (
+                <div className={`relative h-[65px] md:h-[80px] w-full flex items-center justify-center overflow-hidden ${isPoultry ? (item.animalType === 'DUCK' ? 'bg-sky-100' : 'bg-amber-100') : tagColor}`}>
+                  {isPoultry ? (
+                    item.animalType === 'DUCK'
+                      ? <Bird size={30} className="text-sky-600 -mt-3" />
+                      : <Egg size={30} className="text-amber-600 -mt-3" />
+                  ) : imgUrl ? (
                     <img 
                       src={imgUrl} 
                       alt={item.animalName || item.tagNumber} 
@@ -375,23 +408,29 @@ export default function HerdsPage() {
                   </div>
 
                   {/* Syringe Injection status */}
-                  {!(showAge && ageInMonths < 12) && (
-                    <div className={`absolute top-1 right-1 w-5 h-5 md:w-6 md:h-6 rounded-full shadow-sm flex items-center justify-center border ${hasSemen ? 'bg-emerald-500 border-emerald-600' : 'bg-white border-slate-100/50'}`}>
-                      <Syringe 
-                        size={11} 
-                        className={hasSemen ? 'text-white' : 'text-slate-400'} 
-                        strokeWidth={2.5}
-                      />
+                  {!isPoultry && !(showAge && ageInMonths < 12) && semenState === 'GIVEN' && (
+                    <div className="absolute top-1 right-1 w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)]" title="Semen given — PD pending">
+                      <Syringe size={12} className="text-slate-600" strokeWidth={2.25} />
+                    </div>
+                  )}
+                  {!isPoultry && !(showAge && ageInMonths < 12) && semenState === 'PD' && (
+                    <div className="absolute top-1 right-1 w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center bg-emerald-600 ring-2 ring-white shadow-[0_1px_3px_rgba(0,0,0,0.35)]" title="Pregnancy confirmed">
+                      <Syringe size={12} className="text-white" strokeWidth={2.25} />
                     </div>
                   )}
                 </div>
 
                 {/* Info / DIM Section */}
                 <div 
-                  className="py-1.5 px-1 text-center bg-white border-t border-slate-100 flex items-center justify-center gap-1 min-h-[28px] md:min-h-[32px]"
+                  className="py-0.5 px-1 text-center bg-white border-t border-slate-100 flex items-center justify-center gap-1 min-h-[20px] md:min-h-[22px]"
                   title={eddTitle ?? (showAge ? undefined : dimTitle)}
                 >
-                  {showAge ? (
+                  {isPoultry ? (
+                    <span className="text-[8.5px] md:text-[10px] font-bold text-slate-600 uppercase tracking-tight"
+                      title={item.purpose ? `Purpose: ${item.purpose.toLowerCase()}` : undefined}>
+                      {item.birdCount ?? 0} birds{item.birthDate ? ` · ${ageInMonths > 0 ? `${ageInMonths} Mo` : `${Math.max(0, Math.floor((Date.now() - new Date(item.birthDate).getTime()) / 86400000))} d`}` : ''}
+                    </span>
+                  ) : showAge ? (
                     <span className="text-[8.5px] md:text-[10px] font-bold text-slate-500 uppercase tracking-tight">
                       {ageInMonths} Mo
                     </span>
@@ -420,6 +459,11 @@ export default function HerdsPage() {
       </div>
     );
   };
+
+  // Poultry is stored one record per batch; a batch without a count counts as one bird.
+  const birdTotal = (type: string) =>
+    activeHerds.filter(h => h.animalType === type)
+      .reduce((t, h) => t + (h.birdCount == null ? 1 : liveBirds(h.birdCount, allGlobalEvents, h.id)), 0);
 
   // Oldest first (no birth date last)
   const byAgeDesc = (a: Herd, b: Herd) =>
@@ -539,7 +583,18 @@ export default function HerdsPage() {
   return (
     <AppLayout noPadding={showModal && !!selectedHerd}>
       {/* ══ ANIMAL WORKSPACE (replaces herd list when animal is selected) ══ */}
-      {showModal && selectedHerd ? (
+      {showModal && selectedHerd && isPoultryType(selectedHerd.animalType) ? (
+        <PoultryWorkspace
+          herd={selectedHerd}
+          events={events}
+          loadingEvents={loadingEvents}
+          onBack={() => { setShowModal(false); setSelectedHerd(null); }}
+          onEdit={() => { setShowModal(false); setShowEditModal(true); }}
+          onDelete={() => handleDeleteHerd(selectedHerd.id)}
+          onEventAdded={(evt) => { setEvents(prev => [evt as any, ...prev]); fetchHerds(); }}
+          onEventDeleted={(id) => { setEvents(prev => prev.filter(e => e.id !== id)); fetchHerds(); }}
+        />
+      ) : showModal && selectedHerd ? (
         <AnimalWorkspace
           herd={selectedHerd}
           events={events}
@@ -809,14 +864,21 @@ export default function HerdsPage() {
 
         {/* Meat Section */}
         <div>
-          <div className="bg-[#E1F5FE] py-2.5 px-5 font-black text-[#0277BD] text-[12px] uppercase tracking-[1.5px] rounded-t-xl border-b border-white/20 shadow-sm">
-            Meat / Poultry Section
-          </div>
-          <div className="bg-white border border-border-custom rounded-b-xl shadow-xl">
-            <CategoryRow title="Chicken" count={activeHerds.filter(h => h.animalType === 'CHICKEN').length} items={activeHerds.filter(h => h.animalType === 'CHICKEN')} />
-            <CategoryRow title="Fishes"  count={activeHerds.filter(h => h.animalType === 'FISH').length}    items={activeHerds.filter(h => h.animalType === 'FISH')} />
-            <CategoryRow title="Duck"    count={activeHerds.filter(h => h.animalType === 'DUCK').length}    items={activeHerds.filter(h => h.animalType === 'DUCK')} />
-          </div>
+          <button type="button" onClick={() => toggleExpand('MEAT')} aria-expanded={!!expandedRows['MEAT']}
+            className={`w-full flex items-center gap-3 bg-[#E1F5FE] py-2.5 px-5 font-black text-[#0277BD] text-[12px] uppercase tracking-[1.5px] border-b border-white/20 shadow-sm text-left ${expandedRows['MEAT'] ? 'rounded-t-xl' : 'rounded-xl'}`}>
+            <span className="flex-1">Meat / Poultry Section</span>
+            <span className="text-[11px] font-bold normal-case tracking-normal text-[#0277BD]/80">
+              {BATCH_TYPES.filter(bt => birdTotal(bt.type) > 0).map(bt => `${bt.label} ${birdTotal(bt.type)}`).join(' · ')}
+            </span>
+          </button>
+          {expandedRows['MEAT'] && (
+            <div className="bg-white border border-border-custom rounded-b-xl shadow-xl">
+              {BATCH_TYPES.map(bt => (
+                <CategoryRow key={bt.type} compact title={bt.type === 'FISH' ? 'Fishes' : bt.label}
+                  count={birdTotal(bt.type)} items={activeHerds.filter(h => h.animalType === bt.type)} />
+              ))}
+            </div>
+          )}
         </div>
         </>
         )}

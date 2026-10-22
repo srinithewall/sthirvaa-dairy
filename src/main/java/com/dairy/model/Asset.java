@@ -29,6 +29,49 @@ public class Asset {
     @Column(name = "serial_number")
     private String serialNumber;
 
+    /** True when the owner set marketValue by hand; otherwise the suggested value applies. */
+    @Column(name = "market_value_manual")
+    private Boolean marketValueManual;
+
+    @Column(name = "market_value_note", length = 300)
+    private String marketValueNote;
+
+    // Computed on read by AssetValuationService; never stored.
+    @Transient
+    private Double suggestedValue;
+    @Transient
+    private Double suggestedLow;
+    @Transient
+    private Double suggestedHigh;
+    /** ANIMAL, EQUIPMENT or NONE (no rule for this category). */
+    @Transient
+    private String valuationBasis;
+    @Transient
+    private java.util.List<String> valuationFactors;
+
+    public Boolean getMarketValueManual() { return marketValueManual; }
+    public void setMarketValueManual(Boolean marketValueManual) { this.marketValueManual = marketValueManual; }
+    public String getMarketValueNote() { return marketValueNote; }
+    public void setMarketValueNote(String marketValueNote) { this.marketValueNote = marketValueNote; }
+    public Double getSuggestedValue() { return suggestedValue; }
+    public void setSuggestedValue(Double suggestedValue) { this.suggestedValue = suggestedValue; }
+    public Double getSuggestedLow() { return suggestedLow; }
+    public void setSuggestedLow(Double suggestedLow) { this.suggestedLow = suggestedLow; }
+    public Double getSuggestedHigh() { return suggestedHigh; }
+    public void setSuggestedHigh(Double suggestedHigh) { this.suggestedHigh = suggestedHigh; }
+    public String getValuationBasis() { return valuationBasis; }
+    public void setValuationBasis(String valuationBasis) { this.valuationBasis = valuationBasis; }
+    public java.util.List<String> getValuationFactors() { return valuationFactors; }
+    public void setValuationFactors(java.util.List<String> valuationFactors) { this.valuationFactors = valuationFactors; }
+
+    /** The value to show and total: the manual value when set, else the suggestion, else what was entered. */
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    public Double getEffectiveMarketValue() {
+        if (Boolean.TRUE.equals(marketValueManual) && marketValue != null) return marketValue;
+        if (suggestedValue != null) return suggestedValue;
+        return marketValue != null ? marketValue : value;
+    }
+
     private String location;
 
     @Column(name = "created_at")

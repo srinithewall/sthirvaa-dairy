@@ -188,7 +188,13 @@ export default function DashboardPage() {
         api.get('/milk-records')
       ]);
       const allCows = cowsRes.data.herds || cowsRes.data || [];
-      setCows(allCows.filter((c: any) => c.status?.toUpperCase() !== 'DISPOSED' && c.animalStatus?.toUpperCase() !== 'CALF'));
+      // Animals under 22 months are not milking yet, so they stay out of the picker. No birth date = keep.
+      const ageInMonths = (c: any) => {
+        if (!c.birthDate) return Infinity;
+        const born = new Date(c.birthDate), now = new Date();
+        return (now.getFullYear() - born.getFullYear()) * 12 + (now.getMonth() - born.getMonth());
+      };
+      setCows(allCows.filter((c: any) => c.status?.toUpperCase() !== 'DISPOSED' && c.animalStatus?.toUpperCase() !== 'CALF' && ageInMonths(c) >= 22));
       setMilkRecords(recordsRes.data || []);
     } catch (err) {
       console.error("Failed to fetch cows or milk records for daily chart:", err);

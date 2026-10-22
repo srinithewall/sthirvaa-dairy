@@ -12,9 +12,12 @@ public class AssetController {
     @Autowired
     private AssetService assetService;
 
+    @Autowired
+    private com.dairy.service.AssetValuationService valuationService;
+
     @GetMapping
     public List<Asset> getAllAssets() {
-        return assetService.getAllAssets();
+        return valuationService.withValues(assetService.getAllAssets());
     }
 
     @PostMapping

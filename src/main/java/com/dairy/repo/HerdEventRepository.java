@@ -15,4 +15,7 @@ public interface HerdEventRepository extends JpaRepository<HerdEvent, Long> {
     List<HerdEvent> findByEventDate(java.time.LocalDate eventDate);
     List<HerdEvent> findAllByOrderByEventDateDesc();
     long countByHerdIdAndEventType(Long herdId, String eventType);
+
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByHerdId(Long herdId);
 }

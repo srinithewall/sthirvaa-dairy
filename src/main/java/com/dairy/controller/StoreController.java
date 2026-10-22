@@ -183,6 +183,22 @@ public class StoreController {
         return saleService.create(request);
     }
 
+    /** Whether the signed-in user may edit or delete generated bills (owner account only). */
+    @GetMapping("/sales/permissions")
+    public java.util.Map<String, Boolean> salePermissions() {
+        return java.util.Map.of("canModify", saleService.canModifyBills());
+    }
+
+    @PutMapping("/sales/{id}")
+    public StoreSale updateSale(@PathVariable Long id, @RequestBody SaleRequest request) {
+        return saleService.update(id, request);
+    }
+
+    @DeleteMapping("/sales/{id}")
+    public void deleteSale(@PathVariable Long id) {
+        saleService.delete(id);
+    }
+
     // ---- Stock ----
 
     @GetMapping("/stock")

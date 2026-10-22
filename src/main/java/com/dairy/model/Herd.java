@@ -215,6 +215,22 @@ public class Herd {
     public Integer getPregnancyDaysPregnant() { return pregnancyDaysPregnant; }
     public void setPregnancyDaysPregnant(Integer pregnancyDaysPregnant) { this.pregnancyDaysPregnant = pregnancyDaysPregnant; }
 
+    // Deworming - computed from DEWORMED HerdEvents and the schedule in DewormingSchedule.
+    @Transient
+    private LocalDate lastDewormingDate;
+    public LocalDate getLastDewormingDate() { return lastDewormingDate; }
+    public void setLastDewormingDate(LocalDate lastDewormingDate) { this.lastDewormingDate = lastDewormingDate; }
+
+    @Transient
+    private LocalDate nextDewormingDate;
+    public LocalDate getNextDewormingDate() { return nextDewormingDate; }
+    public void setNextDewormingDate(LocalDate nextDewormingDate) { this.nextDewormingDate = nextDewormingDate; }
+
+    @Transient
+    private Integer nextDewormingDose;
+    public Integer getNextDewormingDose() { return nextDewormingDose; }
+    public void setNextDewormingDose(Integer nextDewormingDose) { this.nextDewormingDose = nextDewormingDose; }
+
     @Transient
     private String pregnancyStatus;
     public String getPregnancyStatus() { return pregnancyStatus; }

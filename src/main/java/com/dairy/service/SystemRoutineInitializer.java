@@ -25,12 +25,50 @@ public class SystemRoutineInitializer implements CommandLineRunner {
     public static final String HERD_WEIGHT_KEY = "BIWEEKLY_HERD_WEIGHT";
     public static final String HERD_WEIGHT_ROUTE = "/activities/weight-round";
 
+    public static final String HERD_DEWORMING_KEY = "HERD_DEWORMING";
+    public static final String HERD_DEWORMING_ROUTE = "/activities/deworming-round";
+
     @Autowired
     private FarmActivityRepository activityRepository;
 
     @Override
     public void run(String... args) {
         seedHerdWeightRoutine();
+        seedHerdDewormingRoutine();
+    }
+
+    /**
+     * A daily chore that closes itself on days when no animal is due (see
+     * HerdDewormingCompletionCheck), so staff are only nudged when there is deworming to record.
+     */
+    private void seedHerdDewormingRoutine() {
+        Optional<FarmActivity> existing = activityRepository.findBySystemKey(HERD_DEWORMING_KEY);
+        if (existing.isPresent()) {
+            FarmActivity routine = existing.get();
+            if (!HERD_DEWORMING_ROUTE.equals(routine.getActionRoute())) {
+                routine.setActionRoute(HERD_DEWORMING_ROUTE);
+                activityRepository.save(routine);
+            }
+            return;
+        }
+
+        FarmActivity routine = new FarmActivity();
+        routine.setSystemKey(HERD_DEWORMING_KEY);
+        routine.setTitle("Herd deworming");
+        routine.setDescription("Record the deworming of every animal that is due.");
+        routine.setCategory(ActivityCategory.HERD_CHECK);
+        routine.setFrequency(ActivityFrequency.DAILY);
+        routine.setDueTime(LocalTime.of(8, 0));
+        routine.setActionRoute(HERD_DEWORMING_ROUTE);
+        routine.setReminderEnabled(true);
+        routine.setReminderIntervalHours(4);
+        routine.setReminderStartTime(LocalTime.of(7, 0));
+        routine.setReminderEndTime(LocalTime.of(18, 0));
+        routine.setReminderMaxPerDay(3);
+        routine.setIsActive(true);
+
+        activityRepository.save(routine);
+        logger.info("Seeded system routine {}.", HERD_DEWORMING_KEY);
     }
 
     private void seedHerdWeightRoutine() {

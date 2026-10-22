@@ -158,6 +158,13 @@ public class HerdService {
             herd.setMilkPotentialConfidence(potentialResult.getConfidence());
 
             applyDimAndPregnancy(herd, events);
+
+            if (DewormingSchedule.applies(herd)) {
+                DewormingSchedule.Next dew = DewormingSchedule.compute(herd, events, LocalDate.now());
+                herd.setLastDewormingDate(dew.lastDone());
+                herd.setNextDewormingDate(dew.nextDue());
+                herd.setNextDewormingDose(dew.dose());
+            }
         }
         return herds;
     }

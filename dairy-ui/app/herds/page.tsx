@@ -36,6 +36,9 @@ interface Herd {
   lactationNumber?: number;
   calculatedWeight?: number;
   weightStatus?: string;
+  lastDewormingDate?: string | null;
+  nextDewormingDate?: string | null;
+  nextDewormingDose?: number | null;
 }
 
 interface HerdEvent {
@@ -55,11 +58,38 @@ const EVENT_CONFIG: Record<string, { icon: React.ElementType; color: string; bg:
   DRY_PERIOD_STARTED:  { icon: Leaf,           color: 'text-amber-600',   bg: 'bg-amber-100',   label: 'Dry Period' },
   LACTATION_STARTED:   { icon: Droplets,       color: 'text-blue-600',    bg: 'bg-blue-100',    label: 'Lactation' },
   VACCINATION_DUE:     { icon: ShieldCheck,    color: 'text-teal-600',    bg: 'bg-teal-100',    label: 'Vaccination' },
+  DEWORMED:            { icon: CheckCircle,    color: 'text-green-600',   bg: 'bg-green-100',   label: 'Dewormed' },
   DEWORMING_DUE:       { icon: AlarmClock,     color: 'text-orange-600',  bg: 'bg-orange-100',  label: 'Deworming' },
   PREGNANCY_CHECK_DUE: { icon: CheckCircle,    color: 'text-indigo-600',  bg: 'bg-indigo-100',  label: 'PD Check' },
 };
 
 const REMINDER_TYPES = ['VACCINATION_DUE', 'DEWORMING_DUE', 'PREGNANCY_CHECK_DUE'];
+
+// Lactation stage bands by DIM (days in milk)
+const DIM_STAGES = [
+  { max: 33,       days: 33,  label: 'Fresh (0–1M)',    text: 'text-purple-600', hex: '#a855f7' },
+  { max: 100,      days: 67,  label: 'Peak (1–3M)',     text: 'text-green-700',  hex: '#16a34a' },
+  { max: 200,      days: 100, label: 'Mid (3–7M)',      text: 'text-teal-600',   hex: '#14b8a6' },
+  { max: 270,      days: 70,  label: 'Late (7–9M)',     text: 'text-amber-500',  hex: '#fbbf24' },
+  { max: 305,      days: 35,  label: 'Dry-off (9–10M)', text: 'text-pink-600',   hex: '#ec4899' },
+  { max: Infinity, days: 25,  label: 'Extended (10M+)', text: 'text-rose-800',   hex: '#9f1239' },
+];
+// Legend gradient: solid colour per band with a short soft blend at each boundary
+const DIM_TOTAL = DIM_STAGES.reduce((t, st) => t + st.days, 0);
+const DIM_GRADIENT = (() => {
+  const blend = 1.5; // % of bar width blended on each side of a boundary
+  let start = 0;
+  const stops = DIM_STAGES.flatMap((st, i) => {
+    const from = (start / DIM_TOTAL) * 100;
+    start += st.days;
+    const to = (start / DIM_TOTAL) * 100;
+    const a = i === 0 ? from : from + blend;
+    const b = i === DIM_STAGES.length - 1 ? to : to - blend;
+    return [`${st.hex} ${a.toFixed(1)}%`, `${st.hex} ${b.toFixed(1)}%`];
+  });
+  return `linear-gradient(to right, ${stops.join(', ')})`;
+})();
+const dimStage = (dim: number) => DIM_STAGES.find(s => dim <= s.max)!;
 
 export default function HerdsPage() {
   const [herds, setHerds] = useState<Herd[]>([]);
@@ -109,6 +139,7 @@ export default function HerdsPage() {
       DRY_PERIOD_STARTED: 'Dry Period Started',
       LACTATION_STARTED: 'Lactation Started',
       VACCINATION_DUE: 'Vaccination Due',
+      DEWORMED: 'Deworming Done',
       DEWORMING_DUE: 'Deworming Due',
       PREGNANCY_CHECK_DUE: 'Pregnancy Check Due',
     };
@@ -251,6 +282,7 @@ export default function HerdsPage() {
         <div className="flex-1 p-3 flex flex-wrap gap-2 items-start justify-start bg-white/50 overflow-visible">
           {items.map((item: Herd) => {
             const isCalf = item.animalStatus === 'CALF';
+            const showAge = isCalf || item.animalStatus === 'HEIFER';
             
             // Get animal events
             const herdEvents = allGlobalEvents.filter(e => e.herdId === item.id);
@@ -258,7 +290,7 @@ export default function HerdsPage() {
             // 1. Semen Injection Check (Syringe)
             // Semen is considered given if they have a SEMEN_GIVEN event as the latest breeding event.
             const breedingEvents = herdEvents
-              .filter(e => ['SEMEN_GIVEN', 'PREGNANCY_CONFIRMED', 'CALF_DELIVERED'].includes(e.eventType))
+              .filter(e => ['SEMEN_GIVEN', 'AI_DONE', 'PREGNANCY_CONFIRMED', 'CALF_DELIVERED'].includes(e.eventType))
               .sort((a, b) => b.eventDate.localeCompare(a.eventDate));
             const hasSemen = breedingEvents.length > 0 && 
               (breedingEvents[0].eventType === 'SEMEN_GIVEN' || breedingEvents[0].eventType === 'PREGNANCY_CONFIRMED');
@@ -273,29 +305,28 @@ export default function HerdsPage() {
               dim = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             }
 
-            let dimColor = 'text-emerald-600';
-            let dimTitle = 'Normal lactation';
-
-            if (dim >= 251 && dim <= 300) {
-              dimColor = 'text-amber-500';
-              dimTitle = 'Late lactation approaching';
-            } else if (dim > 300) {
-              dimColor = 'text-pink-500';
-              dimTitle = 'Late lactation — review dry-off';
-            }
+            const stage = dim > 0 ? dimStage(dim) : null;
+            let dimColor = stage ? stage.text : 'text-slate-400';
+            let dimTitle = stage ? stage.label : 'No calving recorded';
 
             // Near expected calving check
+            let eddTitle: string | undefined;
             const lastPd = breedingEvents.find(e => e.eventType === 'PREGNANCY_CONFIRMED');
-            const lastAi = breedingEvents.find(e => e.eventType === 'SEMEN_GIVEN');
+            const lastAi = breedingEvents.find(e => e.eventType === 'SEMEN_GIVEN' || e.eventType === 'AI_DONE');
             if (lastPd && (!lastCalving || new Date(lastPd.eventDate) > new Date(lastCalving.eventDate))) {
               if (lastAi) {
                 const gestation = item.animalType === 'BUFFALO' ? 310 : 283;
                 const expectedDelivery = new Date(lastAi.eventDate);
                 expectedDelivery.setDate(expectedDelivery.getDate() + gestation);
                 const daysToCalving = Math.ceil((expectedDelivery.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                // Remaining Cows: show EDD on hover when PD-confirmed and calving within 90 days
+                if (item.animalStatus !== 'LACTATING' && !isYoungStock(item) && daysToCalving >= 0 && daysToCalving <= 90) {
+                  const edd = expectedDelivery.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                  eddTitle = `ED: ${edd} (in ${daysToCalving} days)`;
+                }
                 if (daysToCalving <= 60 && daysToCalving >= 0) {
                   dimColor = 'text-red-500';
-                  dimTitle = 'Dry-off action required';
+                  dimTitle = `${dimTitle} — Dry-off action required`;
                 }
               }
             }
@@ -320,6 +351,7 @@ export default function HerdsPage() {
               <div
                 key={item.id}
                 onClick={() => handleHerdClick(item.id)}
+                title={eddTitle}
                 className="flex flex-col w-[85px] md:w-[105px] bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-95 select-none"
               >
                 {/* Photo Section */}
@@ -343,7 +375,7 @@ export default function HerdsPage() {
                   </div>
 
                   {/* Syringe Injection status */}
-                  {!isCalf && (
+                  {!(showAge && ageInMonths < 12) && (
                     <div className={`absolute top-1 right-1 w-5 h-5 md:w-6 md:h-6 rounded-full shadow-sm flex items-center justify-center border ${hasSemen ? 'bg-emerald-500 border-emerald-600' : 'bg-white border-slate-100/50'}`}>
                       <Syringe 
                         size={11} 
@@ -357,9 +389,9 @@ export default function HerdsPage() {
                 {/* Info / DIM Section */}
                 <div 
                   className="py-1.5 px-1 text-center bg-white border-t border-slate-100 flex items-center justify-center gap-1 min-h-[28px] md:min-h-[32px]"
-                  title={isCalf ? undefined : dimTitle}
+                  title={eddTitle ?? (showAge ? undefined : dimTitle)}
                 >
-                  {isCalf ? (
+                  {showAge ? (
                     <span className="text-[8.5px] md:text-[10px] font-bold text-slate-500 uppercase tracking-tight">
                       {ageInMonths} Mo
                     </span>
@@ -387,6 +419,29 @@ export default function HerdsPage() {
         </div>
       </div>
     );
+  };
+
+  // Oldest first (no birth date last)
+  const byAgeDesc = (a: Herd, b: Herd) =>
+    (a.birthDate || '9999').localeCompare(b.birthDate || '9999');
+  // Days since latest calving; lowest DIM first (unknown last)
+  const dimOf = (h: Herd) => {
+    const last = allGlobalEvents
+      .filter(e => e.herdId === h.id && e.eventType === 'CALF_DELIVERED')
+      .reduce((m, e) => (e.eventDate > m ? e.eventDate : m), '');
+    return last ? Date.now() - new Date(last).getTime() : Infinity;
+  };
+  const byDimAsc = (a: Herd, b: Herd) => dimOf(a) - dimOf(b);
+
+  // Calf/Heifer row: young stock until first AI or 15 months of age, then Remaining Cows
+  const isYoungStock = (h: Herd) => {
+    if (h.animalStatus !== 'CALF' && h.animalStatus !== 'HEIFER') return false;
+    if (allGlobalEvents.some(e => e.herdId === h.id && e.eventType === 'SEMEN_GIVEN')) return false;
+    if (h.birthDate) {
+      const b = new Date(h.birthDate), t = new Date();
+      if ((t.getFullYear() - b.getFullYear()) * 12 + (t.getMonth() - b.getMonth()) >= 15) return false;
+    }
+    return true;
   };
 
   let activeHerds = herds.filter(h => h.status !== 'DISPOSED');
@@ -583,7 +638,8 @@ export default function HerdsPage() {
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-center cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('weightStatus')}>Weight Status {getSortIcon('weightStatus')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Next Event</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('calvingDate')}>Calving Date {getSortIcon('calvingDate')}</th>
-                    <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Deworming</th>
+                    <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Last Deworming</th>
+                    <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Deworming Due</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right whitespace-nowrap">Parity</th>
                   </tr>
                 </thead>
@@ -612,8 +668,19 @@ export default function HerdsPage() {
                       const diffTime = Math.abs(Date.now() - new Date(semenEvents[0].eventDate).getTime());
                       daysSinceAI = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                     }
-                    const dewormEvents = herdEvents.filter(e => e.eventType === 'DEWORMING_DUE').sort((a,b) => b.eventDate.localeCompare(a.eventDate));
-                    const latestDeworm = dewormEvents[0]?.eventDate || '—';
+                    const fmtDate = (iso?: string | null) => iso
+                      ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : '—';
+                    const latestDeworm = item.lastDewormingDate ? fmtDate(item.lastDewormingDate) : (item.nextDewormingDate ? 'Never' : '—');
+                    let dewormDue: { text: string; cls: string } | null = null;
+                    if (item.nextDewormingDate) {
+                      const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+                      const daysTo = Math.round((new Date(item.nextDewormingDate + 'T00:00:00').getTime() - todayMid.getTime()) / 86400000);
+                      const doseLbl = item.nextDewormingDose ? ` · dose ${item.nextDewormingDose}` : '';
+                      if (daysTo < 0) dewormDue = { text: `Overdue ${-daysTo}d${doseLbl}`, cls: 'bg-red-100 text-red-700' };
+                      else if (daysTo === 0) dewormDue = { text: `Today${doseLbl}`, cls: 'bg-amber-100 text-amber-700' };
+                      else dewormDue = { text: `${fmtDate(item.nextDewormingDate)}${doseLbl}`, cls: daysTo <= 7 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600' };
+                    }
 
                     // DIM & Calving Date
                     const lastCalving = herdEvents.filter(e => e.eventType === 'CALF_DELIVERED').sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
@@ -688,12 +755,15 @@ export default function HerdsPage() {
                         <td className="py-3 px-4 text-xs font-semibold text-text whitespace-nowrap">{nextEventStr}</td>
                         <td className="py-3 px-4 text-xs font-semibold text-text whitespace-nowrap">{calvingDateStr}</td>
                         <td className="py-3 px-4 text-xs font-semibold text-text whitespace-nowrap">{latestDeworm}</td>
+                        <td className="py-3 px-4 text-xs font-semibold whitespace-nowrap" title={item.nextDewormingDate ? `Next deworming: ${fmtDate(item.nextDewormingDate)}` : undefined}>
+                          {dewormDue ? <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${dewormDue.cls}`}>{dewormDue.text}</span> : '—'}
+                        </td>
                         <td className="py-3 px-4 text-sm font-bold text-text text-right whitespace-nowrap">{item.lactationNumber || 0}</td>
                       </tr>
                     );
                   })}
                   {activeHerds.filter(h => h.animalType === 'COW').length === 0 && (
-                    <tr><td colSpan={16} className="py-8 text-center text-text3 italic">No cows found in herd.</td></tr>
+                    <tr><td colSpan={17} className="py-8 text-center text-text3 italic">No cows found in herd.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -707,17 +777,25 @@ export default function HerdsPage() {
             Milk Production Section
           </div>
           <div className="bg-white border border-border-custom rounded-b-xl shadow-xl">
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-100">
+              <span className="text-[10px] uppercase tracking-wide font-black text-text3">DIM</span>
+              <div className="relative flex w-64 h-2 rounded-full overflow-hidden" style={{ background: DIM_GRADIENT }}>
+                {DIM_STAGES.map(st => (
+                  <div key={st.label} title={st.label} className="border-r border-white/80 last:border-r-0" style={{ flexGrow: st.days, flexBasis: 0 }} />
+                ))}
+              </div>
+            </div>
             <CategoryRow title="Lactation Cows" type="COW" canExpand={true}
               count={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'LACTATING').length}
-              items={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'LACTATING')} />
+              items={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'LACTATING').sort(byDimAsc)} />
             {expandedRows['COW'] && (
               <>
                 <CategoryRow title="Remaining Cows" isSub={true}
-                  count={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus !== 'LACTATING' && h.animalStatus !== 'CALF').length}
-                  items={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus !== 'LACTATING' && h.animalStatus !== 'CALF')} />
-                <CategoryRow title="Calf" isSub={true}
-                  count={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'CALF').length}
-                  items={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus === 'CALF')} />
+                  count={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus !== 'LACTATING' && !isYoungStock(h)).length}
+                  items={activeHerds.filter(h => h.animalType === 'COW' && h.animalStatus !== 'LACTATING' && !isYoungStock(h))} />
+                <CategoryRow title="Calf/Heifer" isSub={true}
+                  count={activeHerds.filter(h => h.animalType === 'COW' && isYoungStock(h)).length}
+                  items={activeHerds.filter(h => h.animalType === 'COW' && isYoungStock(h)).sort(byAgeDesc)} />
               </>
             )}
             <CategoryRow title="Buffalo"

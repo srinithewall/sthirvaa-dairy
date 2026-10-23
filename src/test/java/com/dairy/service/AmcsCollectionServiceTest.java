@@ -181,6 +181,17 @@ class AmcsCollectionServiceTest {
     }
 
     @Test
+    void theStoredRateIsRoundedToPaiseWhileTheAmountStaysExact() {
+        // 1026 / 28 = 36.642857142857...
+        service.importRows(List.of(row("2026-10-01 06:00:00.000000", "Morning", 22, 28.0, 1026.0)));
+
+        ArgumentCaptor<MilkDispatch> dispatch = ArgumentCaptor.forClass(MilkDispatch.class);
+        verify(dispatchRepository).save(dispatch.capture());
+        assertEquals(36.64, dispatch.getValue().getRatePerLitre(), 1e-12);
+        assertEquals(1026.0, dispatch.getValue().getTotalAmount(), 1e-9);
+    }
+
+    @Test
     void existingKmfDispatchIsUpdatedNotDuplicated() {
         MilkDispatch old = new MilkDispatch();
         old.setDispatchType("CUSTOMER");

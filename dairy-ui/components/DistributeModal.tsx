@@ -113,7 +113,8 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
           dispatchType: d.dispatchType as DispatchRow['dispatchType'],
           customerId: d.customer?.id ?? null,
           quantity: String(d.quantity),
-          ratePerLitre: String(d.ratePerLitre ?? 0),
+          // Saved rates can carry long decimals (a synced shift's amount / litres); show paise
+          ratePerLitre: String(Math.round((d.ratePerLitre ?? 0) * 100) / 100),
         })));
       } else {
         // Default to first customer — will be patched by customers useEffect if not yet loaded

@@ -166,7 +166,7 @@ public class AmcsCollectionService {
         dispatch.setCustomer(customer);
         dispatch.setQuantity(litres);
         // Effective rate across the shift's pours; the amount is AMCS's own figure, not litres x rate
-        dispatch.setRatePerLitre(amount / litres);
+        dispatch.setRatePerLitre(Math.round(amount / litres * 100.0) / 100.0); // paise, not 36.60982142857143
         dispatch.setTotalAmount(amount);
         dispatchRepository.save(dispatch);
         return true;

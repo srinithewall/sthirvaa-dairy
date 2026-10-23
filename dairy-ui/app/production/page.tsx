@@ -24,7 +24,11 @@ interface DaySummary {
   morning: number;
   evening: number;
   total: number;
-  distributed: number;
+  distributed: number; // everything dispatched, whatever it was used for
+  sales?: number;      // milk sold to customers only
+  calf?: number;
+  ownUse?: number;
+  waste?: number;
   cowCount: number;
 }
 
@@ -38,6 +42,48 @@ const todayStr = () => {
 };
 
 const fmt = (n: number) => n % 1 === 0 ? `${n}` : n.toFixed(1);
+
+// Where a day's milk went. Sales are milk sold to customers only; calf feeding, own use and
+// waste are not sales, but they are milk used, so sales + calf + own use + waste should add up
+// to the day's Total. `complete` is what turns the Sales figure green instead of orange.
+const accounting = (day: DaySummary) => {
+  const sales = day.sales ?? day.distributed ?? 0; // an older backend only sends `distributed`
+  const calf = day.calf ?? 0;
+  const ownUse = day.ownUse ?? 0;
+  const waste = day.waste ?? 0;
+  const accounted = sales + calf + ownUse + waste;
+  // Compared in tenths of a litre, the precision these figures are stored at
+  const remainderTenths = Math.round(day.total * 10) - Math.round(accounted * 10);
+  return {
+    sales, calf, ownUse, waste, accounted,
+    remainder: remainderTenths / 10,
+    complete: remainderTenths === 0 && day.total > 0,
+  };
+};
+type Accounting = ReturnType<typeof accounting>;
+
+const usageTitle = (a: Accounting, total: number) =>
+  `Total ${fmt(total)} L = sold ${fmt(a.sales)} L + calf ${fmt(a.calf)} L + own use ${fmt(a.ownUse)} L + waste ${fmt(a.waste)} L`
+  + (a.complete ? '' : ` (${a.remainder > 0 ? `${fmt(a.remainder)} L not accounted` : `${fmt(-a.remainder)} L over the total`})`);
+
+/* Calf / own use / waste under the Sales figure, and what is still not accounted for */
+function UseBreakdown({ a, className = '' }: { a: Accounting; className?: string }) {
+  const parts = [
+    a.calf > 0 && `Calf ${fmt(a.calf)} L`,
+    a.ownUse > 0 && `Own use ${fmt(a.ownUse)} L`,
+    a.waste > 0 && `Waste ${fmt(a.waste)} L`,
+  ].filter(Boolean) as string[];
+  // A day with nothing recorded yet is obvious from the orange 0; only call out a partial one
+  const gap = a.accounted > 0 && a.remainder > 0 ? `${fmt(a.remainder)} L not accounted`
+    : a.remainder < 0 ? `${fmt(-a.remainder)} L over total` : null;
+  if (parts.length === 0 && !gap) return null;
+  return (
+    <div className={`text-[10px] font-bold ${className}`}>
+      {parts.length > 0 && <span className="text-text3">{parts.join(' · ')}</span>}
+      {gap && <span className="text-amber-600">{parts.length > 0 ? ' · ' : ''}{gap}</span>}
+    </div>
+  );
+}
 
 /* ─── Compact Stat card ───────────────────────────────── */
 function StatCard({ icon, label, value, sub, color }: {
@@ -181,7 +227,7 @@ export default function MilkProductionPage() {
             </div>
           ) : (
             paged.map((day) => {
-              const isFullyDistributed = Math.round(day.distributed * 10) >= Math.round(day.total * 10) && day.total > 0;
+              const acc = accounting(day);
               const today = new Date(); today.setHours(0,0,0,0);
               // Parse date parts directly to avoid UTC-vs-local timezone shifting
               const [y, m, d] = day.date.split('-').map(Number);
@@ -193,16 +239,16 @@ export default function MilkProductionPage() {
                   {/* Card Header: Date + Distribution Badge */}
                   <div className="flex items-center justify-between mb-3">
                     <span className="font-black text-text text-[14px]">{day.date}</span>
-                    {isFullyDistributed ? (
+                    {acc.complete ? (
                       <span className="flex items-center gap-1 text-[10px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">
-                        <CheckCircle2 size={10} /> Fully Distributed
+                        <CheckCircle2 size={10} /> All Accounted
                       </span>
-                    ) : day.distributed > 0 ? (
+                    ) : acc.accounted > 0 ? (
                       <span className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
                         <AlertCircle size={10} /> Partial
                       </span>
                     ) : (
-                      <span className="text-[10px] font-black text-text3 bg-surface px-2 py-0.5 rounded-full">Not Distributed</span>
+                      <span className="text-[10px] font-black text-text3 bg-surface px-2 py-0.5 rounded-full">Not Accounted</span>
                     )}
                   </div>
 
@@ -220,11 +266,12 @@ export default function MilkProductionPage() {
                       <div className="text-[9px] font-black text-brand uppercase tracking-wide mb-0.5">Total</div>
                       <div className="font-black text-brand text-[13px]">{fmt(day.total)}L</div>
                     </div>
-                    <div className="bg-surface rounded-lg p-2 text-center">
-                      <div className="text-[9px] font-black text-text3 uppercase tracking-wide mb-0.5">Dist.</div>
-                      <div className={`font-black text-[13px] ${isFullyDistributed ? 'text-brand' : 'text-amber-600'}`}>{fmt(day.distributed)}L</div>
+                    <div className="bg-surface rounded-lg p-2 text-center" title={usageTitle(acc, day.total)}>
+                      <div className="text-[9px] font-black text-text3 uppercase tracking-wide mb-0.5">Sales</div>
+                      <div className={`font-black text-[13px] ${acc.complete ? 'text-brand' : 'text-amber-600'}`}>{fmt(acc.sales)}L</div>
                     </div>
                   </div>
+                  <UseBreakdown a={acc} className="mb-3 text-center" />
 
                   {/* Sub info + Actions */}
                   <div className="flex items-center justify-between">
@@ -241,12 +288,12 @@ export default function MilkProductionPage() {
                       <button
                         onClick={() => setDistributeTarget({ date: day.date, shift: 'COMBINED', total: day.total })}
                         className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wide transition-all ${
-                          isFullyDistributed
+                          acc.complete
                             ? 'border-brand bg-brand text-white'
                             : 'border-brand/40 text-brand hover:bg-brand hover:text-white'
                         }`}
                       >
-                        <Truck size={10} /> {isFullyDistributed ? 'Update' : 'Distribute'}
+                        <Truck size={10} /> {acc.complete ? 'Update' : 'Distribute'}
                       </button>
                     </div>
                   </div>
@@ -265,7 +312,7 @@ export default function MilkProductionPage() {
                 <th className="px-5 py-3 text-amber-600">Morning (L)</th>
                 <th className="px-5 py-3 text-indigo-600">Evening (L)</th>
                 <th className="px-5 py-3 text-brand">Total (L)</th>
-                <th className="px-5 py-3 text-brand-dark">Distributed (L)</th>
+                <th className="px-5 py-3 text-brand-dark">Sales (L)</th>
                 <th className="px-5 py-3">Cows</th>
                 <th className="px-5 py-3 text-center">Actions</th>
               </tr>
@@ -287,7 +334,7 @@ export default function MilkProductionPage() {
                 </tr>
               ) : (
                 paged.map((day) => {
-                  const isFullyDistributed = Math.round(day.distributed * 10) >= Math.round(day.total * 10) && day.total > 0;
+                  const acc = accounting(day);
                   return (
                     <tr
                       key={day.date}
@@ -301,17 +348,18 @@ export default function MilkProductionPage() {
                       <td className="px-5 py-3.5">
                         <span className="font-black text-brand-dark text-[14px]">{fmt(day.total)} L</span>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-3.5" title={usageTitle(acc, day.total)}>
                         <div className="flex items-center gap-2">
-                          <span className={`font-bold ${isFullyDistributed ? 'text-brand' : 'text-amber-600'}`}>
-                            {fmt(day.distributed)} L
+                          <span className={`font-bold ${acc.complete ? 'text-brand' : 'text-amber-600'}`}>
+                            {fmt(acc.sales)} L
                           </span>
-                          {isFullyDistributed ? (
+                          {acc.complete ? (
                             <CheckCircle2 size={14} className="text-brand" />
-                          ) : day.distributed > 0 ? (
+                          ) : acc.accounted > 0 ? (
                             <AlertCircle size={14} className="text-amber-500" />
                           ) : null}
                         </div>
+                        <UseBreakdown a={acc} className="mt-0.5 whitespace-nowrap" />
                       </td>
                       <td className="px-5 py-3.5 text-text3 font-medium">{day.cowCount} cows</td>
                       <td className="px-5 py-3.5">
@@ -338,12 +386,12 @@ export default function MilkProductionPage() {
                             onClick={() => setDistributeTarget({ date: day.date, shift: 'COMBINED', total: day.total })}
                             title="Distribute milk to customers"
                             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${
-                              isFullyDistributed 
-                                ? 'border-brand bg-brand text-white hover:bg-brand-dark' 
+                              acc.complete
+                                ? 'border-brand bg-brand text-white hover:bg-brand-dark'
                                 : 'border-brand/40 text-brand hover:bg-brand hover:text-white'
                             }`}
                           >
-                            <Truck size={11} /> {isFullyDistributed ? 'Update Dist.' : 'Distribute'}
+                            <Truck size={11} /> {acc.complete ? 'Update Dist.' : 'Distribute'}
                           </button>
                         </div>
                       </td>

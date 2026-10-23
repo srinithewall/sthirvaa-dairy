@@ -19,4 +19,8 @@ public interface MilkDispatchRepository extends JpaRepository<MilkDispatch, Long
 
     @Query("SELECT SUM(d.quantity) FROM MilkDispatch d WHERE d.date = :date")
     Double sumQuantityByDate(@Param("date") LocalDate date);
+
+    /** Litres per date and dispatch type (CUSTOMER, CALF, OWN_USE, WASTE) in one query: [date, type, litres]. */
+    @Query("SELECT d.date, d.dispatchType, SUM(d.quantity) FROM MilkDispatch d GROUP BY d.date, d.dispatchType")
+    List<Object[]> sumQuantityByDateAndType();
 }

@@ -88,8 +88,17 @@ public class MilkRecordService {
         Map<LocalDate, List<MilkRecord>> byDate = all.stream()
             .collect(Collectors.groupingBy(MilkRecord::getDate, LinkedHashMap::new, Collectors.toList()));
 
+        // Where each day's milk went, by dispatch type, in one query instead of one per day
+        Map<LocalDate, Map<String, Double>> dispatchedByDate = new HashMap<>();
+        for (Object[] row : dispatchRepository.sumQuantityByDateAndType()) {
+            LocalDate day = (LocalDate) row[0];
+            String type = row[1] == null ? "CUSTOMER" : row[1].toString();
+            double litres = row[2] == null ? 0.0 : ((Number) row[2]).doubleValue();
+            dispatchedByDate.computeIfAbsent(day, k -> new HashMap<>()).merge(type, litres, Double::sum);
+        }
+
         List<Map<String, Object>> summary = new ArrayList<>();
-        
+
         for (Map.Entry<LocalDate, List<MilkRecord>> entry : byDate.entrySet()) {
             LocalDate date = entry.getKey();
             List<MilkRecord> dayRecords = entry.getValue();
@@ -108,14 +117,25 @@ public class MilkRecordService {
                 .distinct()
                 .count();
 
-            Double distributed = dispatchRepository.sumQuantityByDate(date);
-            if (distributed == null) distributed = 0.0;
+            Map<String, Double> dispatched = dispatchedByDate.getOrDefault(date, Map.of());
+            double sales = dispatched.getOrDefault("CUSTOMER", 0.0);
+            double calf = dispatched.getOrDefault("CALF", 0.0);
+            double ownUse = dispatched.getOrDefault("OWN_USE", 0.0);
+            double waste = dispatched.getOrDefault("WASTE", 0.0);
+            double distributed = dispatched.values().stream().mapToDouble(Double::doubleValue).sum();
 
             Map<String, Object> dayMap = new HashMap<>();
             dayMap.put("date", date.toString());
             dayMap.put("morning", Math.round(morning * 10.0) / 10.0);
             dayMap.put("evening", Math.round(evening * 10.0) / 10.0);
             dayMap.put("total", Math.round((morning + evening) * 10.0) / 10.0);
+            // Milk sold to customers only. Calf feeding, own use and waste are not sales; they are
+            // reported separately so sales + calf + own use + waste can be checked against total.
+            dayMap.put("sales", Math.round(sales * 10.0) / 10.0);
+            dayMap.put("calf", Math.round(calf * 10.0) / 10.0);
+            dayMap.put("ownUse", Math.round(ownUse * 10.0) / 10.0);
+            dayMap.put("waste", Math.round(waste * 10.0) / 10.0);
+            // Everything accounted for, whatever it was used for (kept for older clients)
             dayMap.put("distributed", Math.round(distributed * 10.0) / 10.0);
             dayMap.put("cowCount", cowCount);
             

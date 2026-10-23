@@ -65,6 +65,21 @@ export default function LogYieldModal({
   const [success, setSuccess] = useState(false);
   const { showToast } = useNotification();
 
+  // Latest calving date per animal, to list animals the way the Herds screen does
+  const [lastCalving, setLastCalving] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    api.get('/herds/events/all').then(res => {
+      const latest: Record<number, string> = {};
+      for (const e of res.data || []) {
+        if (e.eventType === 'CALF_DELIVERED' && (!latest[e.herdId] || e.eventDate > latest[e.herdId])) {
+          latest[e.herdId] = e.eventDate;
+        }
+      }
+      setLastCalving(latest);
+    }).catch(() => {}); // without the events the list just keeps its original order
+  }, []);
+
   // Build base entries from lactatingCows list
   useEffect(() => {
     setEntries(
@@ -78,6 +93,18 @@ export default function LogYieldModal({
       }))
     );
   }, [lactatingCows]);
+
+  // Lowest DIM (most recent calving) first, animals with no calving recorded last - same order as
+  // the Herds screen. Re-sorts in place so anything already typed or pre-filled stays with its row.
+  useEffect(() => {
+    setEntries(prev => [...prev].sort((a, b) => {
+      const da = lastCalving[a.herdId], db = lastCalving[b.herdId];
+      if (da && db) return db.localeCompare(da);
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
+    }));
+  }, [lastCalving, lactatingCows]);
 
   // When date changes, try to pre-fill existing saved records
   useEffect(() => {

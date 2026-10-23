@@ -27,6 +27,126 @@ interface DaySummary {
   cowCount: number;
 }
 
+// One pour as stored by the AMCS import (society milk-collection system)
+interface AmcsPour {
+  date: string | number[];
+  shift: 'MORNING' | 'EVENING';
+  quantity: number;
+  fat: number | null;
+  snf: number | null;
+  clr: number | null;
+  qualityManual: boolean | null;
+  quantityManual: boolean | null;
+  amcsUpdatedBy: string | null;
+}
+
+// A = read by the analyser, M = keyed in by hand (the society supervisor does this when the
+// machine has a problem, so a supervisor edit is shown as M too)
+type Source = 'A' | 'M';
+
+interface ShiftQuality {
+  fat: number | null;
+  snf: number | null;
+  clr: number | null;
+  qualitySource: Source;
+  quantitySource: Source;
+  editedBy: string | null;
+}
+
+const SOURCE_STYLE: Record<Source, string> = {
+  A: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  M: 'bg-amber-50 text-amber-700 border-amber-200',
+};
+
+const SOURCE_TEXT: Record<Source, string> = {
+  A: 'read automatically by the AMCS machine',
+  M: 'keyed in by hand at the society (machine problem)',
+};
+
+// LocalDate can arrive as "2026-10-23" or as [2026, 10, 23] depending on the endpoint
+const dateKey = (d: string | number[]): string =>
+  Array.isArray(d)
+    ? `${d[0]}-${String(d[1]).padStart(2, '0')}-${String(d[2]).padStart(2, '0')}`
+    : d.slice(0, 10);
+
+// Litres-weighted average, so a shift with several pours still shows one representative value
+const weighted = (pours: AmcsPour[], pick: (p: AmcsPour) => number | null): number | null => {
+  const withValue = pours.filter((p) => pick(p) != null && p.quantity > 0);
+  const litres = withValue.reduce((s, p) => s + p.quantity, 0);
+  if (litres <= 0) return null;
+  return withValue.reduce((s, p) => s + (pick(p) as number) * p.quantity, 0) / litres;
+};
+
+const summariseShift = (pours: AmcsPour[]): ShiftQuality => {
+  const editedBy = pours.find((p) => p.amcsUpdatedBy)?.amcsUpdatedBy ?? null;
+  const source = (manual: (p: AmcsPour) => boolean | null): Source =>
+    editedBy || pours.some((p) => manual(p)) ? 'M' : 'A';
+  return {
+    fat: weighted(pours, (p) => p.fat),
+    snf: weighted(pours, (p) => p.snf),
+    clr: weighted(pours, (p) => p.clr),
+    qualitySource: source((p) => p.qualityManual),
+    quantitySource: source((p) => p.quantityManual),
+    editedBy,
+  };
+};
+
+// Date -> { MORNING, EVENING } quality summaries
+type AmcsByDate = Record<string, Partial<Record<'MORNING' | 'EVENING', ShiftQuality>>>;
+
+const groupAmcs = (pours: AmcsPour[]): AmcsByDate => {
+  const buckets: Record<string, Record<string, AmcsPour[]>> = {};
+  for (const p of pours) {
+    const key = dateKey(p.date);
+    ((buckets[key] ??= {})[p.shift] ??= []).push(p);
+  }
+  const out: AmcsByDate = {};
+  for (const [date, shifts] of Object.entries(buckets)) {
+    out[date] = {};
+    for (const [shift, list] of Object.entries(shifts)) {
+      out[date][shift as 'MORNING' | 'EVENING'] = summariseShift(list);
+    }
+  }
+  return out;
+};
+
+const fmtQ = (n: number | null) => (n == null ? '—' : n.toFixed(1));
+
+function SourceBadge({ source, what, editedBy, prefix = '' }: {
+  source: Source; what: string; editedBy?: string | null; prefix?: string;
+}) {
+  const by = source === 'M' && editedBy ? ` (edited by ${editedBy})` : '';
+  return (
+    <span
+      title={`${what} ${SOURCE_TEXT[source]}${by}`}
+      className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded border text-[9px] font-black leading-none whitespace-nowrap ${SOURCE_STYLE[source]}`}
+    >
+      {prefix}{source}
+    </span>
+  );
+}
+
+/* FAT / SNF / CLR line shown under a shift's litres, with the quality A/M/S badge */
+function QualityLine({ q }: { q?: ShiftQuality }) {
+  if (!q) return null;
+  return (
+    <div className="flex items-center gap-1.5 flex-nowrap mt-0.5 text-[10px] font-bold text-text3 whitespace-nowrap">
+      <span>F {fmtQ(q.fat)}</span>
+      <span aria-hidden>·</span>
+      <span>SNF {fmtQ(q.snf)}</span>
+      <span aria-hidden>·</span>
+      <span>CLR {fmtQ(q.clr)}</span>
+      <SourceBadge source={q.qualitySource} what="FAT, SNF and CLR were" editedBy={q.editedBy} />
+    </div>
+  );
+}
+
+// Litres are auto-read almost always, so only flag them when they were not
+function LitresFlag({ q }: { q?: ShiftQuality }) {
+  if (!q || q.quantitySource === 'A') return null;
+  return <SourceBadge source={q.quantitySource} what="The litres were" editedBy={q.editedBy} prefix="L:" />;
+}
+
 // Use local date (not UTC) to avoid IST users getting tomorrow's date
 const todayStr = () => {
   const d = new Date();
@@ -57,6 +177,7 @@ function StatCard({ icon, label, value, sub, color }: {
 /* ─── Main Page ───────────────────────────────────────── */
 export default function MilkProductionPage() {
   const [summary, setSummary] = useState<DaySummary[]>([]);
+  const [amcs, setAmcs] = useState<AmcsByDate>({});
   const [lactating, setLactating] = useState<Herd[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [distributeTarget, setDistributeTarget] = useState<{ date: string; shift: string; total: number } | null>(null);
@@ -77,6 +198,7 @@ export default function MilkProductionPage() {
         api.get('/herds'),
       ]);
       setSummary(summaryRes.data);
+      fetchAmcs(summaryRes.data);
       const allHerds: Herd[] = herdRes.data.herds || herdRes.data;
       setLactating(
         (allHerds || []).filter(
@@ -87,6 +209,20 @@ export default function MilkProductionPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Society (AMCS) quality readings are an add-on: if the endpoint is missing or fails the
+  // history table simply shows no quality line, it must never block the page.
+  const fetchAmcs = async (days: DaySummary[]) => {
+    if (days.length === 0) return;
+    try {
+      const from = days.map((d) => d.date).sort()[0];
+      const res = await api.get('/amcs/collections', { params: { from, to: todayStr() } });
+      setAmcs(groupAmcs(res.data));
+    } catch (err) {
+      console.warn('AMCS quality data unavailable', err);
+      setAmcs({});
     }
   };
 
@@ -215,6 +351,22 @@ export default function MilkProductionPage() {
                     </div>
                   </div>
 
+                  {/* Society (AMCS) quality per shift */}
+                  {(amcs[day.date]?.MORNING || amcs[day.date]?.EVENING) && (
+                    <div className="space-y-1.5 mb-3">
+                      {([['MORNING', 'AM', 'text-amber-700 bg-amber-50'], ['EVENING', 'PM', 'text-indigo-700 bg-indigo-50']] as const).map(
+                        ([shift, label, tone]) =>
+                          amcs[day.date]?.[shift] && (
+                            <div key={shift} className="flex items-start gap-2">
+                              <span className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-black ${tone}`}>{label}</span>
+                              <QualityLine q={amcs[day.date]?.[shift]} />
+                              <LitresFlag q={amcs[day.date]?.[shift]} />
+                            </div>
+                          )
+                      )}
+                    </div>
+                  )}
+
                   {/* Sub info + Actions */}
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-text3 font-medium">{day.cowCount} cows milked</span>
@@ -285,8 +437,18 @@ export default function MilkProductionPage() {
                       <td className="px-5 py-3.5">
                         <div className="font-black text-text">{day.date}</div>
                       </td>
-                      <td className="px-5 py-3.5 font-bold text-amber-700">{fmt(day.morning)} L</td>
-                      <td className="px-5 py-3.5 font-bold text-indigo-700">{fmt(day.evening)} L</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5 font-bold text-amber-700">
+                          {fmt(day.morning)} L <LitresFlag q={amcs[day.date]?.MORNING} />
+                        </div>
+                        <QualityLine q={amcs[day.date]?.MORNING} />
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5 font-bold text-indigo-700">
+                          {fmt(day.evening)} L <LitresFlag q={amcs[day.date]?.EVENING} />
+                        </div>
+                        <QualityLine q={amcs[day.date]?.EVENING} />
+                      </td>
                       <td className="px-5 py-3.5">
                         <span className="font-black text-brand-dark text-[14px]">{fmt(day.total)} L</span>
                       </td>

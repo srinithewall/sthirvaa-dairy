@@ -1,11 +1,13 @@
 === NGINX CONFIG DUMP ===
 server {
+    client_max_body_size 50M;
     listen 80;
     server_name api-origin.sthirvaa.com;
     return 301 https://$host$request_uri;
 }
 
 server {
+    client_max_body_size 50M;
     listen 443 ssl;
     server_name api-origin.sthirvaa.com;
 
@@ -13,7 +15,7 @@ server {
     ssl_certificate_key /etc/nginx/ssl/server.key;
 
     location /api/ {
-        # Pointing to your local Spring Boot backend on port 8080
+        # Pointing to your local Spring Boot backend on port 8080 (Dairy backend)
         proxy_pass http://172.31.4.81:8080;
         proxy_set_header Host $host;
         proxy_set_header Origin $http_origin;
@@ -31,6 +33,46 @@ server {
             add_header 'Content-Type' 'text/plain; charset=utf-8';
             return 204;
         }
+    }
+}
+
+# --- Namma Grama HTTP Redirect to HTTPS ---
+server {
+    client_max_body_size 50M;
+    listen 80;
+    server_name api-ng.sthirvaa.com;
+    return 301 https://$host$request_uri;
+}
+
+# --- Namma Grama HTTPS Configuration ---
+server {
+    client_max_body_size 50M;
+    listen 443 ssl;
+    server_name api-ng.sthirvaa.com;
+
+    ssl_certificate /etc/nginx/ssl/server.crt;
+    ssl_certificate_key /etc/nginx/ssl/server.key;
+
+    location /api/ {
+        proxy_pass http://172.31.4.81:8054;
+        proxy_set_header Host $host;
+        proxy_set_header Origin $http_origin;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ws-chat {
+        proxy_pass http://172.31.4.81:8054;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
     }
 }
 === NGINX MAIN DUMP ===
@@ -68,12 +110,14 @@ http {
 }
 === NGINX SSL DUMP ===
 server {
+    client_max_body_size 50M;
     listen 80;
     server_name api-origin.sthirvaa.com;
     return 301 https://$host$request_uri;
 }
 
 server {
+    client_max_body_size 50M;
     listen 443 ssl;
     server_name api-origin.sthirvaa.com;
 
@@ -81,7 +125,7 @@ server {
     ssl_certificate_key /etc/nginx/ssl/server.key;
 
     location /api/ {
-        # Pointing to your local Spring Boot backend on port 8080
+        # Pointing to your local Spring Boot backend on port 8080 (Dairy backend)
         proxy_pass http://172.31.4.81:8080;
         proxy_set_header Host $host;
         proxy_set_header Origin $http_origin;
@@ -101,6 +145,47 @@ server {
         }
     }
 }
+
+# --- Namma Grama HTTP Redirect to HTTPS ---
+server {
+    client_max_body_size 50M;
+    listen 80;
+    server_name api-ng.sthirvaa.com;
+    return 301 https://$host$request_uri;
+}
+
+# --- Namma Grama HTTPS Configuration ---
+server {
+    client_max_body_size 50M;
+    listen 443 ssl;
+    server_name api-ng.sthirvaa.com;
+
+    ssl_certificate /etc/nginx/ssl/server.crt;
+    ssl_certificate_key /etc/nginx/ssl/server.key;
+
+    location /api/ {
+        proxy_pass http://172.31.4.81:8054;
+        proxy_set_header Host $host;
+        proxy_set_header Origin $http_origin;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ws-chat {
+        proxy_pass http://172.31.4.81:8054;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+}
 === ALL DOCKER COMPOSE CONFIG PATHS ===
 /home/ubuntu/dairy-deployment/docker-compose.yml
 /home/ubuntu/myproject/docker-compose.yml
+/home/ubuntu/nammagrama/docker-compose.yml

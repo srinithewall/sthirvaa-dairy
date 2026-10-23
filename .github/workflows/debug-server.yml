@@ -19,7 +19,7 @@ jobs:
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
           chmod 600 private_key.pem
-          ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@43.204.221.192 "
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ubuntu@3.109.153.201 "
             echo '=== NGINX CONFIG DUMP ==='
             docker exec nginx cat /etc/nginx/conf.d/default.conf 2>/dev/null || true
             echo '=== NGINX MAIN DUMP ==='

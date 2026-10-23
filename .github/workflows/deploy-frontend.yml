@@ -46,7 +46,7 @@ jobs:
       - name: Deploy to AWS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 43.204.221.192
+          host: 3.109.153.201
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |

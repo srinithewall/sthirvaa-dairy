@@ -35,6 +35,8 @@ interface Asset {
   suggestedHigh?: number | null;
   valuationBasis?: string | null;
   valuationFactors?: string[] | null;
+  valuationInputs?: Record<string, string> | null;
+  valuationWarning?: string | null;
   effectiveMarketValue?: number | null;
 }
 
@@ -52,14 +54,16 @@ const valueTitle = (a: Asset) => {
     lines.push(a.suggestedLow != null && a.suggestedHigh != null && a.suggestedLow !== a.suggestedHigh
       ? `Suggested range ${inr(a.suggestedLow)} – ${inr(a.suggestedHigh)}` : 'Suggested value');
   }
+  if (a.valuationWarning) lines.push(a.valuationWarning);
   (a.valuationFactors || []).forEach(f => lines.push(`• ${f}`));
   return lines.join('\n') || undefined;
 };
 
-/** Small tag next to the value: Manual (owner set it) or Auto (from the rules). */
+/** Small tag next to the value: Manual (owner set it), Auto (from the rules) or Not linked (animal with no herd record). */
 const ValueTag = ({ a }: { a: Asset }) =>
   a.marketValueManual ? <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase align-middle">Manual</span>
   : a.suggestedValue != null ? <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase align-middle">Auto</span>
+  : a.valuationBasis === 'UNLINKED' ? <span className="ml-1 px-1.5 py-0.5 rounded bg-red-50 text-red-700 text-[9px] font-black uppercase align-middle">Not linked</span>
   : null;
 
 const formatDate = (dateStr: string) => {

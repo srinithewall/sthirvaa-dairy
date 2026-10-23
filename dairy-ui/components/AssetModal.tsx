@@ -22,6 +22,8 @@ interface Asset {
   suggestedHigh?: number | null;
   valuationBasis?: string | null;
   valuationFactors?: string[] | null;
+  valuationInputs?: Record<string, string> | null;
+  valuationWarning?: string | null;
 }
 
 // Linked to a herd record by tag number and priced by the valuation model.
@@ -101,7 +103,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
     setLoading(true);
     try {
       const manual = !hasValueRule(formData.category) || !!formData.marketValueManual;
-      const { suggestedValue, suggestedLow, suggestedHigh, valuationBasis, valuationFactors, ...rest } = formData as any;
+      const { suggestedValue, suggestedLow, suggestedHigh, valuationBasis, valuationFactors, valuationInputs, valuationWarning, ...rest } = formData as any;
       const payload = {
         ...rest,
         marketValueManual: hasValueRule(formData.category) ? manual : null,
@@ -239,14 +241,35 @@ export default function AssetModal({ isOpen, onClose, onSuccess, asset }: AssetM
                     <span className="text-text3 text-[12px]"> · range {inr(asset.suggestedLow)} – {inr(asset.suggestedHigh)}</span>
                   )}
                 </p>
+                {!!asset.valuationInputs && Object.keys(asset.valuationInputs).length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-[10px] font-bold text-text3 uppercase mb-1">Based on</p>
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+                      {Object.entries(asset.valuationInputs).map(([label, v]) => (
+                        <div key={label} className="flex justify-between gap-2 border-b border-border-custom/40 py-0.5">
+                          <dt className="text-text3">{label}</dt>
+                          <dd className="font-semibold text-text2 text-right">{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
                 {!!asset.valuationFactors?.length && (
-                  <ul className="mt-1 text-[11px] text-text3 space-y-0.5">
-                    {asset.valuationFactors.map((f, i) => <li key={i}>• {f}</li>)}
-                  </ul>
+                  <div className="mt-2">
+                    <p className="text-[10px] font-bold text-text3 uppercase mb-1">How it was worked out</p>
+                    <ul className="text-[11px] text-text3 space-y-0.5">
+                      {asset.valuationFactors.map((f, i) => <li key={i}>• {f}</li>)}
+                    </ul>
+                  </div>
                 )}
               </div>
             )}
-            {hasValueRule(formData.category) && asset?.suggestedValue == null && !formData.marketValueManual && (
+            {asset?.valuationWarning && (
+              <p className="text-[12px] rounded-lg bg-red-50 text-red-700 px-2 py-1.5">
+                {asset.valuationWarning} Tick "Set manually" to enter a value, or fix the serial number so it matches the animal's tag.
+              </p>
+            )}
+            {hasValueRule(formData.category) && asset?.suggestedValue == null && !asset?.valuationWarning && !formData.marketValueManual && (
               <p className="text-[12px] text-text3">
                 {ANIMAL_CATEGORIES.includes(formData.category)
                   ? 'Worked out from the animal\'s age, lactation, milk and pregnancy once saved.'

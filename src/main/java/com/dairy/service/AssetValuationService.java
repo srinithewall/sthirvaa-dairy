@@ -17,7 +17,10 @@ import java.util.*;
  * Suggested market value for each asset.
  *
  * Animals linked to a herd record (asset serial number = tag number) are priced from the animal:
- *   breed base price x age/lactation x milk yield x pregnancy x health, never below a cull floor.
+ *   - calf / heifer (not yet calved): adult price x growth factor for its age. The adult price is the breed
+ *     base price, or, when it was bought young, worked back from what was paid for it (so pedigree counts).
+ *     A pregnant heifer climbs towards (and past) adult level as the pregnancy advances.
+ *   - cow (calved): breed base price x lactation x milk yield x pregnancy x health, never below a cull floor.
  * Equipment and vehicles lose 15% of purchase cost every 6 months, down to 25% of cost.
  * Other categories (land, buildings) have no rule and keep the value that was entered.
  *
@@ -33,6 +36,16 @@ public class AssetValuationService {
     private static final double MAX_PREGNANCY_BONUS = 0.15;
     private static final int GESTATION_COW = 283;
     private static final int GESTATION_BUFFALO = 310;
+    /** A pregnant heifer starts at this share of adult value and reaches ~100% by calving. */
+    private static final double PREGNANT_HEIFER_START = 0.85;
+    /** Unbred heifers stop growing in value here (reached 6 months after the 24-month mark). */
+    private static final double HEIFER_CAP = 0.85;
+    /** Without a stage, an unfreshened animal under this age is still treated as a heifer. */
+    private static final int HEIFER_UNTIL_MONTHS = 30;
+    /** Purchase-anchored adult price is kept within these multiples of the breed price. */
+    private static final double ANCHOR_MIN = 0.5;
+    private static final double ANCHOR_MAX = 2.0;
+    private static final Set<String> ANIMAL_CATEGORIES = Set.of("COW", "CALF", "BUFFALO", "GOAT");
 
     private static final double EQUIPMENT_STEP = 0.15;
     private static final double EQUIPMENT_FLOOR = 0.25;
@@ -80,6 +93,12 @@ public class AssetValuationService {
             } else if (asset.getCategory() != null
                     && EQUIPMENT_CATEGORIES.contains(asset.getCategory().trim().toUpperCase())) {
                 valueEquipment(asset, today);
+            } else if (asset.getCategory() != null && ANIMAL_CATEGORIES.contains(asset.getCategory().trim().toUpperCase())) {
+                asset.setValuationBasis("UNLINKED");
+                asset.setValuationWarning(herd == null
+                        ? "Not linked to a herd animal (serial number '" + (asset.getSerialNumber() == null ? "" : asset.getSerialNumber().trim())
+                                + "' matches no tag), so the value that was entered is used."
+                        : "Linked to a batch, which has no per-animal valuation, so the value that was entered is used.");
             } else {
                 asset.setValuationBasis("NONE");
             }
@@ -93,60 +112,79 @@ public class AssetValuationService {
                              Map<String, Breed> breeds, LocalDate today) {
         List<String> notes = new ArrayList<>();
         double[] price = basePrice(herd, breeds);
-        double base = price[0];
+        double breedBase = price[0];
         double normalYield = price[1];
-        notes.add("Base " + (herd.getBreed() != null ? herd.getBreed() : typeLabel(herd)) + " " + rupees(base));
+        notes.add("Base " + (herd.getBreed() != null ? herd.getBreed() : typeLabel(herd)) + " " + rupees(breedBase));
 
         String status = upper(herd.getAnimalStatus());
         Integer ageMonths = herd.getBirthDate() != null
                 ? (int) ChronoUnit.MONTHS.between(herd.getBirthDate(), today) : null;
         int lactation = herd.getLactationNumber() != null ? herd.getLactationNumber() : 0;
-        boolean young = "CALF".equals(status) || "HEIFER".equals(status)
-                || (lactation == 0 && ageMonths != null && ageMonths < 24 && !"LACTATING".equals(status));
+        boolean milking = "LACTATING".equals(status) || "DRY".equals(status);
+        boolean calf = "CALF".equals(status)
+                || (ageMonths != null && ageMonths < 12 && lactation == 0 && !milking);
+        // Not calved yet: calf, or heifer (unbred or pregnant for the first time)
+        boolean young = calf || (!milking && lactation == 0
+                && ("HEIFER".equals(status) || "PREGNANT".equals(status)
+                    || (ageMonths != null && ageMonths < HEIFER_UNTIL_MONTHS)));
 
-        double value = base;
-
-        // Age and lactation
-        double ageF;
-        String ageNote;
-        if ("CALF".equals(status) || (young && ageMonths != null && ageMonths < 12)) {
-            int m = ageMonths != null ? ageMonths : 6;
-            ageF = Math.min(0.45, 0.15 + m * 0.025);
-            ageNote = "Calf, " + m + " mo";
-        } else if (young) {
-            int m = ageMonths != null ? ageMonths : 18;
-            ageF = Math.max(0.45, Math.min(0.85, 0.45 + (m - 12) * 0.02));
-            ageNote = "Heifer, " + m + " mo";
-        } else {
-            ageF = LACTATION_FACTOR[Math.min(lactation, LACTATION_FACTOR.length - 1)];
-            ageNote = lactation > 0 ? "Lactation " + lactation : "Adult";
-        }
-        value *= ageF;
-        notes.add(ageNote + pct(ageF));
-
-        // Milk yield, only while milking and once there are recent records
-        Double avg = herd.getAvgMilk30Days();
-        if ("LACTATING".equals(status) && avg != null && avg > 0 && normalYield > 0) {
-            double milkF = clamp(0.7 + 0.35 * (avg / normalYield), 0.75, 1.25);
-            value *= milkF;
-            notes.add(String.format("Milk %.1f L vs %.0f L normal", avg, normalYield) + pct(milkF));
-        }
-
-        // Pregnancy
+        // Pregnancy: confirmed after the last calving, or the status says so
         LocalDate lastCalving = latest(events, "CALF_DELIVERED", null);
         LocalDate lastPd = latest(events, "PREGNANCY_CONFIRMED", lastCalving);
-        if (!"CALF".equals(status) && (lastPd != null || "PREGNANT".equals(status))) {
+        boolean pregnant = !calf && (lastPd != null || "PREGNANT".equals(status));
+        long pregDays = 0;
+        double gestFrac = 0;
+        boolean aiKnown = true;
+        if (pregnant) {
             LocalDate lastAi = latest(events, "SEMEN_GIVEN", lastCalving);
             if (lastAi == null) lastAi = latest(events, "AI_DONE", lastCalving);
             int gestation = "BUFFALO".equals(upper(herd.getAnimalType())) ? GESTATION_BUFFALO : GESTATION_COW;
-            long days = lastAi != null ? ChronoUnit.DAYS.between(lastAi, today) : 60;
-            days = Math.max(0, Math.min(days, gestation));
-            double pregF = 1 + MAX_PREGNANCY_BONUS * days / gestation;
-            value *= pregF;
-            notes.add(days + " days pregnant" + pct(pregF));
-        } else if ("LACTATING".equals(status) && herd.getDim() != null && herd.getDim() > 150) {
-            value *= 0.9;
-            notes.add("Not pregnant at " + herd.getDim() + " DIM" + pct(0.9));
+            aiKnown = lastAi != null;
+            pregDays = aiKnown ? ChronoUnit.DAYS.between(lastAi, today) : 60;
+            pregDays = Math.max(0, Math.min(pregDays, gestation));
+            gestFrac = (double) pregDays / gestation;
+        }
+        String pregNote = pregDays + " days pregnant" + (aiKnown ? "" : " (AI date not recorded, assumed 60)");
+
+        double base = breedBase;
+        double value;
+
+        if (young) {
+            // Worked back from what was paid, so a good-pedigree calf is not priced as an average one
+            Double anchored = purchaseAnchoredPrice(asset, herd, breedBase, notes);
+            if (anchored != null) base = anchored;
+            int m = ageMonths != null ? ageMonths : (calf ? 6 : 18);
+            if (pregnant) {
+                double f = (PREGNANT_HEIFER_START + (1 - PREGNANT_HEIFER_START) * gestFrac)
+                        * (1 + MAX_PREGNANCY_BONUS * gestFrac);
+                value = base * f;
+                notes.add("Heifer, " + pregNote + pct(f));
+            } else {
+                double f = growthFactor(m);
+                value = base * f;
+                notes.add((calf ? "Calf, " : "Heifer, ") + m + " mo" + pct(f));
+            }
+        } else {
+            double ageF = LACTATION_FACTOR[Math.min(lactation, LACTATION_FACTOR.length - 1)];
+            value = base * ageF;
+            notes.add((lactation > 0 ? "Lactation " + lactation : "Adult") + pct(ageF));
+
+            // Milk yield, only while milking and once there are recent records
+            Double avg = herd.getAvgMilk30Days();
+            if ("LACTATING".equals(status) && avg != null && avg > 0 && normalYield > 0) {
+                double milkF = clamp(0.7 + 0.35 * (avg / normalYield), 0.75, 1.25);
+                value *= milkF;
+                notes.add(String.format("Milk %.1f L vs %.0f L normal", avg, normalYield) + pct(milkF));
+            }
+
+            if (pregnant) {
+                double pregF = 1 + MAX_PREGNANCY_BONUS * gestFrac;
+                value *= pregF;
+                notes.add(pregNote + pct(pregF));
+            } else if ("LACTATING".equals(status) && herd.getDim() != null && herd.getDim() > 150) {
+                value *= 0.9;
+                notes.add("Not pregnant at " + herd.getDim() + " DIM" + pct(0.9));
+            }
         }
 
         // Health
@@ -160,12 +198,64 @@ public class AssetValuationService {
             notes.add("Held at cull value (" + Math.round(ADULT_FLOOR * 100) + "% of base)");
         }
 
-        double rounded = roundTo(value, 500);
         asset.setValuationBasis("ANIMAL");
-        asset.setSuggestedValue(rounded);
+        asset.setSuggestedValue(roundTo(value, 500));
         asset.setSuggestedLow(roundTo(value * 0.9, 500));
         asset.setSuggestedHigh(roundTo(value * 1.1, 500));
         asset.setValuationFactors(notes);
+        asset.setValuationInputs(animalInputs(herd, ageMonths, lactation, pregnant, pregDays, base));
+    }
+
+    /**
+     * Share of an adult's value for an animal that has not calved: 0.15 at birth, 0.45 at 12 months,
+     * 0.69 at 24 months, then up to 0.85 at 30 months, where it stays until she is bred.
+     */
+    static double growthFactor(int months) {
+        int m = Math.max(0, months);
+        if (m <= 12) return Math.min(0.45, 0.15 + m * 0.025);
+        if (m <= 24) return 0.45 + (m - 12) * 0.02;
+        return Math.min(HEIFER_CAP, 0.69 + (m - 24) * (HEIFER_CAP - 0.69) / 6);
+    }
+
+    /**
+     * What an adult of this animal's quality would cost, worked back from the purchase price using the
+     * growth factor at the age it was bought. Only used when it was bought at up to 24 months, and kept
+     * within 50%-200% of the breed price so a mis-keyed cost cannot swing the value wildly.
+     */
+    private Double purchaseAnchoredPrice(Asset asset, Herd herd, double breedBase, List<String> notes) {
+        Double cost = asset.getValue();
+        LocalDate bought = asset.getPurchaseDate();
+        LocalDate born = herd.getBirthDate();
+        if (cost == null || cost <= 0 || bought == null || born == null || bought.isBefore(born)) return null;
+        long ageAtPurchase = ChronoUnit.MONTHS.between(born, bought);
+        if (ageAtPurchase > 24) return null;
+        double implied = cost / growthFactor((int) ageAtPurchase);
+        double adult = clamp(implied, breedBase * ANCHOR_MIN, breedBase * ANCHOR_MAX);
+        notes.add("Adult price " + rupees(adult) + " from purchase " + rupees(cost) + " at " + ageAtPurchase + " mo"
+                + (adult != implied ? " (limited to " + Math.round(adult / breedBase * 100) + "% of breed price)" : ""));
+        return adult;
+    }
+
+    private Map<String, String> animalInputs(Herd herd, Integer ageMonths, int lactation,
+                                             boolean pregnant, long pregDays, double adultPrice) {
+        Map<String, String> in = new LinkedHashMap<>();
+        String name = herd.getAnimalName() != null && !herd.getAnimalName().isBlank() ? herd.getAnimalName() + " " : "";
+        in.put("Animal", name + "(" + herd.getTagNumber() + ")");
+        in.put("Breed", herd.getBreed() != null ? herd.getBreed() : typeLabel(herd));
+        in.put("Status", herd.getAnimalStatus() != null ? herd.getAnimalStatus() : "Not set");
+        in.put("Age", ageMonths != null
+                ? ageMonths + " mo" + (ageMonths >= 12 ? " (" + ageMonths / 12 + " yr " + ageMonths % 12 + " mo)" : "")
+                : "Birth date not recorded");
+        in.put("Lactation", lactation > 0 ? String.valueOf(lactation) : "Not calved yet");
+        in.put("Milk, 30-day avg", herd.getAvgMilk30Days() != null && herd.getAvgMilk30Days() > 0
+                ? String.format("%.1f L/day", herd.getAvgMilk30Days()) : "No records");
+        if (herd.getDim() != null && "LACTATING".equals(upper(herd.getAnimalStatus()))) {
+            in.put("Days in milk", String.valueOf(herd.getDim()));
+        }
+        in.put("Pregnancy", pregnant ? pregDays + " days" : "Not pregnant");
+        in.put("Health", herd.getHealthStatus() != null ? herd.getHealthStatus() : "Not set");
+        in.put("Adult price used", rupees(adultPrice));
+        return in;
     }
 
     /** [base price, normal daily yield] from the breed list, else a built-in estimate. */
@@ -186,7 +276,7 @@ public class AssetValuationService {
         if (b.contains("gir")) return new double[]{85000, 10};
         if (b.contains("sahiwal")) return new double[]{80000, 9};
         if (b.contains("sindhi") || b.contains("tharparkar")) return new double[]{70000, 8};
-        if (b.contains("holstein") || b.contains("hf")) return b.contains("cross") ? new double[]{65000, 12} : new double[]{80000, 15};
+        if (b.contains("holstein") || b.contains("hf")) return b.contains("cross") ? new double[]{90000, 12} : new double[]{150000, 15};
         if (b.contains("jersey")) return b.contains("cross") ? new double[]{60000, 10} : new double[]{70000, 12};
         return new double[]{60000, 9};
     }
@@ -248,6 +338,10 @@ public class AssetValuationService {
     }
 
     private static String rupees(double v) {
-        return "₹" + String.format(new Locale("en", "IN"), "%,d", Math.round(v));
+        // Indian digit grouping (1,01,000): Java's en-IN formatter groups by threes
+        String digits = String.valueOf(Math.round(v));
+        if (digits.length() <= 3) return "₹" + digits;
+        String head = digits.substring(0, digits.length() - 3).replaceAll("(\\d)(?=(\\d{2})+$)", "$1,");
+        return "₹" + head + "," + digits.substring(digits.length() - 3);
     }
 }

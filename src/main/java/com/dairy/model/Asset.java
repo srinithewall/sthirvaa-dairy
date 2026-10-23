@@ -43,9 +43,15 @@ public class Asset {
     private Double suggestedLow;
     @Transient
     private Double suggestedHigh;
-    /** ANIMAL, EQUIPMENT or NONE (no rule for this category). */
+    /** ANIMAL, EQUIPMENT, UNLINKED (animal asset with no matching herd record) or NONE (no rule for this category). */
     @Transient
     private String valuationBasis;
+    /** What the animal valuation was based on, in display order (age, status, milk, ...). */
+    @Transient
+    private java.util.Map<String, String> valuationInputs;
+    /** Why no automatic value could be worked out, when valuationBasis is UNLINKED. */
+    @Transient
+    private String valuationWarning;
     @Transient
     private java.util.List<String> valuationFactors;
 
@@ -59,6 +65,10 @@ public class Asset {
     public void setSuggestedLow(Double suggestedLow) { this.suggestedLow = suggestedLow; }
     public Double getSuggestedHigh() { return suggestedHigh; }
     public void setSuggestedHigh(Double suggestedHigh) { this.suggestedHigh = suggestedHigh; }
+    public java.util.Map<String, String> getValuationInputs() { return valuationInputs; }
+    public void setValuationInputs(java.util.Map<String, String> valuationInputs) { this.valuationInputs = valuationInputs; }
+    public String getValuationWarning() { return valuationWarning; }
+    public void setValuationWarning(String valuationWarning) { this.valuationWarning = valuationWarning; }
     public String getValuationBasis() { return valuationBasis; }
     public void setValuationBasis(String valuationBasis) { this.valuationBasis = valuationBasis; }
     public java.util.List<String> getValuationFactors() { return valuationFactors; }

@@ -43,6 +43,10 @@ const todayStr = () => {
 
 const fmt = (n: number) => n % 1 === 0 ? `${n}` : n.toFixed(1);
 
+// The farm log and the society's measurement can differ by a few hundred ml on the same milk, so
+// a day counts as fully accounted when it is within this many litres of the Total.
+const ACCOUNTING_TOLERANCE_L = 0.5;
+
 // Where a day's milk went. Sales are milk sold to customers only; calf feeding, own use and
 // waste are not sales, but they are milk used, so sales + calf + own use + waste should add up
 // to the day's Total. `complete` is what turns the Sales figure green instead of orange.
@@ -56,33 +60,24 @@ const accounting = (day: DaySummary) => {
   const remainderTenths = Math.round(day.total * 10) - Math.round(accounted * 10);
   return {
     sales, calf, ownUse, waste, accounted,
-    remainder: remainderTenths / 10,
-    complete: remainderTenths === 0 && day.total > 0,
+    complete: day.total > 0 && accounted > 0 && Math.abs(remainderTenths) <= ACCOUNTING_TOLERANCE_L * 10,
   };
 };
 type Accounting = ReturnType<typeof accounting>;
 
+// Shown on hover: how the day's Total is made up
 const usageTitle = (a: Accounting, total: number) =>
-  `Total ${fmt(total)} L = sold ${fmt(a.sales)} L + calf ${fmt(a.calf)} L + own use ${fmt(a.ownUse)} L + waste ${fmt(a.waste)} L`
-  + (a.complete ? '' : ` (${a.remainder > 0 ? `${fmt(a.remainder)} L not accounted` : `${fmt(-a.remainder)} L over the total`})`);
+  `Total ${fmt(total)} L = sold ${fmt(a.sales)} L + calf ${fmt(a.calf)} L + own use ${fmt(a.ownUse)} L + waste ${fmt(a.waste)} L`;
 
-/* Calf / own use / waste under the Sales figure, and what is still not accounted for */
+/* Calf / own use / waste under the Sales figure, only the ones that have milk recorded */
 function UseBreakdown({ a, className = '' }: { a: Accounting; className?: string }) {
   const parts = [
     a.calf > 0 && `Calf ${fmt(a.calf)} L`,
     a.ownUse > 0 && `Own use ${fmt(a.ownUse)} L`,
     a.waste > 0 && `Waste ${fmt(a.waste)} L`,
   ].filter(Boolean) as string[];
-  // A day with nothing recorded yet is obvious from the orange 0; only call out a partial one
-  const gap = a.accounted > 0 && a.remainder > 0 ? `${fmt(a.remainder)} L not accounted`
-    : a.remainder < 0 ? `${fmt(-a.remainder)} L over total` : null;
-  if (parts.length === 0 && !gap) return null;
-  return (
-    <div className={`text-[10px] font-bold ${className}`}>
-      {parts.length > 0 && <span className="text-text3">{parts.join(' · ')}</span>}
-      {gap && <span className="text-amber-600">{parts.length > 0 ? ' · ' : ''}{gap}</span>}
-    </div>
-  );
+  if (parts.length === 0) return null;
+  return <div className={`text-[10px] font-bold text-text3 ${className}`}>{parts.join(' · ')}</div>;
 }
 
 /* ─── Compact Stat card ───────────────────────────────── */

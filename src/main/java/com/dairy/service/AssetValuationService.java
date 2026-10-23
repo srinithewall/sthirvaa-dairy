@@ -21,6 +21,7 @@ import java.util.*;
  *     base price, or, when it was bought young, worked back from what was paid for it (so pedigree counts).
  *     A pregnant heifer climbs towards (and past) adult level as the pregnancy advances.
  *   - cow (calved): breed base price x lactation x milk yield x pregnancy x health, never below a cull floor.
+ *     Milk yield is judged against what the breed gives at the same days in milk (lactation curve).
  * Equipment and vehicles lose 15% of purchase cost every 6 months, down to 25% of cost.
  * Other categories (land, buildings) have no rule and keep the value that was entered.
  *
@@ -46,6 +47,18 @@ public class AssetValuationService {
     private static final double ANCHOR_MIN = 0.5;
     private static final double ANCHOR_MAX = 2.0;
     private static final Set<String> ANIMAL_CATEGORIES = Set.of("COW", "CALF", "BUFFALO", "GOAT");
+
+    // Wood's lactation curve y = t^b * e^(-c*t): peaks about b/c = 50 days after calving
+    private static final double WOOD_B = 0.2;
+    private static final double WOOD_C = 0.004;
+    private static final int LACTATION_DAYS = 305;
+    private static final double WOOD_MEAN = meanOverLactation();
+
+    private static double meanOverLactation() {
+        double sum = 0;
+        for (int d = 1; d <= LACTATION_DAYS; d++) sum += Math.pow(d, WOOD_B) * Math.exp(-WOOD_C * d);
+        return sum / LACTATION_DAYS;
+    }
 
     private static final double EQUIPMENT_STEP = 0.15;
     private static final double EQUIPMENT_FLOOR = 0.25;
@@ -169,12 +182,17 @@ public class AssetValuationService {
             value = base * ageF;
             notes.add((lactation > 0 ? "Lactation " + lactation : "Adult") + pct(ageF));
 
-            // Milk yield, only while milking and once there are recent records
+            // Milk yield, only while milking and once there are recent records. Compared with what a cow
+            // of this breed gives at the same stage of lactation, not with her lactation-long average.
             Double avg = herd.getAvgMilk30Days();
             if ("LACTATING".equals(status) && avg != null && avg > 0 && normalYield > 0) {
-                double milkF = clamp(0.7 + 0.35 * (avg / normalYield), 0.75, 1.25);
+                Integer dim = herd.getDim();
+                double expected = dim != null ? normalYield * lactationShape(dim) : normalYield;
+                double milkF = clamp(0.7 + 0.35 * (avg / expected), 0.75, 1.25);
                 value *= milkF;
-                notes.add(String.format("Milk %.1f L vs %.0f L normal", avg, normalYield) + pct(milkF));
+                notes.add((dim != null
+                        ? String.format("Milk %.1f L vs %.1f L expected at %d days in milk", avg, expected, dim)
+                        : String.format("Milk %.1f L vs %.0f L normal", avg, expected)) + pct(milkF));
             }
 
             if (pregnant) {
@@ -204,6 +222,19 @@ public class AssetValuationService {
         asset.setSuggestedHigh(roundTo(value * 1.1, 500));
         asset.setValuationFactors(notes);
         asset.setValuationInputs(animalInputs(herd, ageMonths, lactation, pregnant, pregDays, base));
+    }
+
+    /**
+     * Daily yield at this stage of lactation as a multiple of the lactation-long average (the breed's
+     * "normal yield"): about 0.7 at calving, a peak of 1.26 around day 50, 1.05 at 150, 0.82 at 235 and
+     * 0.65 at 305. Wood's lactation curve, scaled so it averages 1.0 over a 305-day lactation.
+     */
+    static double lactationShape(int dim) {
+        return wood(Math.max(1, Math.min(dim, LACTATION_DAYS))) / WOOD_MEAN;
+    }
+
+    private static double wood(int day) {
+        return Math.pow(day, WOOD_B) * Math.exp(-WOOD_C * day);
     }
 
     /**
@@ -276,7 +307,7 @@ public class AssetValuationService {
         if (b.contains("gir")) return new double[]{85000, 10};
         if (b.contains("sahiwal")) return new double[]{80000, 9};
         if (b.contains("sindhi") || b.contains("tharparkar")) return new double[]{70000, 8};
-        if (b.contains("holstein") || b.contains("hf")) return b.contains("cross") ? new double[]{90000, 12} : new double[]{150000, 15};
+        if (b.contains("holstein") || b.contains("hf")) return b.contains("cross") ? new double[]{80000, 12} : new double[]{150000, 15};
         if (b.contains("jersey")) return b.contains("cross") ? new double[]{60000, 10} : new double[]{70000, 12};
         return new double[]{60000, 9};
     }

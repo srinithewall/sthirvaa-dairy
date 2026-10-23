@@ -9,7 +9,8 @@ interface Breed { id: number; name: string; basePrice?: number | null; normalYie
 
 /**
  * Price list behind the animal valuation: what a healthy adult of each breed in its 2nd-3rd
- * lactation sells for, and its normal daily milk. Blank fields fall back to built-in estimates.
+ * lactation sells for, and its average daily milk over a whole lactation (the app adjusts that for each
+ * cow's stage: more at peak, less late). Blank fields fall back to built-in estimates.
  */
 export default function BreedPricesModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { showToast } = useNotification();

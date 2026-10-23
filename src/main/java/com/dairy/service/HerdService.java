@@ -29,6 +29,9 @@ public class HerdService {
     private HerdEventRepository herdEventRepository;
 
     @Autowired
+    private com.dairy.repo.AssetRepository assetRepository;
+
+    @Autowired
     private MilkPotentialService milkPotentialService;
 
     @Autowired
@@ -64,7 +67,21 @@ public class HerdService {
         } else {
             herd.setDisposedDate(null);
         }
-        return herdRepository.save(herd);
+        String oldTag = herd.getId() != null
+                ? herdRepository.findById(herd.getId()).map(Herd::getTagNumber).orElse(null) : null;
+        Herd saved = herdRepository.save(herd);
+        relinkAssets(oldTag, saved.getTagNumber());
+        return saved;
+    }
+
+    /** Assets are tied to an animal by its tag, so a renamed tag has to take its assets along. */
+    private void relinkAssets(String oldTag, String newTag) {
+        if (oldTag == null || newTag == null || oldTag.isBlank() || newTag.isBlank()) return;
+        if (oldTag.trim().equals(newTag.trim())) return;
+        for (com.dairy.model.Asset asset : assetRepository.findBySerialNumberTrimmed(oldTag.trim())) {
+            asset.setSerialNumber(newTag);
+            assetRepository.save(asset);
+        }
     }
 
     @org.springframework.transaction.annotation.Transactional

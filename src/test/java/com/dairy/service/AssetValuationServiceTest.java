@@ -84,7 +84,7 @@ class AssetValuationServiceTest {
     @Test
     void hfDefaultsMatchTheMarket() {
         Herd cross = herd("COW", 40, 1);
-        assertThat(AssetValuationService.defaultPrice(cross)[0]).isEqualTo(90000);
+        assertThat(AssetValuationService.defaultPrice(cross)[0]).isEqualTo(80000);
         cross.setBreed("HF");
         assertThat(AssetValuationService.defaultPrice(cross)[0]).isEqualTo(150000);
     }
@@ -92,7 +92,7 @@ class AssetValuationServiceTest {
     @Test
     void calfWithNoPurchaseDataUsesBreedPrice() {
         Asset a = value(herd("CALF", 6, 0), asset(null, null));
-        assertThat(a.getSuggestedValue()).isEqualTo(27000);
+        assertThat(a.getSuggestedValue()).isEqualTo(24000);
     }
 
     @Test
@@ -107,8 +107,8 @@ class AssetValuationServiceTest {
     @Test
     void anchoredPriceIsLimitedWhenCostLooksWrong() {
         Asset a = value(herd("CALF", 6, 0), asset(500.0, today));
-        // implied adult would be about 1,700; held at 50% of the 90,000 breed price
-        assertThat(a.getSuggestedValue()).isEqualTo(13500);
+        // implied adult would be about 1,700; held at 50% of the 80,000 breed price
+        assertThat(a.getSuggestedValue()).isEqualTo(12000);
         assertThat(a.getValuationFactors()).anyMatch(f -> f.contains("limited to 50%"));
     }
 
@@ -116,21 +116,21 @@ class AssetValuationServiceTest {
     void animalBoughtAsAnAdultIsNotAnchored() {
         Herd h = herd("HEIFER", 30, 0);
         Asset a = value(h, asset(120000.0, today.minusMonths(2)));
-        assertThat(a.getSuggestedValue()).isEqualTo(76500);
+        assertThat(a.getSuggestedValue()).isEqualTo(68000);
     }
 
     @Test
     void nineMonthPregnantHeiferIsNearOneLakh() {
         Herd h = herd("PREGNANT", 25, 0);
         Asset a = value(h, asset(null, null), event("SEMEN_GIVEN", today.minusDays(270)));
-        assertThat(a.getSuggestedValue()).isEqualTo(102000);
+        assertThat(a.getSuggestedValue()).isEqualTo(91000);
         assertThat(a.getValuationInputs()).containsEntry("Pregnancy", "270 days");
     }
 
     @Test
     void unbredHeiferDoesNotJumpToAdultAtMonth25() {
         Asset a = value(herd("HEIFER", 25, 0), asset(null, null));
-        assertThat(a.getSuggestedValue()).isEqualTo(64500);
+        assertThat(a.getSuggestedValue()).isEqualTo(57500);
     }
 
     @Test
@@ -139,8 +139,34 @@ class AssetValuationServiceTest {
         h.setAvgMilk30Days(12.0);
         h.setDim(60);
         Asset a = value(h, asset(null, null));
-        // 90,000 x 1.05 (lactation 2) x 1.05 (milk at the 12 L norm) = 99,225
-        assertThat(a.getSuggestedValue()).isEqualTo(99000);
+        // 60 DIM is near peak, so 12 L is judged against 12 x 1.25 = 15 L expected: milk factor 0.98
+        // 80,000 x 1.05 (lactation 2) x 0.98 = 82,320
+        assertThat(a.getSuggestedValue()).isEqualTo(82500);
+    }
+
+    @Test
+    void lactationShapeAveragesOneAndPeaksEarly() {
+        double sum = 0;
+        for (int d = 1; d <= 305; d++) sum += AssetValuationService.lactationShape(d);
+        assertThat(sum / 305).isCloseTo(1.0, within(1e-9));
+        assertThat(AssetValuationService.lactationShape(50)).isGreaterThan(AssetValuationService.lactationShape(1));
+        assertThat(AssetValuationService.lactationShape(50)).isGreaterThan(AssetValuationService.lactationShape(235));
+        assertThat(AssetValuationService.lactationShape(235)).isCloseTo(0.82, within(0.01));
+        // a cow still milking past 305 days is judged against the day-305 expectation
+        assertThat(AssetValuationService.lactationShape(400)).isEqualTo(AssetValuationService.lactationShape(305));
+    }
+
+    @Test
+    void lateLactationCowIsNotPenalisedForYieldThatHasNaturallyFallen() {
+        // Yashoda: HF cross, 1st lactation, 235 days in milk, 6.7 L/day, not confirmed pregnant
+        Herd h = herd("LACTATING", 37, 1);
+        h.setAvgMilk30Days(6.7);
+        h.setDim(235);
+        Asset a = value(h, asset(76500.0, today.minusMonths(5)));
+        // expected at 235 DIM is 12 x 0.82 = 9.8 L, so milk factor 0.94 (a flat 12 L norm would give 0.90);
+        // 80,000 x 1.0 x 0.94 x 0.9 (not pregnant after 150 DIM) = 67,600
+        assertThat(a.getSuggestedValue()).isEqualTo(67500);
+        assertThat(a.getValuationFactors()).anyMatch(f -> f.contains("expected at 235 days in milk"));
     }
 
     @Test

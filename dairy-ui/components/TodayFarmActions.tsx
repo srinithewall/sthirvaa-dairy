@@ -15,6 +15,19 @@ interface FarmActivityLog {
   };
 }
 
+const CATEGORY_LABEL: Record<string, string> = {
+  HERD_CHECK: "Herd check",
+  HYGIENE: "Hygiene",
+  BIOSECURITY: "Biosecurity",
+  MAINTENANCE: "Maintenance",
+};
+
+/** "Due 18 Oct" for a carried-over chore; today's need no date. */
+const overdueLabel = (dueDate: string) => {
+  const [y, m, d] = dueDate.split("-").map(Number);
+  return `Due ${new Date(y, m - 1, d).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
+};
+
 export default function TodayFarmActions() {
   const [logs, setLogs] = useState<FarmActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,11 +122,14 @@ export default function TodayFarmActions() {
               <div className="flex items-center gap-2">
                 <span className="font-medium text-[14px] text-text">{log.activityDetails.title}</span>
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                  {log.activityDetails.category}
+                  {CATEGORY_LABEL[log.activityDetails.category] || log.activityDetails.category}
                 </span>
               </div>
               {log.activityDetails.description && (
                 <p className="text-[12px] text-text3 mt-0.5">{log.activityDetails.description}</p>
+              )}
+              {log.status === "OVERDUE" && (
+                <p className="text-[11px] font-semibold text-red-600 mt-0.5">{overdueLabel(log.dueDate)} · overdue</p>
               )}
             </div>
           </div>

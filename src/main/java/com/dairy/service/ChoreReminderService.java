@@ -78,8 +78,8 @@ public class ChoreReminderService {
         activityService.generateLogsForDate(today);
         activityService.markOverdue(today);
 
-        List<FarmActivityLog> openLogs =
-                logRepository.findByDueDateLessThanEqualAndStatusIn(today, OPEN_STATUSES);
+        List<FarmActivityLog> openLogs = activityService.latestPerRoutine(
+                logRepository.findByDueDateLessThanEqualAndStatusIn(today, OPEN_STATUSES));
         if (openLogs.isEmpty()) return;
 
         List<User> staffUsers = staffUsersWithTokens();

@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -168,6 +169,7 @@ public class FarmActivityService {
     public List<FarmActivityLog> getLogsForDateIncludingOverdue(LocalDate date) {
         List<FarmActivityLog> logs = new ArrayList<>(logRepository.findByDueDateLessThanAndStatusIn(date, OPEN_STATUSES));
         logs.addAll(materialise(date));
+        logs = latestPerRoutine(logs);
         // Oldest first, so what has been waiting longest is at the top of the list.
         logs.sort(Comparator.comparing(FarmActivityLog::getDueDate));
         return enrich(logs);
@@ -292,6 +294,22 @@ public class FarmActivityService {
             }
         }
         return created;
+    }
+
+    /**
+     * Keeps only the newest open occurrence of each routine. A missed day is superseded once the
+     * next one exists - doing today's deworming round covers yesterday's - so the older one stays
+     * OVERDUE in history but is neither listed nor reminded about again.
+     */
+    public List<FarmActivityLog> latestPerRoutine(List<FarmActivityLog> openLogs) {
+        Map<Long, FarmActivityLog> newest = new LinkedHashMap<>();
+        for (FarmActivityLog log : openLogs) {
+            FarmActivityLog kept = newest.get(log.getActivityId());
+            if (kept == null || log.getDueDate().isAfter(kept.getDueDate())) {
+                newest.put(log.getActivityId(), log);
+            }
+        }
+        return new ArrayList<>(newest.values());
     }
 
     /** Marks still-open occurrences from before today as overdue. */

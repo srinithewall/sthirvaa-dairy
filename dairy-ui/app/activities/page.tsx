@@ -21,6 +21,24 @@ const FREQUENCY_LABEL: Record<string, string> = {
 const localDate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+/** Whole days from dueDate (YYYY-MM-DD) to today; positive when it is in the past. */
+const daysLate = (dueDate: string) => {
+  const [y, m, d] = dueDate.split("-").map(Number);
+  const today = new Date();
+  return Math.round(
+    (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.UTC(y, m - 1, d)) / 86400000
+  );
+};
+
+/** "Today", "Yesterday" or "18 Oct" for a task's due date. */
+const dueDayLabel = (dueDate: string) => {
+  const late = daysLate(dueDate);
+  if (late === 0) return "Today";
+  if (late === 1) return "Yesterday";
+  const [y, m, d] = dueDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+};
+
 const describeSchedule = (r: Routine) => {
   switch (r.frequency) {
     case "WEEKLY":
@@ -251,14 +269,15 @@ function ActivitiesPageInner() {
                                 <p className="text-sm text-text3 mt-1">{log.activityDetails.description}</p>
                               )}
                               <div className="flex items-center gap-3 mt-1.5 text-[11px] text-text3">
-                                {log.dueTime && (
-                                  <span className="inline-flex items-center gap-1">
-                                    <Clock size={11} /> {String(log.dueTime).slice(0, 5)}
+                                {log.dueDate && (
+                                  <span className={`inline-flex items-center gap-1 ${log.status === "OVERDUE" ? "text-red-600 font-semibold" : ""}`}>
+                                    <Clock size={11} /> Due {dueDayLabel(log.dueDate)}
+                                    {log.dueTime && `, ${String(log.dueTime).slice(0, 5)}`}
                                   </span>
                                 )}
                                 {log.status === "OVERDUE" && (
                                   <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
-                                    <AlertTriangle size={11} /> Overdue since {log.dueDate}
+                                    <AlertTriangle size={11} /> {daysLate(log.dueDate)} day{daysLate(log.dueDate) === 1 ? "" : "s"} late
                                   </span>
                                 )}
                                 {log.staffDetails?.name && <span>Assigned to {log.staffDetails.name}</span>}

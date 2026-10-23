@@ -6,7 +6,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Entity
-@Table(name = "farm_activity_logs")
+// One occurrence per routine per day; stops two backends generating the same day twice.
+@Table(name = "farm_activity_logs",
+        uniqueConstraints = @UniqueConstraint(name = "uk_fal_activity_due",
+                columnNames = {"activity_id", "due_date"}))
 public class FarmActivityLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

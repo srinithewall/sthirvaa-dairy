@@ -280,9 +280,18 @@ public class FarmActivityService {
             fresh.add(log);
         }
 
-        if (fresh.isEmpty()) return 0;
-        logRepository.saveAll(fresh);
-        return fresh.size();
+        // Saved one at a time: if another backend inserted the same occurrence since we read,
+        // the unique key rejects ours and the rest still go in.
+        int created = 0;
+        for (FarmActivityLog log : fresh) {
+            try {
+                logRepository.save(log);
+                created++;
+            } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+                logger.info("Occurrence of routine {} for {} already exists; skipped.", log.getActivityId(), date);
+            }
+        }
+        return created;
     }
 
     /** Marks still-open occurrences from before today as overdue. */

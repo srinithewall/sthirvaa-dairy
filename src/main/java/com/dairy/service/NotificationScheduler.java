@@ -14,7 +14,13 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
+/**
+ * Off when SCHEDULER_ENABLED=false. A local backend shares the production database, so its
+ * jobs would generate chores and send reminders alongside the server's.
+ */
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "app.scheduler.enabled", havingValue = "true", matchIfMissing = true)
 public class NotificationScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(NotificationScheduler.class);

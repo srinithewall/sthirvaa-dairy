@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { dimStage } from '@/lib/dimStages';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
 import TodayFarmActions from '@/components/TodayFarmActions';
-import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar, Sun, Moon, Clock, BarChart3 } from 'lucide-react';
+import { ShoppingCart, Droplets, DollarSign, TrendingUp, ChevronDown, Search, Check, Calendar, Sun, Moon, Clock, BarChart3, Shield, Archive } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -42,6 +43,22 @@ interface TopMilker {
   totalYield: number;
 }
 
+interface PeakYield {
+  cowId: string;
+  cowName: string;
+  peakYield: number;
+  peakDate: string;
+  /** Average daily litres over the last 30 days; null when nothing was recorded. */
+  recentAvg: number | null;
+  /** Left the farm; still ranked on its all-time best. */
+  disposed?: boolean;
+  /** Days in milk on the peak day; null when no calving is recorded. */
+  dimAtPeak?: number | null;
+  /** Morning and evening litres on the peak day. */
+  peakMorning?: number | null;
+  peakEvening?: number | null;
+}
+
 interface DashboardData {
   todayMilkProduction: number;
   yesterdayMilkProduction: number;
@@ -63,6 +80,8 @@ interface DashboardData {
   expenseChartData: Record<string, number>;
   expensePieChartData: Record<string, number>;
   topMilkers: TopMilker[];
+  topMilkersYesterday?: TopMilker[];
+  peakYields?: PeakYield[];
 }
 
 const getTodayDateString = () => {
@@ -100,6 +119,10 @@ export default function DashboardPage() {
   const [shiftFilter, setShiftFilter] = useState<'MORNING' | 'ALL' | 'EVENING'>('ALL');
 
   const [milkPeriod, setMilkPeriod] = useState<'daily'|'monthly'|'total'>('daily');
+  // Top milkers card: which day, and whether it is open.
+  const [milkersDay, setMilkersDay] = useState<'today'|'yesterday'>('today');
+  const [milkersOpen, setMilkersOpen] = useState(false);
+  const [peakOpen, setPeakOpen] = useState(false);
   const [revenuePeriod, setRevenuePeriod] = useState<'daily'|'monthly'|'total'>('monthly');
   const [expensePeriod, setExpensePeriod] = useState<'daily'|'monthly'|'total'>('monthly');
   const [profitPeriod, setProfitPeriod] = useState<'daily'|'monthly'|'total'>('monthly');
@@ -896,36 +919,137 @@ export default function DashboardPage() {
       </div>
 
       <div className="card-shadow bg-white rounded-radius-custom-lg border border-border-custom overflow-hidden">
-        <div className="p-4 border-b border-border-custom flex items-center justify-between">
-          <h3 className="text-[14px] font-bold">Top Milkers Today</h3>
+        <div className={`p-4 flex items-center justify-between gap-3 ${milkersOpen ? 'border-b border-border-custom' : ''}`}>
+          <button type="button" onClick={() => setMilkersOpen(o => !o)} aria-expanded={milkersOpen}
+            className="flex items-center gap-2 text-left">
+            <ChevronDown size={16} className={`text-text3 transition-transform ${milkersOpen ? '' : '-rotate-90'}`} />
+            <h3 className="text-[14px] font-bold">Top Milkers</h3>
+          </button>
+          <div className="bg-surface2 p-0.5 rounded-lg flex" role="group" aria-label="Day">
+            {(['today', 'yesterday'] as const).map(d => (
+              <button key={d} type="button" onClick={() => { setMilkersDay(d); setMilkersOpen(true); }}
+                className={`px-3 py-1 rounded-md text-[11px] font-bold capitalize ${milkersDay === d ? 'bg-white text-brand shadow-sm' : 'text-text3'}`}>
+                {d}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[13px] text-left">
-            <thead className="bg-[#F5F9F6] text-text2 uppercase text-[11px] font-bold tracking-wider">
-              <tr>
-                <th className="p-3">Cow</th>
-                <th className="p-3">Morn</th>
-                <th className="p-3">Even</th>
-                <th className="p-3">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-               {data.topMilkers.map((cow, i) => (
-                 <tr key={i} className="border-b border-border-custom/50 last:border-0">
-                   <td className="p-3"><strong className="text-brand">{cow.cowId}</strong> {cow.cowName}</td>
-                   <td className="p-3">{Math.round((cow.morningYield || 0) * 10) / 10}L</td>
-                   <td className="p-3">{Math.round((cow.eveningYield || 0) * 10) / 10}L</td>
-                   <td className="p-3 font-bold text-brand-dark">{Math.round((cow.totalYield || 0) * 10) / 10}L</td>
-                 </tr>
-               ))}
-               {data.topMilkers.length === 0 && (
-                 <tr>
-                   <td colSpan={4} className="p-4 text-center text-text3 italic">No milk recorded today yet.</td>
-                 </tr>
-               )}
-            </tbody>
-          </table>
+        {milkersOpen && (() => {
+          const rows = (milkersDay === 'today' ? data.topMilkers : data.topMilkersYesterday) || [];
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px] text-left">
+                <thead className="bg-[#F5F9F6] text-text2 uppercase text-[11px] font-bold tracking-wider">
+                  <tr>
+                    <th className="p-3">Cow</th>
+                    <th className="p-3">Morn</th>
+                    <th className="p-3">Even</th>
+                    <th className="p-3">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((cow, i) => (
+                    <tr key={i} className="border-b border-border-custom/50 last:border-0">
+                      <td className="p-3 font-semibold" title={cow.cowId}>{cow.cowName}</td>
+                      <td className="p-3">{Math.round((cow.morningYield || 0) * 10) / 10}L</td>
+                      <td className="p-3">{Math.round((cow.eveningYield || 0) * 10) / 10}L</td>
+                      <td className="p-3 font-bold text-brand-dark">{Math.round((cow.totalYield || 0) * 10) / 10}L</td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-4 text-center text-text3 italic">No milk recorded {milkersDay} yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Best single day each animal has ever given, against its last 30 days */}
+      <div className="card-shadow bg-white rounded-radius-custom-lg border border-border-custom overflow-hidden mt-5">
+        <div className={`p-4 ${peakOpen ? 'border-b border-border-custom' : ''}`}>
+          <button type="button" onClick={() => setPeakOpen(o => !o)} aria-expanded={peakOpen}
+            className="flex items-center gap-2 text-left">
+            <ChevronDown size={16} className={`text-text3 transition-transform ${peakOpen ? '' : '-rotate-90'}`} />
+            <h3 className="text-[14px] font-bold">Peak Yield</h3>
+          </button>
         </div>
+        {peakOpen && (
+          // About five rows tall; the rest scroll under a sticky header. On phones the tag,
+          // shift split and 30-day average fold away so each row fits on one line.
+          <div className="overflow-auto max-h-[312px] sm:max-h-[312px]">
+            <table className="w-full text-[12px] sm:text-[13px] text-left">
+              <thead className="bg-[#F5F9F6] text-text2 uppercase text-[10px] sm:text-[11px] font-bold tracking-wider sticky top-0 z-10">
+                <tr>
+                  <th className="px-2 py-2 sm:p-3 w-10 sm:w-12 text-center">#</th>
+                  <th className="px-2 py-2 sm:p-3">Cow</th>
+                  <th className="hidden sm:table-cell p-3">Morn</th>
+                  <th className="hidden sm:table-cell p-3">Even</th>
+                  <th className="px-2 py-2 sm:p-3">Peak</th>
+                  <th className="px-2 py-2 sm:p-3">Date</th>
+                  <th className="px-2 py-2 sm:p-3" title="Days in milk on the peak day: how far into lactation she gave her best">DIM</th>
+                  <th className="hidden sm:table-cell p-3">30-day avg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.peakYields || []).map((cow, i) => {
+                  const stage = cow.dimAtPeak != null ? dimStage(cow.dimAtPeak) : null;
+                  const l = (v?: number | null) => (v ? `${Math.round(v * 10) / 10}` : '—');
+                  return (
+                    <tr key={i} className={`border-b border-border-custom/50 last:border-0 ${cow.disposed ? 'text-text3' : ''}`}>
+                      <td className="px-2 py-2 sm:p-3 text-center">
+                        {i < 3 ? (
+                          <span className="relative inline-flex items-center justify-center" title={['Champion', 'Runner-up', 'Third place'][i]}>
+                            <Shield strokeWidth={1.5}
+                              className={`w-6 h-6 sm:w-7 sm:h-7 ${['text-amber-500 fill-amber-300', 'text-slate-400 fill-slate-200', 'text-orange-700 fill-orange-300'][i]}`} />
+                            <span className="absolute text-[10px] sm:text-[11px] font-black text-text">{i + 1}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[12px] font-bold text-text3">{i + 1}</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 sm:p-3">
+                        {/* Disposed cows: greyed, italic, with a small archive mark instead of a text badge */}
+                        <span className={`inline-flex items-center gap-1 font-semibold ${cow.disposed ? 'italic text-text3' : 'text-text'}`}
+                          title={cow.disposed ? `${cow.cowName} (disposed) · ${cow.cowId}` : cow.cowId}>
+                          {cow.cowName}
+                          {cow.disposed && <Archive size={12} className="shrink-0 text-text3" aria-label="Disposed" />}
+                        </span>
+                      </td>
+                      <td className="hidden sm:table-cell p-3">{l(cow.peakMorning)}{cow.peakMorning ? 'L' : ''}</td>
+                      <td className="hidden sm:table-cell p-3">{l(cow.peakEvening)}{cow.peakEvening ? 'L' : ''}</td>
+                      <td className="px-2 py-2 sm:p-3 whitespace-nowrap">
+                        <span className="font-bold text-brand-dark">{l(cow.peakYield)}L</span>
+                        {/* Morning + evening under the total on phones */}
+                        <span className="block sm:hidden text-[10px] text-text3">{l(cow.peakMorning)} + {l(cow.peakEvening)}</span>
+                      </td>
+                      <td className="px-2 py-2 sm:p-3 text-text2 whitespace-nowrap">
+                        <span className="sm:hidden">{new Date(cow.peakDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                        <span className="hidden sm:inline">{new Date(cow.peakDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                      </td>
+                      <td className="px-2 py-2 sm:p-3 whitespace-nowrap" title={stage ? stage.label : 'No calving recorded before this day'}>
+                        {stage ? (
+                          <span className={`font-bold ${stage.text}`}>
+                            {cow.dimAtPeak}<span className="hidden sm:inline font-semibold text-[11px]"> · {stage.label.split(' (')[0]}</span>
+                          </span>
+                        ) : <span className="text-text3">—</span>}
+                      </td>
+                      <td className="hidden sm:table-cell p-3">{cow.recentAvg != null ? `${Math.round(cow.recentAvg * 10) / 10}L` : '—'}</td>
+                    </tr>
+                  );
+                })}
+                {(data.peakYields || []).length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-4 text-center text-text3 italic">No milk records yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

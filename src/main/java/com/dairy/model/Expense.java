@@ -38,6 +38,13 @@ public class Expense {
     private String settledBy;
 
     // Audit Fields
+    /** CATTLE or POULTRY (poultry and fish); blank is treated as cattle. */
+    @Column(length = 10)
+    private String segment;
+
+    public String getSegment() { return segment; }
+    public void setSegment(String segment) { this.segment = segment; }
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

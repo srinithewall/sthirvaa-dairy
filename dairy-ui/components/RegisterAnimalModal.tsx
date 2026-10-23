@@ -342,6 +342,7 @@ export default function RegisterAnimalModal({
           }
           await api.post('/expenses', {
             category: 'Poultry',
+            segment: 'POULTRY',
             amount: poultryTotal,
             description: `${payload.animalName}: ${payload.birdCount} ${batchType(poultry.animalType).label.toLowerCase()} @ ₹${Math.round(parseFloat(poultry.costPerBird) || 0)}`,
             date: poultry.batchDate,

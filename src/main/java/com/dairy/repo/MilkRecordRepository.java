@@ -36,6 +36,10 @@ public interface MilkRecordRepository extends JpaRepository<MilkRecord, Long> {
     List<Object[]> sumDailyByHerdIdsSince(@Param("herdIds") Collection<Long> herdIds,
                                           @Param("startDate") LocalDate startDate);
 
+    /** Per-shift totals for every animal over all time: rows of [herdId, date, shift, litres]. */
+    @Query("SELECT m.herd.id, m.date, m.shift, SUM(m.quantity) FROM MilkRecord m GROUP BY m.herd.id, m.date, m.shift")
+    List<Object[]> sumShiftByHerd();
+
     /** Same as findByDate, but with the animal already joined - avoids a lazy load per record. */
     @Query("SELECT m FROM MilkRecord m LEFT JOIN FETCH m.herd WHERE m.date = :date")
     List<MilkRecord> findByDateWithHerd(@Param("date") LocalDate date);

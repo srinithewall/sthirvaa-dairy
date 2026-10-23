@@ -29,6 +29,8 @@ public class DashboardDTO {
     private Map<String, Double> expensePieChartData;
     
     private List<TopMilkerDTO> topMilkers;
+    private List<TopMilkerDTO> topMilkersYesterday;
+    private List<PeakYieldDTO> peakYields;
 
     // Getters and Setters
     public Double getTodayMilkProduction() { return todayMilkProduction; }
@@ -64,6 +66,51 @@ public class DashboardDTO {
     public List<TopMilkerDTO> getTopMilkers() { return topMilkers; }
     public void setTopMilkers(List<TopMilkerDTO> topMilkers) { this.topMilkers = topMilkers; }
     
+    public List<TopMilkerDTO> getTopMilkersYesterday() { return topMilkersYesterday; }
+    public void setTopMilkersYesterday(List<TopMilkerDTO> topMilkersYesterday) { this.topMilkersYesterday = topMilkersYesterday; }
+
+    public List<PeakYieldDTO> getPeakYields() { return peakYields; }
+    public void setPeakYields(List<PeakYieldDTO> peakYields) { this.peakYields = peakYields; }
+
+    /** Best single-day milk total each animal has ever given, against its recent average. */
+    public static class PeakYieldDTO {
+        private final String cowId;
+        private final String cowName;
+        private final Double peakYield;
+        private final java.time.LocalDate peakDate;
+        /** Average daily total over the last 30 days; null when nothing was recorded. */
+        private final Double recentAvg;
+        /** The animal has left the farm; its record still counts for the all-time ranking. */
+        private final boolean disposed;
+        /** Days in milk on the peak day: days since the calving before it; null when no calving is recorded. */
+        private final Integer dimAtPeak;
+        private final Double peakMorning;
+        private final Double peakEvening;
+
+        public PeakYieldDTO(String cowId, String cowName, Double peakYield, java.time.LocalDate peakDate, Double recentAvg, boolean disposed, Integer dimAtPeak,
+                            Double peakMorning, Double peakEvening) {
+            this.cowId = cowId;
+            this.cowName = cowName;
+            this.peakYield = peakYield;
+            this.peakDate = peakDate;
+            this.recentAvg = recentAvg;
+            this.disposed = disposed;
+            this.dimAtPeak = dimAtPeak;
+            this.peakMorning = peakMorning;
+            this.peakEvening = peakEvening;
+        }
+
+        public String getCowId() { return cowId; }
+        public String getCowName() { return cowName; }
+        public Double getPeakYield() { return peakYield; }
+        public java.time.LocalDate getPeakDate() { return peakDate; }
+        public Double getRecentAvg() { return recentAvg; }
+        public boolean isDisposed() { return disposed; }
+        public Integer getDimAtPeak() { return dimAtPeak; }
+        public Double getPeakMorning() { return peakMorning; }
+        public Double getPeakEvening() { return peakEvening; }
+    }
+
     public static class TopMilkerDTO {
         private String cowId;
         private String cowName;

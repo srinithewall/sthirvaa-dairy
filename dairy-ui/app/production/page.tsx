@@ -69,17 +69,6 @@ type Accounting = ReturnType<typeof accounting>;
 const usageTitle = (a: Accounting, total: number) =>
   `Total ${fmt(total)} L = sold ${fmt(a.sales)} L + calf ${fmt(a.calf)} L + own use ${fmt(a.ownUse)} L + waste ${fmt(a.waste)} L`;
 
-/* Calf / own use / waste under the Sales figure, only the ones that have milk recorded */
-function UseBreakdown({ a, className = '' }: { a: Accounting; className?: string }) {
-  const parts = [
-    a.calf > 0 && `Calf ${fmt(a.calf)} L`,
-    a.ownUse > 0 && `Own use ${fmt(a.ownUse)} L`,
-    a.waste > 0 && `Waste ${fmt(a.waste)} L`,
-  ].filter(Boolean) as string[];
-  if (parts.length === 0) return null;
-  return <div className={`text-[10px] font-bold text-text3 ${className}`}>{parts.join(' · ')}</div>;
-}
-
 /* ─── Compact Stat card ───────────────────────────────── */
 function StatCard({ icon, label, value, sub, color }: {
   icon: React.ReactNode; label: string; value: string; sub?: string; color: string;
@@ -266,7 +255,6 @@ export default function MilkProductionPage() {
                       <div className={`font-black text-[13px] ${acc.complete ? 'text-brand' : 'text-amber-600'}`}>{fmt(acc.sales)}L</div>
                     </div>
                   </div>
-                  <UseBreakdown a={acc} className="mb-3 text-center" />
 
                   {/* Sub info + Actions */}
                   <div className="flex items-center justify-between">
@@ -354,7 +342,6 @@ export default function MilkProductionPage() {
                             <AlertCircle size={14} className="text-amber-500" />
                           ) : null}
                         </div>
-                        <UseBreakdown a={acc} className="mt-0.5 whitespace-nowrap" />
                       </td>
                       <td className="px-5 py-3.5 text-text3 font-medium">{day.cowCount} cows</td>
                       <td className="px-5 py-3.5">

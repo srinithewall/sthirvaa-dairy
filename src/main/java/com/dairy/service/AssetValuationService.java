@@ -6,6 +6,7 @@ import com.dairy.model.Herd;
 import com.dairy.model.HerdEvent;
 import com.dairy.repo.BreedRepository;
 import com.dairy.repo.HerdEventRepository;
+import com.dairy.repo.MilkRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -49,6 +50,11 @@ public class AssetValuationService {
     private static final Set<String> ANIMAL_CATEGORIES = Set.of("COW", "CALF", "BUFFALO", "GOAT");
 
     // Wood's lactation curve y = t^b * e^(-c*t): peaks about b/c = 50 days after calving
+    // Milk factor = 0.65 + 0.35 x (yield / expected yield): a cow at her breed's expected yield is 1.0,
+    // one giving two thirds of it is 0.88, clamped to 0.75-1.25
+    private static final double MILK_FACTOR_BASE = 0.65;
+    private static final double MILK_FACTOR_SLOPE = 0.35;
+
     private static final double WOOD_B = 0.2;
     private static final double WOOD_C = 0.004;
     private static final int LACTATION_DAYS = 305;
@@ -72,6 +78,9 @@ public class AssetValuationService {
 
     @Autowired
     private BreedRepository breedRepository;
+
+    @Autowired
+    private MilkRecordRepository milkRecordRepository;
 
     public List<Asset> withValues(List<Asset> assets) {
         if (assets.isEmpty()) return assets;
@@ -99,10 +108,13 @@ public class AssetValuationService {
             if (b.getName() != null) breedsByName.put(b.getName().trim().toLowerCase(), b);
         }
 
+        Map<Long, Double> lactationAvg = lactationAverages(linkedIds, herdsByTag.values(), eventsByHerd);
+
         for (Asset asset : assets) {
             Herd herd = asset.getSerialNumber() != null ? herdsByTag.get(asset.getSerialNumber().trim()) : null;
             if (herd != null && !isBatch(herd)) {
-                valueAnimal(asset, herd, eventsByHerd.getOrDefault(herd.getId(), List.of()), breedsByName, today);
+                valueAnimal(asset, herd, eventsByHerd.getOrDefault(herd.getId(), List.of()), breedsByName,
+                        lactationAvg.get(herd.getId()), today);
             } else if (asset.getCategory() != null
                     && EQUIPMENT_CATEGORIES.contains(asset.getCategory().trim().toUpperCase())) {
                 valueEquipment(asset, today);
@@ -121,8 +133,42 @@ public class AssetValuationService {
 
     // ── Animals ────────────────────────────────────────────────────────────────
 
+    /**
+     * Average litres per milking day since the last calving, for dry cows that are linked to an asset.
+     * A dry cow has no recent milk, so her last lactation is what shows how good a milker she is.
+     */
+    private Map<Long, Double> lactationAverages(List<Long> linkedIds, Collection<Herd> herds,
+                                                Map<Long, List<HerdEvent>> eventsByHerd) {
+        Map<Long, LocalDate> calvedOn = new HashMap<>();
+        for (Herd h : herds) {
+            if (!linkedIds.contains(h.getId()) || !"DRY".equals(upper(h.getAnimalStatus()))) continue;
+            LocalDate calved = latest(eventsByHerd.getOrDefault(h.getId(), List.of()), "CALF_DELIVERED", null);
+            if (calved != null) calvedOn.put(h.getId(), calved);
+        }
+        Map<Long, Double> averages = new HashMap<>();
+        if (calvedOn.isEmpty()) return averages;
+
+        LocalDate earliest = Collections.min(calvedOn.values());
+        Map<Long, List<Double>> dailyTotals = new HashMap<>();
+        for (Object[] row : milkRecordRepository.sumDailyByHerdIdsSince(calvedOn.keySet(), earliest)) {
+            if (row[0] == null || row[1] == null || row[2] == null) continue;
+            Long herdId = ((Number) row[0]).longValue();
+            LocalDate day = row[1] instanceof java.sql.Date d ? d.toLocalDate() : (LocalDate) row[1];
+            if (day.isBefore(calvedOn.get(herdId))) continue;
+            dailyTotals.computeIfAbsent(herdId, k -> new ArrayList<>()).add(((Number) row[2]).doubleValue());
+        }
+        dailyTotals.forEach((id, litres) ->
+                averages.put(id, litres.stream().mapToDouble(Double::doubleValue).average().orElse(0)));
+        return averages;
+    }
+
+    /** What the yield is worth, as a factor: a cow giving her breed's expected yield is 1.0. */
+    private static double milkFactor(double litres, double expected) {
+        return clamp(MILK_FACTOR_BASE + MILK_FACTOR_SLOPE * (litres / expected), 0.75, 1.25);
+    }
+
     private void valueAnimal(Asset asset, Herd herd, List<HerdEvent> events,
-                             Map<String, Breed> breeds, LocalDate today) {
+                             Map<String, Breed> breeds, Double lactationAvg, LocalDate today) {
         List<String> notes = new ArrayList<>();
         double[] price = basePrice(herd, breeds);
         double breedBase = price[0];
@@ -188,11 +234,16 @@ public class AssetValuationService {
             if ("LACTATING".equals(status) && avg != null && avg > 0 && normalYield > 0) {
                 Integer dim = herd.getDim();
                 double expected = dim != null ? normalYield * lactationShape(dim) : normalYield;
-                double milkF = clamp(0.7 + 0.35 * (avg / expected), 0.75, 1.25);
+                double milkF = milkFactor(avg, expected);
                 value *= milkF;
                 notes.add((dim != null
                         ? String.format("Milk %.1f L vs %.1f L expected at %d days in milk", avg, expected, dim)
                         : String.format("Milk %.1f L vs %.0f L normal", avg, expected)) + pct(milkF));
+            } else if ("DRY".equals(status) && lactationAvg != null && lactationAvg > 0 && normalYield > 0) {
+                // Dry: judge her by the whole lactation just finished
+                double milkF = milkFactor(lactationAvg, normalYield);
+                value *= milkF;
+                notes.add(String.format("Milk %.1f L/day this lactation vs %.0f L normal", lactationAvg, normalYield) + pct(milkF));
             }
 
             if (pregnant) {
@@ -221,7 +272,7 @@ public class AssetValuationService {
         asset.setSuggestedLow(roundTo(value * 0.9, 500));
         asset.setSuggestedHigh(roundTo(value * 1.1, 500));
         asset.setValuationFactors(notes);
-        asset.setValuationInputs(animalInputs(herd, ageMonths, lactation, pregnant, pregDays, base));
+        asset.setValuationInputs(animalInputs(herd, ageMonths, lactation, pregnant, pregDays, base, lactationAvg));
     }
 
     /**
@@ -268,7 +319,7 @@ public class AssetValuationService {
     }
 
     private Map<String, String> animalInputs(Herd herd, Integer ageMonths, int lactation,
-                                             boolean pregnant, long pregDays, double adultPrice) {
+                                             boolean pregnant, long pregDays, double adultPrice, Double lactationAvg) {
         Map<String, String> in = new LinkedHashMap<>();
         String name = herd.getAnimalName() != null && !herd.getAnimalName().isBlank() ? herd.getAnimalName() + " " : "";
         in.put("Animal", name + "(" + herd.getTagNumber() + ")");
@@ -282,6 +333,9 @@ public class AssetValuationService {
                 ? String.format("%.1f L/day", herd.getAvgMilk30Days()) : "No records");
         if (herd.getDim() != null && "LACTATING".equals(upper(herd.getAnimalStatus()))) {
             in.put("Days in milk", String.valueOf(herd.getDim()));
+        }
+        if (lactationAvg != null && lactationAvg > 0) {
+            in.put("Milk, this lactation", String.format("%.1f L/day avg", lactationAvg));
         }
         in.put("Pregnancy", pregnant ? pregDays + " days" : "Not pregnant");
         in.put("Health", herd.getHealthStatus() != null ? herd.getHealthStatus() : "Not set");

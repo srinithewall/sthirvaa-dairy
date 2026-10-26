@@ -5,6 +5,7 @@ import com.dairy.model.Herd;
 import com.dairy.model.HerdEvent;
 import com.dairy.repo.BreedRepository;
 import com.dairy.repo.HerdEventRepository;
+import com.dairy.repo.MilkRecordRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -12,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +28,7 @@ class AssetValuationServiceTest {
     @Mock private HerdService herdService;
     @Mock private HerdEventRepository eventRepository;
     @Mock private BreedRepository breedRepository;
+    @Mock private MilkRecordRepository milkRecordRepository;
 
     @InjectMocks
     private AssetValuationService service;
@@ -139,9 +142,9 @@ class AssetValuationServiceTest {
         h.setAvgMilk30Days(12.0);
         h.setDim(60);
         Asset a = value(h, asset(null, null));
-        // 60 DIM is near peak, so 12 L is judged against 12 x 1.25 = 15 L expected: milk factor 0.98
-        // 80,000 x 1.05 (lactation 2) x 0.98 = 82,320
-        assertThat(a.getSuggestedValue()).isEqualTo(82500);
+        // 60 DIM is near peak, so 12 L is judged against 12 x 1.25 = 15 L expected: milk factor 0.65 + 0.35 x 0.8 = 0.93
+        // 80,000 x 1.05 (lactation 2) x 0.93 = 78,120
+        assertThat(a.getSuggestedValue()).isEqualTo(78000);
     }
 
     @Test
@@ -163,10 +166,43 @@ class AssetValuationServiceTest {
         h.setAvgMilk30Days(6.7);
         h.setDim(235);
         Asset a = value(h, asset(76500.0, today.minusMonths(5)));
-        // expected at 235 DIM is 12 x 0.82 = 9.8 L, so milk factor 0.94 (a flat 12 L norm would give 0.90);
-        // 80,000 x 1.0 x 0.94 x 0.9 (not pregnant after 150 DIM) = 67,600
-        assertThat(a.getSuggestedValue()).isEqualTo(67500);
+        // expected at 235 DIM is 12 x 0.82 = 9.8 L, so milk factor 0.89 (a flat 12 L norm would give 0.83);
+        // 80,000 x 1.0 x 0.89 x 0.9 (not pregnant after 150 DIM) = 64,000
+        assertThat(a.getSuggestedValue()).isEqualTo(64000);
         assertThat(a.getValuationFactors()).anyMatch(f -> f.contains("expected at 235 days in milk"));
+    }
+
+    private Asset radha(int daysPregnant) {
+        // Radha: HF cross, 4 yr, 1st lactation finished at about 7.6 L/day, dry and pregnant
+        Herd h = herd("DRY", 49, 1);
+        List<Object[]> rows = new ArrayList<>();
+        for (int i = 0; i < 100; i++) rows.add(new Object[]{1L, today.minusDays(i + 20), 7.64});
+        when(milkRecordRepository.sumDailyByHerdIdsSince(anyCollection(), org.mockito.ArgumentMatchers.any())).thenReturn(rows);
+        return value(h, asset(75000.0, today.minusYears(1)),
+                event("CALF_DELIVERED", today.minusDays(389)),
+                event("SEMEN_GIVEN", today.minusDays(daysPregnant)),
+                event("PREGNANCY_CONFIRMED", today.minusDays(daysPregnant - 30)));
+    }
+
+    @Test
+    void dryCowIsJudgedByHerWholeLactation() {
+        Asset a = radha(199);
+        // 80,000 x 1.00 (lactation 1) x 0.87 (7.6 L vs 12 L) x 1.105 (199 days pregnant) = 77,200
+        assertThat(a.getSuggestedValue()).isEqualTo(77000);
+        assertThat(a.getValuationFactors()).anyMatch(f -> f.startsWith("Milk 7.6 L/day this lactation"));
+        assertThat(a.getValuationInputs()).containsKey("Milk, this lactation");
+    }
+
+    @Test
+    void dryCowNineMonthsPregnantIsAboutEightyThousand() {
+        assertThat(radha(270).getSuggestedValue()).isEqualTo(80000);
+    }
+
+    @Test
+    void dryCowWithNoMilkRecordsGetsNoMilkFactor() {
+        Herd h = herd("DRY", 49, 1);
+        Asset a = value(h, asset(null, null), event("CALF_DELIVERED", today.minusDays(389)));
+        assertThat(a.getSuggestedValue()).isEqualTo(80000);
     }
 
     @Test

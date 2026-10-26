@@ -36,7 +36,9 @@ export default function OverviewPopup({ onClose }: { onClose: () => void }) {
       showToast('Shop details saved — they will print on bills', 'success');
       setShop(null);
     } catch (err) {
-      showToast(apiError(err, 'Could not save shop details'), 'error');
+      // Input checks throw plain Errors; server failures come back as axios errors.
+      const local = err instanceof Error && !(err as { response?: unknown }).response;
+      showToast(local ? (err as Error).message : apiError(err, 'Could not save shop details'), 'error');
     }
   };
 
@@ -98,6 +100,15 @@ export default function OverviewPopup({ onClose }: { onClose: () => void }) {
                 {shop.gstin.trim() !== '' && !/^[0-9]{2}[A-Z0-9]{13}$/i.test(shop.gstin.trim()) && (
                   <p className="text-[12px] text-danger">GSTIN should be 15 characters (2 digits + 13 letters/digits).</p>
                 )}
+                <label className="block">
+                  <span className="block text-xs font-bold text-text2 uppercase tracking-wide mb-1">💎 Diamonds per ₹1,000 paid</span>
+                  <input type="number" inputMode="numeric" min={0} value={shop.rewardRate} placeholder="10"
+                    onChange={(e) => setShop({ ...shop, rewardRate: e.target.value })}
+                    className="w-full px-3 py-2 border border-border-custom rounded-lg text-sm focus:outline-none focus:border-brand" />
+                  <span className="block text-[11px] text-text3 mt-1">
+                    Contacts earn these on money paid. Which items they can take with diamonds is set on each item. 0 stops earning.
+                  </span>
+                </label>
               </div>
               <button onClick={saveShop} className="w-full mt-5 bg-brand text-white py-3 rounded-lg font-bold">Save</button>
             </div>

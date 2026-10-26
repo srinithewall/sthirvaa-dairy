@@ -8,16 +8,16 @@ import api from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 import {
   StoreFarmer, FarmerAccount, StorePaymentMode, STORE_NAME, rupees, apiError, daysAgo, paymentLabel,
-  canManageStore, currentRole,
+  canManageStore, currentRole, DEFAULT_VILLAGE, phoneError, rewardsHowTo,
 } from '@/lib/store';
 import { ChevronDown, ChevronUp, Pencil, Plus, Search, Send, Wallet, X } from 'lucide-react';
 
-interface Summary { farmer: StoreFarmer; balance: number; lastVisit?: string; }
+interface Summary { farmer: StoreFarmer; balance: number; lastVisit?: string; rewardCoins?: number; }
 
 const reminderUrl = (s: Summary) => {
   const text = `Namaskara ${s.farmer.name}, your balance at ${STORE_NAME} is ${rupees(s.balance)}. `
     + 'Kindly clear it on your next visit. Thank you! / ಧನ್ಯವಾದಗಳು';
-  return `https://wa.me/91${s.farmer.phone}?text=${encodeURIComponent(text)}`;
+  return s.farmer.phone ? `https://wa.me/91${s.farmer.phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
 };
 
 export default function ContactsPage() {
@@ -29,6 +29,8 @@ export default function ContactsPage() {
   const [isOwner, setIsOwner] = useState(false);
 
   const [editing, setEditing] = useState<Partial<StoreFarmer> | null>(null);
+  const [phoneMsg, setPhoneMsg] = useState<string | null>(null); // shown after a save with a short number
+  const [nameMissing, setNameMissing] = useState(false); // highlights the name after a save without one
   const [paying, setPaying] = useState<{ id: number; amount: number | ''; mode: StorePaymentMode } | null>(null);
   const [statement, setStatement] = useState<FarmerAccount | null>(null);
 
@@ -43,7 +45,7 @@ export default function ContactsPage() {
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => (!owingOnly || r.balance > 0)
-      && (!q || r.farmer.name.toLowerCase().includes(q) || r.farmer.phone.includes(q) || (r.farmer.village || '').toLowerCase().includes(q)));
+      && (!q || r.farmer.name.toLowerCase().includes(q) || (r.farmer.phone || '').includes(q) || (r.farmer.village || '').toLowerCase().includes(q)));
   }, [rows, query, owingOnly]);
   const totalOwed = rows.reduce((s, r) => s + Math.max(0, r.balance), 0);
   const owingCount = rows.filter((r) => r.balance > 0).length;
@@ -69,6 +71,12 @@ export default function ContactsPage() {
 
   const saveFarmer = async () => {
     if (!editing) return;
+    const noName = !(editing.name ?? '').trim();
+    setNameMissing(noName);
+    if (noName) { showToast('Please enter the contact name', 'error'); return; }
+    const bad = phoneError(editing.phone);
+    setPhoneMsg(bad);
+    if (bad) { showToast(bad, 'error'); return; }
     try {
       if (editing.id) await api.put(`/store/farmers/${editing.id}`, editing);
       else await api.post('/store/farmers', editing);
@@ -86,8 +94,8 @@ export default function ContactsPage() {
   return (
     <AppLayout>
       <StoreTabs action={
-        <button onClick={() => setEditing({ active: true })} className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap">
-          <Plus size={16} /> Add contact
+        <button onClick={() => setEditing({ active: true, village: DEFAULT_VILLAGE })} className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap">
+          <Plus size={16} /> Add<span className="hidden sm:inline"> contact</span>
         </button>
       } />
 
@@ -129,7 +137,8 @@ export default function ContactsPage() {
                       {f.name}{statement?.farmer.id === f.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </p>
                     <p className="text-[12px] text-text3">
-                      {f.phone}{f.village && ` · ${f.village}`} · {r.lastVisit ? `last visit ${daysAgo(r.lastVisit)}` : 'no bills yet'}
+                      {[f.phone || 'No phone', f.village].filter(Boolean).join(' · ')} · {r.lastVisit ? `last visit ${daysAgo(r.lastVisit)}` : 'no bills yet'}
+                      {!!r.rewardCoins && <span className="text-[#1E4E8C] font-bold" title={rewardsHowTo()}> · 💎 {r.rewardCoins}</span>}
                     </p>
                   </button>
                   <div className="flex items-center gap-2 ml-auto">
@@ -202,15 +211,25 @@ export default function ContactsPage() {
             <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-auto">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold">{editing.id ? 'Edit contact' : 'New contact'}</h2>
-                <button onClick={() => setEditing(null)}><X size={20} /></button>
+                <button onClick={() => { setEditing(null); setPhoneMsg(null); setNameMissing(false); }}><X size={20} /></button>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <label className="col-span-2 block"><span className={label}>Name</span>
-                  <input value={editing.name ?? ''} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className={input} /></label>
-                <label className="block"><span className={label}>Phone</span>
-                  <input inputMode="tel" value={editing.phone ?? ''} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} className={input} /></label>
+                  <input value={editing.name ?? ''} placeholder="Required" onChange={(e) => { setEditing({ ...editing, name: e.target.value }); setNameMissing(false); }}
+                    className={`${input} font-bold placeholder:font-normal ${nameMissing ? '!border-danger bg-red-50' : ''}`} /></label>
+                {nameMissing && <p className="col-span-2 text-[12px] text-danger font-semibold -mt-2">Please enter the contact name</p>}
+                <label className="block"><span className={label}>Phone (optional)</span>
+                  <input inputMode="tel" value={editing.phone ?? ''} placeholder="10 digits" onChange={(e) => { setEditing({ ...editing, phone: e.target.value }); setPhoneMsg(null); }}
+                    className={`${input} ${phoneMsg ? '!border-danger' : ''}`} /></label>
                 <label className="block"><span className={label}>Village</span>
-                  <input value={editing.village ?? ''} onChange={(e) => setEditing({ ...editing, village: e.target.value })} className={input} /></label>
+                  <span className="relative block">
+                    <input value={editing.village ?? ''} onChange={(e) => setEditing({ ...editing, village: e.target.value })} className={`${input} pr-9`} />
+                    {editing.village && (
+                      <button type="button" onClick={() => setEditing({ ...editing, village: '' })} aria-label="Clear village"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-text3 hover:text-danger"><X size={16} /></button>
+                    )}
+                  </span></label>
+                {phoneMsg && <p className="col-span-2 text-[12px] text-danger font-semibold -mt-1">{phoneMsg}</p>}
                 <label className="block"><span className={label}>Cows</span>
                   <input type="number" inputMode="numeric" value={editing.cowsCount ?? ''}
                     onChange={(e) => setEditing({ ...editing, cowsCount: e.target.value === '' ? undefined : Number(e.target.value) })} className={input} /></label>

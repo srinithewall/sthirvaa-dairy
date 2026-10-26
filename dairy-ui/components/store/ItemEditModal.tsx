@@ -67,6 +67,12 @@ export default function ItemEditModal({ item, suppliers, canSeeCost, onClose, on
             {canSeeCost || !editing.hidePrice ? field('minSalePrice', 'Min price ₹', 'number') : <div />}
             {field('reorderLevel', 'Reorder level', 'number')}
             {field('shelfLifeDays', 'Shelf life (days)', 'number')}
+            {canSeeCost && (
+              <div className="col-span-2">
+                {field('rewardCoins', '💎 Diamonds to take 1 free (blank = not a reward item)', 'number')}
+                <p className="text-[11px] text-text3 mt-1">Contacts can take this item with their Sthirvaa Diamonds instead of paying.</p>
+              </div>
+            )}
             <div className="col-span-2">
               <span className={label}>Bought from (suppliers)</span>
               <div className="flex flex-wrap gap-2">

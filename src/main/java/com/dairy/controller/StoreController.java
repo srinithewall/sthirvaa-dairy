@@ -28,11 +28,14 @@ public class StoreController {
     private final StoreSaleService saleService;
     private final StoreDashboardService dashboardService;
     private final StoreLedgerService ledgerService;
+    private final StoreRewardService rewardService;
 
     public StoreController(StoreMasterService masterService, StoreStockService stockService,
                            StorePurchaseService purchaseService, StoreSaleService saleService,
-                           StoreDashboardService dashboardService, StoreLedgerService ledgerService) {
+                           StoreDashboardService dashboardService, StoreLedgerService ledgerService,
+                           StoreRewardService rewardService) {
         this.ledgerService = ledgerService;
+        this.rewardService = rewardService;
         this.masterService = masterService;
         this.stockService = stockService;
         this.purchaseService = purchaseService;
@@ -197,6 +200,28 @@ public class StoreController {
     @DeleteMapping("/sales/{id}")
     public void deleteSale(@PathVariable Long id) {
         saleService.delete(id);
+    }
+
+    /** Who created, edited or deleted this bill and what changed; each edit keeps the bill as it was before. */
+    @GetMapping("/sales/{id}/audit")
+    public List<StoreSaleAudit> saleAudit(@PathVariable Long id) {
+        return saleService.history(id);
+    }
+
+    /** Bills deleted in the period (by delete date), each with the deleted bill kept as a snapshot. */
+    @GetMapping("/sales/deleted")
+    public List<StoreSaleAudit> deletedSales(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        LocalDate end = to != null ? to : LocalDate.now();
+        return saleService.deleted(from != null ? from : end.minusDays(30), end);
+    }
+
+    // ---- Rewards (Sthirvaa Diamonds) ----
+
+    @GetMapping("/rewards/config")
+    public java.util.Map<String, Integer> rewardConfig() {
+        return java.util.Map.of("coinsPer1000", rewardService.coinsPer1000());
     }
 
     // ---- Stock ----

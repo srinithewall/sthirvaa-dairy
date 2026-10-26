@@ -62,7 +62,7 @@ export default function StoreStockPage() {
 
   return (
     <AppLayout>
-      <StoreTabs action={<p className="text-[13px] text-text3">Value at cost: <span className="font-bold text-text">{rupees(totalValue)}</span></p>} />
+      <StoreTabs action={<p className="text-[13px] text-text3 whitespace-nowrap"><span className="hidden sm:inline">Value </span>at cost: <span className="font-bold text-text">{rupees(totalValue)}</span></p>} />
 
       <div className="flex gap-2 mb-3">
         <div className="relative flex-1">

@@ -55,6 +55,9 @@ public class StoreItem extends StoreAuditable {
     private String hsnCode;
     @Column(name = "gst_rate", precision = 5, scale = 2)
     private BigDecimal gstRate;
+    /** Diamonds a contact spends to take one unit free; null = not redeemable with diamonds. */
+    @Column(name = "reward_coins")
+    private Integer rewardCoins;
     @Column(nullable = false)
     private boolean active = true;
 }

@@ -24,12 +24,14 @@ public class StoreLedgerService {
     private final StoreLedgerRepository ledgerRepository;
     private final StoreFarmerRepository farmerRepository;
     private final StoreSaleRepository saleRepository;
+    private final StoreRewardService rewardService;
 
     public StoreLedgerService(StoreLedgerRepository ledgerRepository, StoreFarmerRepository farmerRepository,
-                              StoreSaleRepository saleRepository) {
+                              StoreSaleRepository saleRepository, StoreRewardService rewardService) {
         this.ledgerRepository = ledgerRepository;
         this.farmerRepository = farmerRepository;
         this.saleRepository = saleRepository;
+        this.rewardService = rewardService;
     }
 
     public BigDecimal balance(Long farmerId) {
@@ -40,7 +42,8 @@ public class StoreLedgerService {
         StoreFarmer farmer = farmer(farmerId);
         StoreSale last = saleRepository.findFirstByFarmerIdOrderBySaleDateDescIdDesc(farmerId);
         return new FarmerAccount(farmer, balance(farmerId), last != null ? last.getSaleDate() : null,
-                ledgerRepository.findTop50ByFarmerIdOrderByEntryDateDescIdDesc(farmerId));
+                ledgerRepository.findTop50ByFarmerIdOrderByEntryDateDescIdDesc(farmerId),
+                rewardService.balance(farmerId), rewardService.recent(farmerId));
     }
 
     /** Every farmer with their balance and last visit; those owing the most first. */
@@ -49,8 +52,10 @@ public class StoreLedgerService {
         for (Object[] r : ledgerRepository.balances()) balances.put((Long) r[0], (BigDecimal) r[1]);
         Map<Long, LocalDate> visits = new HashMap<>();
         for (Object[] r : saleRepository.lastVisits()) visits.put((Long) r[0], (LocalDate) r[1]);
+        Map<Long, Integer> coins = rewardService.balances();
         return farmerRepository.findAllByOrderByNameAsc().stream()
-                .map(f -> new FarmerSummary(f, balances.getOrDefault(f.getId(), BigDecimal.ZERO), visits.get(f.getId())))
+                .map(f -> new FarmerSummary(f, balances.getOrDefault(f.getId(), BigDecimal.ZERO), visits.get(f.getId()),
+                        coins.getOrDefault(f.getId(), 0)))
                 .sorted(Comparator.comparing(FarmerSummary::balance).reversed())
                 .toList();
     }
@@ -83,6 +88,9 @@ public class StoreLedgerService {
         e.setPaymentMode(req.paymentMode() == StorePaymentMode.UPI ? StorePaymentMode.UPI : StorePaymentMode.CASH);
         e.setNotes(req.notes());
         ledgerRepository.save(e);
+        // Clearing dues earns diamonds the same as paying at the counter.
+        rewardService.record(farmer, date, StoreRewardType.EARN, rewardService.coinsFor(req.amount()), null,
+                "Payment of ₹" + req.amount().setScale(0, java.math.RoundingMode.HALF_UP));
         return account(farmerId);
     }
 

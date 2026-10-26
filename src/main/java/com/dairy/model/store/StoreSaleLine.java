@@ -31,4 +31,7 @@ public class StoreSaleLine {
     private BigDecimal unitCost;
     @Column(name = "line_total", nullable = false, precision = 12, scale = 2)
     private BigDecimal lineTotal;
+    /** Paid for with diamonds instead of money; lineTotal is then taken off the bill as rewardValue. */
+    @Column(name = "redeemed", nullable = false, columnDefinition = "bit(1) not null default 0")
+    private boolean redeemed;
 }

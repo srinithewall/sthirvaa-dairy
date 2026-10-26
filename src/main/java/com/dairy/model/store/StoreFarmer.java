@@ -16,7 +16,8 @@ public class StoreFarmer extends StoreAuditable {
     private Long id;
     @Column(nullable = false)
     private String name;
-    @Column(nullable = false, unique = true, length = 15)
+    /** Optional: some customers don't give a number. Unique when present. */
+    @Column(unique = true, length = 15)
     private String phone;
     private String village;
     @Column(name = "cows_count")

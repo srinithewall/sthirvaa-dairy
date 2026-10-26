@@ -5,6 +5,7 @@ import com.dairy.model.store.StoreItem;
 import com.dairy.model.store.StoreLedgerEntry;
 import com.dairy.model.store.StoreMoveType;
 import com.dairy.model.store.StorePaymentMode;
+import com.dairy.model.store.StoreRewardEntry;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -25,7 +26,8 @@ public final class StoreDtos {
     public record PurchaseRequest(Long supplierId, String billNo, LocalDate purchaseDate,
                                   BigDecimal paid, String notes, List<PurchaseLineRequest> lines) {}
 
-    public record SaleLineRequest(Long itemId, BigDecimal qty, BigDecimal unitPrice) {}
+    /** redeem: pay for this line with the contact's diamonds (item must have rewardCoins). */
+    public record SaleLineRequest(Long itemId, BigDecimal qty, BigDecimal unitPrice, Boolean redeem) {}
 
     public record SaleRequest(LocalDate saleDate, Long farmerId, String customerName, String customerPhone,
                               BigDecimal discount, StorePaymentMode paymentMode, BigDecimal paidAmount,
@@ -43,12 +45,13 @@ public final class StoreDtos {
 
     public record PaymentRequest(BigDecimal amount, StorePaymentMode paymentMode, LocalDate date, String notes) {}
 
-    /** balance > 0: farmer owes the shop. */
+    /** balance > 0: farmer owes the shop. rewardCoins: Sthirvaa Diamonds available to spend. */
     public record FarmerAccount(StoreFarmer farmer, BigDecimal balance, LocalDate lastVisit,
-                                List<StoreLedgerEntry> entries) {}
+                                List<StoreLedgerEntry> entries, int rewardCoins,
+                                List<StoreRewardEntry> rewardEntries) {}
 
     /** One row of the farmer accounts list. */
-    public record FarmerSummary(StoreFarmer farmer, BigDecimal balance, LocalDate lastVisit) {}
+    public record FarmerSummary(StoreFarmer farmer, BigDecimal balance, LocalDate lastVisit, int rewardCoins) {}
 
     public record Dashboard(LocalDate date, int billCount, BigDecimal salesTotal, BigDecimal grossMargin,
                             Map<StorePaymentMode, BigDecimal> byPaymentMode, BigDecimal monthSales,

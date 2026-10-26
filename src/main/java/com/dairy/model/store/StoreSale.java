@@ -46,6 +46,15 @@ public class StoreSale extends StoreAuditable {
     @Column(name = "paid_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal paidAmount = BigDecimal.ZERO;
     private String notes;
+    /** Diamonds earned on the amount paid at billing (contacts only). */
+    @Column(name = "coins_earned")
+    private Integer coinsEarned;
+    /** Diamonds spent on redeemed lines. */
+    @Column(name = "coins_redeemed")
+    private Integer coinsRedeemed;
+    /** Rupee value of the redeemed lines, taken off the bill like a discount. */
+    @Column(name = "reward_value", precision = 12, scale = 2)
+    private BigDecimal rewardValue;
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<StoreSaleLine> lines = new ArrayList<>();
 }

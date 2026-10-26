@@ -211,7 +211,7 @@ export default function StorePurchasesPage() {
     <AppLayout>
       <StoreTabs action={
         <button onClick={() => { reset(); setOpen(true); }} className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap">
-          <Plus size={16} /> Add supplier bill
+          <Plus size={16} /> <span className="hidden sm:inline">Add supplier bill</span><span className="sm:hidden">Add bill</span>
         </button>
       } />
 

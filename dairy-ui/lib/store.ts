@@ -32,18 +32,36 @@ export interface StoreItem {
   hidePrice?: boolean;
   reorderLevel?: number;
   shelfLifeDays?: number;
+  /** Diamonds needed to take one unit free; unset = not a reward item. */
+  rewardCoins?: number;
   active: boolean;
 }
 
 export interface StoreSupplier { id: number; name: string; phone?: string; gstin?: string; address?: string; active: boolean; }
 
-export interface StoreFarmer { id: number; name: string; phone: string; village?: string; cowsCount?: number; creditLimit?: number; active: boolean; }
+/** phone is optional: some customers don't give one. */
+export interface StoreFarmer { id: number; name: string; phone?: string; village?: string; cowsCount?: number; creditLimit?: number; active: boolean; }
+
+/** Village pre-filled for new contacts; staff can clear it and type another. */
+export const DEFAULT_VILLAGE = 'Halasahalli';
+
+export const PHONE_MESSAGE = 'Please enter a valid 10-digit mobile number, or leave it blank';
+
+/** PHONE_MESSAGE when a typed phone isn't a 10-digit mobile number (an optional +91/0 prefix is fine); blank is allowed. */
+export function phoneError(phone?: string): string | null {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  if (!digits) return null;
+  const local = digits.length === 12 && digits.startsWith('91') ? digits.slice(2)
+    : digits.length === 11 && digits.startsWith('0') ? digits.slice(1) : digits;
+  return local.length === 10 ? null : PHONE_MESSAGE;
+}
 
 export interface StockRow { item: StoreItem; qtyOnHand: number; stockValue: number; earliestExpiry?: string; lowStock: boolean; }
 
 export interface ExpiringBatch { batchId: number; itemId: number; itemName: string; batchNo?: string; qtyRemaining: number; expiryDate: string; daysLeft: number; }
 
-export interface StoreSaleLine { id: number; item: StoreItem; qty: number; unitPrice: number; unitCost: number; lineTotal: number; }
+/** redeemed: taken with diamonds; its lineTotal is part of the bill's rewardValue, not paid in money. */
+export interface StoreSaleLine { id: number; item: StoreItem; qty: number; unitPrice: number; unitCost: number; lineTotal: number; redeemed?: boolean; }
 
 export interface StoreSale {
   id: number;
@@ -59,9 +77,32 @@ export interface StoreSale {
   paymentMode: StorePaymentMode;
   /** Amount paid at billing; total − paidAmount went on the farmer's credit account. */
   paidAmount: number;
+  /** Diamonds earned on the money paid at billing. */
+  coinsEarned?: number;
+  /** Diamonds spent on redeemed lines, and their rupee value taken off the bill. */
+  coinsRedeemed?: number;
+  rewardValue?: number;
   lines: StoreSaleLine[];
   createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
+
+/** One change to a bill. snapshot: the bill as it was before an edit or delete (JSON of StoreSale). */
+export interface StoreSaleAudit {
+  id: number;
+  saleId: number;
+  billNo: string;
+  action: 'CREATED' | 'EDITED' | 'DELETED';
+  totalBefore?: number;
+  totalAfter?: number;
+  changes?: string;
+  snapshot?: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface StoreRewardEntry { id: number; entryDate: string; type: 'EARN' | 'REDEEM' | 'ADJUST'; coins: number; saleId?: number; notes?: string; }
 
 export interface StoreLedgerEntry {
   id: number;
@@ -74,7 +115,11 @@ export interface StoreLedgerEntry {
   notes?: string;
 }
 
-export interface FarmerAccount { farmer: StoreFarmer; balance: number; lastVisit?: string; entries: StoreLedgerEntry[]; }
+/** rewardCoins: Sthirvaa Diamonds the contact can spend. */
+export interface FarmerAccount {
+  farmer: StoreFarmer; balance: number; lastVisit?: string; entries: StoreLedgerEntry[];
+  rewardCoins: number; rewardEntries: StoreRewardEntry[];
+}
 
 /** "today", "yesterday", "5 days ago" for an ISO date. */
 export function daysAgo(iso?: string): string {
@@ -166,12 +211,36 @@ export const apiError = (err: any, fallback: string) => err?.response?.data?.mes
 export const paymentLabel = (m: StorePaymentMode) =>
   ({ CASH: 'Cash', UPI: 'UPI', CREDIT: 'Pay later', MIXED: 'Part paid' })[m];
 
-/** balance: farmer's total outstanding after this bill, when known. */
-export function billText(sale: StoreSale, balance?: number): string {
+// ---- Sthirvaa Diamonds (reward points) ----
+export const REWARD_NAME = 'Sthirvaa Diamonds';
+/** Diamonds earned per ₹1,000 paid; the owner can change it (settings key store_reward_coins_per_1000). */
+let rewardRate = 10;
+export const rewardCoinsPer1000 = () => rewardRate;
+
+/** How diamonds work, for the customer: printed on bills and sent on WhatsApp. */
+export const rewardsHowTo = () =>
+  `Earn ${rewardRate} diamonds for every ₹1,000 you pay, at the counter or when you clear your dues. `
+  + 'Use them to take selected items free on your next visit: just tell our staff at billing. '
+  + 'Diamonds have no cash value.';
+
+/** Rewards lines for a contact's bill. coins: their diamond balance after this bill, when known. */
+function rewardLines(sale: StoreSale, coins?: number): string[] {
+  if (!sale.farmer) return [];
+  const earned = sale.coinsEarned ?? 0;
+  const used = sale.coinsRedeemed ?? 0;
+  return [
+    [earned > 0 && `Earned on this bill: ${earned}`, used > 0 && `Used: ${used}`].filter(Boolean).join(' · '),
+    coins != null ? `Your balance: ${coins} diamonds` : '',
+  ].filter(Boolean);
+}
+
+/** balance: farmer's total outstanding after this bill, when known. coins: their diamond balance after it. */
+export function billText(sale: StoreSale, balance?: number, coins?: number): string {
   const lines = sale.lines.map(
-    (l) => `${l.item.name} × ${qty(l.qty)} @ ${rupees(l.unitPrice)} = ${rupees(l.lineTotal)}`
+    (l) => `${l.item.name} × ${qty(l.qty)} @ ${rupees(l.unitPrice)} = ${rupees(l.lineTotal)}${l.redeemed ? ' (💎 diamonds)' : ''}`
   );
   const due = sale.total - (sale.paidAmount ?? sale.total);
+  const rewards = rewardLines(sale, coins);
   return [
     `*${STORE_NAME}*`,
     `Bill: ${sale.billNo}   Date: ${sale.saleDate}`,
@@ -179,10 +248,13 @@ export function billText(sale: StoreSale, balance?: number): string {
     '',
     ...lines,
     '',
-    sale.discount > 0 ? `Subtotal: ${rupees(sale.subtotal)}\nDiscount: -${rupees(sale.discount)}` : null,
+    sale.discount > 0 || sale.rewardValue ? `Subtotal: ${rupees(sale.subtotal)}` : null,
+    sale.discount > 0 ? `Discount: -${rupees(sale.discount)}` : null,
+    sale.rewardValue ? `Paid with diamonds: -${rupees(sale.rewardValue)}` : null,
     `*Total: ${rupees(sale.total)}*  (${paymentLabel(sale.paymentMode)})`,
     due > 0 ? `Paid: ${rupees(sale.paidAmount)}   Due: ${rupees(due)}` : null,
     balance != null && balance > 0 ? `Total outstanding: ${rupees(balance)}` : null,
+    ...(sale.farmer ? ['', `💎 *${REWARD_NAME}*`, ...rewards, `_${rewardsHowTo()}_`] : []),
     '',
     'Thank you! / ಧನ್ಯವಾದಗಳು',
   ]
@@ -191,52 +263,89 @@ export function billText(sale: StoreSale, balance?: number): string {
 }
 
 /** WhatsApp link for the bill. Opens a chat with the customer if their number is known. */
-export function whatsappBillUrl(sale: StoreSale, balance?: number): string {
-  const text = encodeURIComponent(billText(sale, balance));
+export function whatsappBillUrl(sale: StoreSale, balance?: number, coins?: number): string {
+  const text = encodeURIComponent(billText(sale, balance, coins));
   return sale.customerPhone ? `https://wa.me/91${sale.customerPhone}?text=${text}` : `https://wa.me/?text=${text}`;
 }
 
 // ---- Shop details printed on bills, stored in the app's /settings table. ----
-export interface ShopDetails { address: string; phone: string; gstin: string; }
-const SHOP_KEYS: Record<keyof ShopDetails, string> = { address: 'store_address', phone: 'store_phone', gstin: 'store_gstin' };
-let shopDetails: ShopDetails = { address: '', phone: '', gstin: '' };
+/** rewardRate: diamonds per ₹1,000 paid (same settings key the backend reads). */
+export interface ShopDetails { address: string; phone: string; gstin: string; rewardRate: string; }
+const SHOP_KEYS: Record<keyof ShopDetails, string> = {
+  address: 'store_address', phone: 'store_phone', gstin: 'store_gstin', rewardRate: 'store_reward_coins_per_1000',
+};
+let shopDetails: ShopDetails = { address: '', phone: '', gstin: '', rewardRate: '' };
 
 /** Loads shop details once per page; printBill() uses the loaded copy (it must run synchronously on click). */
 export async function loadShopDetails(): Promise<ShopDetails> {
   const entries = await Promise.all((Object.keys(SHOP_KEYS) as (keyof ShopDetails)[]).map((k) =>
     api.get(`/settings/${SHOP_KEYS[k]}`).then((r) => [k, r.data?.settingValue ?? ''] as const).catch(() => [k, ''] as const)));
   shopDetails = Object.fromEntries(entries) as unknown as ShopDetails;
+  // The backend applies the default when the setting is blank or invalid.
+  await api.get('/store/rewards/config').then((r) => { rewardRate = r.data?.coinsPer1000 ?? rewardRate; }).catch(() => {});
+  shopDetails.rewardRate = String(rewardRate);
   return shopDetails;
 }
 
 export async function saveShopDetails(d: ShopDetails) {
+  const rate = d.rewardRate.trim() === '' ? 10 : Number(d.rewardRate);
+  if (!Number.isInteger(rate) || rate < 0) throw new Error('Diamonds per ₹1,000 must be a whole number, 0 or more');
+  const clean: ShopDetails = { address: d.address.trim(), phone: d.phone.trim(), gstin: d.gstin.trim().toUpperCase(), rewardRate: String(rate) };
   await Promise.all((Object.keys(SHOP_KEYS) as (keyof ShopDetails)[]).map((k) =>
-    api.post('/settings', { settingKey: SHOP_KEYS[k], settingValue: d[k].trim(), description: `Feed store ${k} printed on bills` })));
-  shopDetails = { address: d.address.trim(), phone: d.phone.trim(), gstin: d.gstin.trim().toUpperCase() };
+    api.post('/settings', { settingKey: SHOP_KEYS[k], settingValue: clean[k], description: `Feed store ${k} (bills)` })));
+  shopDetails = clean;
+  rewardRate = rate;
 }
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
+const PRINT_ID = 'store-bill-print';
+
 /**
- * Opens a print-ready bill in a new window. size 'thermal' fits 80 mm roll printers,
- * 'a5' a half-sheet. balance: farmer's outstanding after this bill, if known.
+ * Shows the bill full-screen on the page, with Back and Print buttons, and opens the print dialog.
+ * size 'thermal' fits 80 mm roll printers, 'a5' a half-sheet. balance: farmer's outstanding after
+ * this bill, coins: their diamond balance after it, if known.
+ *
+ * It used to open a new window, but in the Android app (and some phone browsers) that window
+ * replaced the app with no way back. The page's back button / Android back also close it.
  */
-export function printBill(sale: StoreSale, size: 'thermal' | 'a5' = 'thermal', balance?: number) {
+export function printBill(sale: StoreSale, size: 'thermal' | 'a5' = 'thermal', balance?: number, coins?: number) {
+  if (typeof document === 'undefined') return false;
+  document.getElementById(PRINT_ID)?.remove();
   const due = sale.total - (sale.paidAmount ?? sale.total);
-  const page = size === 'thermal' ? '@page { size: 80mm auto; margin: 3mm; } body { width: 74mm; font-size: 12px; }'
-    : '@page { size: A5; margin: 10mm; } body { font-size: 13px; }';
+  const thermal = size === 'thermal';
   const row = (label: string, value: string, bold = false) =>
     `<tr${bold ? ' class="b"' : ''}><td>${esc(label)}</td><td class="r">${esc(value)}</td></tr>`;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(sale.billNo)}</title><style>
-    ${page}
-    body { font-family: Arial, sans-serif; margin: 0 auto; color: #000; }
-    h1 { font-size: 1.4em; text-align: center; margin: 0; } .c { text-align: center; } .r { text-align: right; }
-    .b td { font-weight: bold; } table { width: 100%; border-collapse: collapse; }
-    .items th, .items td { padding: 3px 0; } .items th { border-bottom: 1px dashed #000; text-align: left; font-size: .9em; }
-    hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; } .muted { color: #444; font-size: .9em; } p { margin: 2px 0; }
-    .total td { font-size: 1.25em; font-weight: bold; padding-top: 4px; }
-  </style></head><body>
+  const rewards = rewardLines(sale, coins);
+  const host = document.createElement('div');
+  host.id = PRINT_ID;
+  host.innerHTML = `<style>
+    #${PRINT_ID} { position: fixed; inset: 0; z-index: 5000; background: #E9EEEB; overflow: auto; -webkit-overflow-scrolling: touch; }
+    #${PRINT_ID} .bar { position: sticky; top: 0; display: flex; gap: 8px; justify-content: space-between; align-items: center;
+      padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); background: #fff; border-bottom: 1px solid #DDE3DF; font-family: Arial, sans-serif; }
+    #${PRINT_ID} .bar button { font: bold 15px Arial, sans-serif; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+    #${PRINT_ID} .back { background: #fff; color: #1F2A24; border: 1px solid #C9D2CC; }
+    #${PRINT_ID} .print { background: #1B7A4A; color: #fff; border: 1px solid #1B7A4A; }
+    #${PRINT_ID} .paper { box-sizing: border-box; background: #fff; color: #000; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.35;
+      width: 100%; max-width: ${thermal ? '380px' : '560px'}; margin: 16px auto 32px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+    #${PRINT_ID} h1 { font-size: 1.4em; text-align: center; margin: 0; } #${PRINT_ID} .c { text-align: center; } #${PRINT_ID} .r { text-align: right; }
+    #${PRINT_ID} .b td { font-weight: bold; } #${PRINT_ID} table { width: 100%; border-collapse: collapse; }
+    #${PRINT_ID} .items th, #${PRINT_ID} .items td { padding: 3px 0; vertical-align: top; }
+    #${PRINT_ID} .items th { border-bottom: 1px dashed #000; text-align: left; font-size: .9em; }
+    #${PRINT_ID} .items td.r, #${PRINT_ID} .items th.r { padding-left: 6px; white-space: nowrap; }
+    #${PRINT_ID} hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; } #${PRINT_ID} .muted { color: #444; font-size: .9em; } #${PRINT_ID} p { margin: 2px 0; }
+    #${PRINT_ID} .total td { font-size: 1.25em; font-weight: bold; padding-top: 4px; }
+    @media print {
+      @page { ${thermal ? 'size: 80mm auto; margin: 3mm;' : 'size: A5; margin: 10mm;'} }
+      body > *:not(#${PRINT_ID}) { display: none !important; }
+      #${PRINT_ID} { position: static; background: none; overflow: visible; }
+      #${PRINT_ID} .bar { display: none; }
+      #${PRINT_ID} .paper { box-shadow: none; margin: 0; padding: 0; max-width: none; width: ${thermal ? '74mm' : 'auto'}; font-size: ${thermal ? '12px' : '13px'}; }
+    }
+  </style>
+  <div class="bar"><button type="button" class="back">← Back</button><button type="button" class="print">Print</button></div>
+  <div class="paper">
     <h1>${esc(STORE_NAME)}</h1>
     <p class="c muted">Cattle feed &amp; supplements</p>
     ${shopDetails.address ? `<p class="c muted">${esc(shopDetails.address)}</p>` : ''}
@@ -248,25 +357,43 @@ export function printBill(sale: StoreSale, size: 'thermal' | 'a5' = 'thermal', b
       ${row('Customer', sale.customerName || 'Walk-in')}${sale.customerPhone ? row('Phone', sale.customerPhone) : ''}</table>
     <hr>
     <table class="items"><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>
-      ${sale.lines.map((l) => `<tr><td>${esc(l.item.name)}</td><td class="r">${esc(qty(l.qty))}</td>
-        <td class="r">${esc(rupees(l.unitPrice))}</td><td class="r">${esc(rupees(l.lineTotal))}</td></tr>`).join('')}
+      ${sale.lines.map((l) => `<tr><td>${esc(l.item.name)}${l.redeemed ? ' <span class="muted">(💎 diamonds)</span>' : ''}</td>
+        <td class="r">${esc(qty(l.qty))}</td><td class="r">${esc(rupees(l.unitPrice))}</td><td class="r">${esc(rupees(l.lineTotal))}</td></tr>`).join('')}
     </table>
     <hr>
     <table>
-      ${sale.discount > 0 ? row('Subtotal', rupees(sale.subtotal)) + row('Discount', '-' + rupees(sale.discount)) : ''}
+      ${sale.discount > 0 || sale.rewardValue ? row('Subtotal', rupees(sale.subtotal)) : ''}
+      ${sale.discount > 0 ? row('Discount', '-' + rupees(sale.discount)) : ''}
+      ${sale.rewardValue ? row('Paid with diamonds', '-' + rupees(sale.rewardValue)) : ''}
       <tr class="total"><td>Total</td><td class="r">${esc(rupees(sale.total))}</td></tr>
       ${row('Payment', paymentLabel(sale.paymentMode))}
       ${due > 0 ? row('Paid now', rupees(sale.paidAmount)) + row('Due on this bill', rupees(due), true) : ''}
       ${balance != null && balance > 0 ? row('Total outstanding', rupees(balance), true) : ''}
     </table>
+    ${sale.farmer ? `<hr><p class="c"><b>💎 ${esc(REWARD_NAME)}</b></p>
+      ${rewards.map((r) => `<p class="c">${esc(r)}</p>`).join('')}
+      <p class="c muted">${esc(rewardsHowTo())}</p>` : ''}
     <hr>
     <p class="c">Thank you! / ಧನ್ಯವಾದಗಳು</p>
-    <script>window.onload = () => { window.print(); };</script>
-  </body></html>`;
-  const w = window.open('', '_blank', 'width=420,height=640');
-  if (!w) return false; // popup blocked
-  w.document.write(html);
-  w.document.close();
+  </div>`;
+  document.body.appendChild(host);
+
+  // A history entry so the phone's back button closes the bill instead of leaving the page.
+  const close = () => {
+    window.removeEventListener('popstate', close);
+    window.removeEventListener('afterprint', afterPrint);
+    host.remove();
+  };
+  // On a computer, close once the print dialog is done; on phones leave the bill up to look at.
+  const afterPrint = () => {
+    if (window.matchMedia('(pointer: fine)').matches) history.back();
+  };
+  history.pushState({ ...(history.state ?? {}), storeBill: true }, '');
+  window.addEventListener('popstate', close);
+  window.addEventListener('afterprint', afterPrint);
+  host.querySelector<HTMLButtonElement>('.back')!.onclick = () => history.back();
+  host.querySelector<HTMLButtonElement>('.print')!.onclick = () => window.print();
+  setTimeout(() => window.print(), 300);
   return true;
 }
 

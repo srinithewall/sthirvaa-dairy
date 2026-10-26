@@ -217,10 +217,11 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold text-text tracking-tight">Inventory Management</h1>
           <p className="text-[13px] text-text3 mt-1">Real-time stock and asset tracking</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        {/* Phones: search gets its own full-width row, category and Add share the next. */}
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
           {activeTab === 'assets' && (
             <select
-              className="bg-white border border-border-custom rounded-lg text-sm px-3 py-2 focus:outline-none focus:border-brand"
+              className="flex-1 sm:flex-none min-w-0 bg-white border border-border-custom rounded-lg text-sm px-3 py-2 focus:outline-none focus:border-brand"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
             >
@@ -236,7 +237,7 @@ export default function InventoryPage() {
               <option value="Other">Other</option>
             </select>
           )}
-          <div className="relative flex-1 sm:flex-initial">
+          <div className="relative basis-full sm:basis-auto order-first sm:order-none sm:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text3" size={16} />
             <input
               type="text"
@@ -256,7 +257,7 @@ export default function InventoryPage() {
                 setIsAssetModalOpen(true);
               }
             }}
-            className="bg-brand text-white flex items-center gap-2 py-2 px-4 rounded-lg font-medium text-[13px] hover:bg-brand-dark transition-all shadow-sm active:scale-95 whitespace-nowrap"
+            className="ml-auto sm:ml-0 bg-brand text-white flex items-center gap-2 py-2 px-4 rounded-lg font-medium text-[13px] hover:bg-brand-dark transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
             <Plus size={16} />
             <span>Add {activeTab === 'inventory' ? 'Item' : 'Asset'}</span>
@@ -286,28 +287,29 @@ export default function InventoryPage() {
       </div>
 
       {activeTab === 'assets' && (
-        <div className="bg-[#E8F5EE] border border-brand/20 p-4 rounded-xl mb-5 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-brand/10 text-brand rounded-lg">
+        // Phones: the two totals sit side by side and the count drops to its own row, so nothing runs off-screen.
+        <div className="bg-[#E8F5EE] border border-brand/20 p-4 rounded-xl mb-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="hidden sm:block p-2 bg-brand/10 text-brand rounded-lg">
               <Construction size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Purchase Cost</span>
-              <span className="text-xl font-black text-brand-dark">
+              <span className="text-lg sm:text-xl font-black text-brand-dark">
                 ₹{filteredAssets.reduce((sum, a) => sum + (a.value || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
             </div>
-            <div className="pl-4 ml-1 border-l border-brand/20">
+            <div className="min-w-0 pl-3 sm:pl-4 sm:ml-1 border-l border-brand/20">
               <span className="text-[10px] font-bold text-brand-dark/70 uppercase tracking-widest block">Total Market Value</span>
-              <span className="text-xl font-black text-brand-dark">
+              <span className="text-lg sm:text-xl font-black text-brand-dark">
                 ₹{filteredAssets.reduce((sum, a) => sum + marketOf(a), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
             </div>
           </div>
-          <div className="text-right">
-            <span className="text-[10px] font-bold text-text3 uppercase tracking-widest block">Assets Registered</span>
-            <span className="text-sm font-extrabold text-text mt-0.5 block">{filteredAssets.length} Items</span>
-            <button onClick={() => setShowBreedPrices(true)} className="mt-1 text-[11px] font-bold text-brand hover:underline">Breed prices</button>
+          <div className="w-full sm:w-auto flex sm:block items-center justify-between gap-2 pt-2 sm:pt-0 border-t sm:border-0 border-brand/20 sm:text-right">
+            <span className="text-[10px] font-bold text-text3 uppercase tracking-widest sm:block">Assets Registered</span>
+            <span className="text-sm font-extrabold text-text sm:mt-0.5 sm:block">{filteredAssets.length} Items</span>
+            <button onClick={() => setShowBreedPrices(true)} className="sm:mt-1 text-[11px] font-bold text-brand hover:underline">Breed prices</button>
           </div>
         </div>
       )}

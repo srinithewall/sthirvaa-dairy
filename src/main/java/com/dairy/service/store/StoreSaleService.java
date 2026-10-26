@@ -7,7 +7,9 @@ import com.dairy.model.User;
 import com.dairy.repo.UserRepository;
 import com.dairy.repo.store.StoreFarmerRepository;
 import com.dairy.repo.store.StoreItemRepository;
+import com.dairy.repo.store.StoreSaleAuditRepository;
 import com.dairy.repo.store.StoreSaleRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,7 +20,11 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /** Customer billing. Each line is costed from the FIFO batches it consumes. */
 @Service
@@ -32,16 +38,24 @@ public class StoreSaleService {
     private final StoreStockService stockService;
     private final StoreLedgerService ledgerService;
     private final UserRepository userRepository;
+    private final StoreRewardService rewardService;
+    private final StoreSaleAuditRepository auditRepository;
+    private final ObjectMapper objectMapper;
 
     public StoreSaleService(StoreSaleRepository saleRepository, StoreItemRepository itemRepository,
                             StoreFarmerRepository farmerRepository, StoreStockService stockService,
-                            StoreLedgerService ledgerService, UserRepository userRepository) {
+                            StoreLedgerService ledgerService, UserRepository userRepository,
+                            StoreRewardService rewardService, StoreSaleAuditRepository auditRepository,
+                            ObjectMapper objectMapper) {
         this.saleRepository = saleRepository;
         this.itemRepository = itemRepository;
         this.farmerRepository = farmerRepository;
         this.stockService = stockService;
         this.ledgerService = ledgerService;
         this.userRepository = userRepository;
+        this.rewardService = rewardService;
+        this.auditRepository = auditRepository;
+        this.objectMapper = objectMapper;
     }
 
     public List<StoreSale> list(LocalDate from, LocalDate to) {
@@ -71,30 +85,51 @@ public class StoreSaleService {
         }
     }
 
-    /** Deletes a bill, putting its stock back and removing any credit it put on the contact's account. */
+    /** Deletes a bill, putting its stock back and removing any credit and diamonds it added. */
     @Transactional
     public void delete(Long id) {
         requireBillEditor();
         StoreSale sale = get(id);
+        audit(sale, "DELETED", sale.getTotal(), null, "Bill deleted", snapshot(sale));
         stockService.restoreSale(sale.getId(), "Bill " + sale.getBillNo() + " deleted");
         ledgerService.removeCredit(sale.getId());
+        rewardService.removeForSale(sale.getId());
         saleRepository.delete(sale);
     }
 
-    /** Replaces a bill's contents in place: same bill number, stock and credit redone from the new lines. */
+    /** Replaces a bill's contents in place: same bill number, stock, credit and diamonds redone from the new lines. */
     @Transactional
     public StoreSale update(Long id, SaleRequest req) {
         requireBillEditor();
         StoreSale sale = get(id);
+        String before = snapshot(sale);
+        BillView was = BillView.of(sale);
         stockService.restoreSale(sale.getId(), "Bill " + sale.getBillNo() + " edited");
         ledgerService.removeCredit(sale.getId());
+        rewardService.removeForSale(sale.getId());
         sale.getLines().clear();
-        return populate(sale, req);
+        StoreSale saved = populate(sale, req);
+        BillView now = BillView.of(saved);
+        audit(saved, "EDITED", was.total(), now.total(), changes(was, now), before);
+        return saved;
     }
 
     @Transactional
     public StoreSale create(SaleRequest req) {
-        return populate(new StoreSale(), req);
+        StoreSale saved = populate(new StoreSale(), req);
+        audit(saved, "CREATED", null, saved.getTotal(), saved.getLines().size() + " item(s)", null);
+        return saved;
+    }
+
+    /** Change log of one bill, newest first. */
+    public List<StoreSaleAudit> history(Long saleId) {
+        return auditRepository.findBySaleIdOrderByIdDesc(saleId);
+    }
+
+    /** Bills deleted between the two dates (by when they were deleted), newest first. */
+    public List<StoreSaleAudit> deleted(LocalDate from, LocalDate to) {
+        return auditRepository.findByActionAndCreatedAtBetweenOrderByIdDesc("DELETED",
+                from.atStartOfDay(), to.plusDays(1).atStartOfDay());
     }
 
     /** Builds a new bill, or rebuilds an existing one, from the request, and consumes the stock. */
@@ -134,6 +169,8 @@ public class StoreSaleService {
 
         boolean admin = StoreSecurity.isAdmin();
         BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal rewardValue = BigDecimal.ZERO;
+        int coinsNeeded = 0;
         for (SaleLineRequest l : req.lines()) {
             StoreStockService.requirePositive(l.qty(), "Quantity");
             StoreItem item = itemRepository.findById(l.itemId())
@@ -154,17 +191,40 @@ public class StoreSaleService {
             line.setUnitPrice(price);
             line.setLineTotal(l.qty().multiply(price).setScale(2, RoundingMode.HALF_UP));
             line.setUnitCost(BigDecimal.ZERO); // filled in after stock is consumed
+            if (Boolean.TRUE.equals(l.redeem())) {
+                // Paid with diamonds: the line stays on the bill at its price and that amount comes off the total.
+                if (sale.getFarmer() == null) throw new IllegalArgumentException("Pick a contact to pay with diamonds");
+                Integer perUnit = item.getRewardCoins();
+                if (perUnit == null || perUnit <= 0) {
+                    throw new IllegalArgumentException(item.getName() + " can't be taken with diamonds");
+                }
+                if (l.qty().stripTrailingZeros().scale() > 0) {
+                    throw new IllegalArgumentException("Diamonds can only be used for whole units of " + item.getName());
+                }
+                line.setRedeemed(true);
+                coinsNeeded += l.qty().intValue() * perUnit;
+                rewardValue = rewardValue.add(line.getLineTotal());
+            }
             sale.getLines().add(line);
             subtotal = subtotal.add(line.getLineTotal());
         }
 
         BigDecimal discount = req.discount() != null ? req.discount() : BigDecimal.ZERO;
-        if (discount.signum() < 0 || discount.compareTo(subtotal) > 0) {
+        if (discount.signum() < 0 || discount.compareTo(subtotal.subtract(rewardValue)) > 0) {
             throw new IllegalArgumentException("Discount must be between 0 and the bill subtotal");
+        }
+        if (coinsNeeded > 0) {
+            int available = rewardService.balance(sale.getFarmer().getId());
+            if (coinsNeeded > available) {
+                throw new IllegalArgumentException(sale.getFarmer().getName() + " has " + available
+                        + " diamonds; the items marked for diamonds need " + coinsNeeded);
+            }
         }
         sale.setSubtotal(subtotal);
         sale.setDiscount(discount);
-        sale.setTotal(subtotal.subtract(discount));
+        sale.setRewardValue(rewardValue);
+        sale.setCoinsRedeemed(coinsNeeded);
+        sale.setTotal(subtotal.subtract(discount).subtract(rewardValue));
         BigDecimal paid = switch (mode) {
             case CREDIT -> BigDecimal.ZERO;
             case MIXED -> req.paidAmount() != null ? req.paidAmount() : BigDecimal.ZERO;
@@ -174,6 +234,8 @@ public class StoreSaleService {
             throw new IllegalArgumentException("For part payment, the amount paid now must be more than 0 and less than the total");
         }
         sale.setPaidAmount(paid);
+        // Diamonds are earned on money paid now; the credit part earns when it is paid off.
+        sale.setCoinsEarned(sale.getFarmer() != null ? rewardService.coinsFor(paid) : 0);
         BigDecimal due = sale.getTotal().subtract(paid);
         if (onCredit && !admin) {
             StoreFarmer farmer = sale.getFarmer();
@@ -197,7 +259,80 @@ public class StoreSaleService {
         sale.setCostTotal(costTotal.setScale(2, RoundingMode.HALF_UP));
         if (sale.getBillNo() == null) sale.setBillNo(BILL_PREFIX + String.format("%06d", sale.getId()));
         if (due.signum() > 0) ledgerService.recordCredit(sale, due);
+        String note = "Bill " + sale.getBillNo();
+        rewardService.record(sale.getFarmer(), sale.getSaleDate(), StoreRewardType.REDEEM, -coinsNeeded, sale.getId(), note);
+        rewardService.record(sale.getFarmer(), sale.getSaleDate(), StoreRewardType.EARN, sale.getCoinsEarned(), sale.getId(), note);
         return saleRepository.save(sale);
+    }
+
+    // ---- Audit log ----
+
+    private void audit(StoreSale sale, String action, BigDecimal before, BigDecimal after, String changes, String snapshot) {
+        StoreSaleAudit a = new StoreSaleAudit();
+        a.setSaleId(sale.getId());
+        a.setBillNo(sale.getBillNo());
+        a.setAction(action);
+        a.setTotalBefore(before);
+        a.setTotalAfter(after);
+        a.setChanges(changes.length() > 2000 ? changes.substring(0, 1997) + "..." : changes);
+        a.setSnapshot(snapshot);
+        String user = StoreSecurity.currentUser();
+        a.setCreatedBy(user);
+        a.setUpdatedBy(user);
+        auditRepository.save(a);
+    }
+
+    private String snapshot(StoreSale sale) {
+        try {
+            return objectMapper.writeValueAsString(sale);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** The parts of a bill a person would compare: who, how paid, and each item's qty and rate. */
+    private record BillView(String customer, StorePaymentMode mode, BigDecimal discount, BigDecimal total,
+                            BigDecimal paid, LocalDate date, Map<String, StoreSaleLine> lines) {
+        static BillView of(StoreSale s) {
+            Map<String, StoreSaleLine> lines = new LinkedHashMap<>();
+            for (StoreSaleLine l : s.getLines()) {
+                lines.put(l.getItem().getName() + (l.isRedeemed() ? " (diamonds)" : ""), l);
+            }
+            return new BillView(s.getCustomerName() != null ? s.getCustomerName() : "Walk-in", s.getPaymentMode(),
+                    s.getDiscount(), s.getTotal(), s.getPaidAmount(), s.getSaleDate(), lines);
+        }
+    }
+
+    private static String changes(BillView was, BillView now) {
+        List<String> out = new ArrayList<>();
+        if (!was.customer().equals(now.customer())) out.add("Customer " + was.customer() + " → " + now.customer());
+        if (!Objects.equals(was.date(), now.date())) out.add("Date " + was.date() + " → " + now.date());
+        was.lines().forEach((name, old) -> {
+            StoreSaleLine cur = now.lines().get(name);
+            if (cur == null) {
+                out.add("Removed " + name + " ×" + qty(old.getQty()));
+                return;
+            }
+            if (old.getQty().compareTo(cur.getQty()) != 0) out.add(name + " qty " + qty(old.getQty()) + " → " + qty(cur.getQty()));
+            if (old.getUnitPrice().compareTo(cur.getUnitPrice()) != 0) {
+                out.add(name + " rate " + rs(old.getUnitPrice()) + " → " + rs(cur.getUnitPrice()));
+            }
+        });
+        now.lines().forEach((name, cur) -> {
+            if (!was.lines().containsKey(name)) out.add("Added " + name + " ×" + qty(cur.getQty()));
+        });
+        if (was.discount().compareTo(now.discount()) != 0) out.add("Discount " + rs(was.discount()) + " → " + rs(now.discount()));
+        if (was.mode() != now.mode()) out.add("Payment " + was.mode() + " → " + now.mode());
+        else if (was.paid().compareTo(now.paid()) != 0) out.add("Paid " + rs(was.paid()) + " → " + rs(now.paid()));
+        return out.isEmpty() ? "Saved again with no changes" : String.join("; ", out);
+    }
+
+    private static String rs(BigDecimal v) {
+        return "₹" + v.setScale(0, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private static String qty(BigDecimal v) {
+        return v.stripTrailingZeros().toPlainString();
     }
 
     private static String blankToNull(String s) {

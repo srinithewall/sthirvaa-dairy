@@ -71,6 +71,12 @@ public class StoreMasterService {
         item.setSalePrice(in.getSalePrice());
         item.setMinSalePrice(minSalePrice);
         if (!keepCost) item.setHidePrice(in.isHidePrice());
+        // Which items can be taken with diamonds, and for how many, is the owner's call.
+        if (canSeeCost) {
+            Integer coins = in.getRewardCoins();
+            if (coins != null && coins < 0) throw new IllegalArgumentException("Diamonds needed cannot be negative");
+            item.setRewardCoins(coins != null && coins > 0 ? coins : null);
+        }
         item.setReorderLevel(in.getReorderLevel() != null ? in.getReorderLevel() : java.math.BigDecimal.ZERO);
         item.setShelfLifeDays(in.getShelfLifeDays());
         item.setFeedMasterId(in.getFeedMasterId());
@@ -110,17 +116,19 @@ public class StoreMasterService {
     @Transactional
     public StoreFarmer saveFarmer(Long id, StoreFarmer in) {
         if (in.getName() == null || in.getName().isBlank()) throw new IllegalArgumentException("Contact name is required");
+        // Phone is optional, but if one is typed it must be a full mobile number.
+        boolean phoneGiven = in.getPhone() != null && !in.getPhone().isBlank();
         String phone = normalisePhone(in.getPhone());
-        if (phone == null) throw new IllegalArgumentException("A valid 10-digit phone number is required");
-        boolean duplicate = id == null ? farmerRepository.findByPhone(phone).isPresent()
-                : farmerRepository.existsByPhoneAndIdNot(phone, id);
+        if (phoneGiven && phone == null) throw new IllegalArgumentException(PHONE_MESSAGE);
+        boolean duplicate = phone != null && (id == null ? farmerRepository.findByPhone(phone).isPresent()
+                : farmerRepository.existsByPhoneAndIdNot(phone, id));
         if (duplicate) throw new IllegalArgumentException("A contact with phone " + phone + " already exists");
 
         StoreFarmer f = id == null ? new StoreFarmer()
                 : farmerRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Contact not found"));
         f.setName(in.getName().trim());
         f.setPhone(phone);
-        f.setVillage(in.getVillage());
+        f.setVillage(in.getVillage() == null || in.getVillage().isBlank() ? null : in.getVillage().trim());
         f.setCowsCount(in.getCowsCount());
         // Credit limits are an owner decision; staff-created farmers start with none (0 = no limit set).
         if (StoreSecurity.isAdmin()) {
@@ -130,6 +138,8 @@ public class StoreMasterService {
         stamp(f, id == null);
         return farmerRepository.save(f);
     }
+
+    static final String PHONE_MESSAGE = "Please enter a valid 10-digit mobile number, or leave it blank";
 
     /** Keeps the last 10 digits, so "+91 98450 12345" and "9845012345" match. */
     static String normalisePhone(String raw) {

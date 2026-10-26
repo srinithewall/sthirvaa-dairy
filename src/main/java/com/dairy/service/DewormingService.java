@@ -103,8 +103,7 @@ public class DewormingService {
                 final LocalDate doneOn = date;
 
                 boolean duplicate = eventRepo.findByHerdIdOrderByEventDateDesc(entry.herdId()).stream()
-                        .anyMatch(e -> DewormingSchedule.DONE_EVENT.equalsIgnoreCase(e.getEventType())
-                                && doneOn.equals(e.getEventDate()));
+                        .anyMatch(e -> DewormingSchedule.isDone(e) && doneOn.equals(e.getEventDate()));
                 if (duplicate) continue;
 
                 String details = row.dose() > 0 ? "Dose " + row.dose() : "Routine dose";

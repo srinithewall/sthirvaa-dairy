@@ -17,8 +17,17 @@ import java.util.Set;
  */
 public final class DewormingSchedule {
 
-    /** Event type stored when staff confirm a deworming. */
+    /** Event type stored when staff confirm a deworming in the deworming round. */
     public static final String DONE_EVENT = "DEWORMED";
+
+    /** Event type the animal page's "Deworming → Record" button saves; it means the same thing. */
+    public static final String RECORDED_EVENT = "DEWORMING_DONE";
+
+    /** True for a deworming that was given, whichever screen recorded it. */
+    public static boolean isDone(HerdEvent event) {
+        return event.getEventType() != null && (DONE_EVENT.equalsIgnoreCase(event.getEventType())
+                || RECORDED_EVENT.equalsIgnoreCase(event.getEventType()));
+    }
 
     /** Age in days at which each calf dose is due: dose 1 at 10 days, dose 2 at 30 days, and so on. */
     public static final int[] CALF_DOSE_AGES = {10, 30, 60, 90, 180, 270, 365};
@@ -49,7 +58,7 @@ public final class DewormingSchedule {
     public static Next compute(Herd herd, List<HerdEvent> events, LocalDate today) {
         LocalDate last = null;
         for (HerdEvent event : events) {
-            if (DONE_EVENT.equalsIgnoreCase(event.getEventType()) && event.getEventDate() != null
+            if (isDone(event) && event.getEventDate() != null
                     && (last == null || event.getEventDate().isAfter(last))) {
                 last = event.getEventDate();
             }

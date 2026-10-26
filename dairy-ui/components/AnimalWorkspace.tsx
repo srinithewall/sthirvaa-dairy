@@ -10,6 +10,7 @@ import {
 import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 import WeightTracker from '@/components/WeightTracker';
+import { bullIdOf, notesOf, withBullId } from '@/lib/breeding';
 
 /* ─── Types ─────────────────────────────────────── */
 interface Herd {
@@ -27,6 +28,7 @@ interface Props {
   failedImages: Record<number, boolean>; onBack: () => void; onEdit: () => void;
   onDelete: () => void; onEventAdded: (e: HerdEvent) => void;
   onEventDeleted: (id: number) => void; onImageError: (id: number) => void;
+  onEventUpdated?: (e: HerdEvent) => void;
 }
 
 /* ─── Semen Catalog ──────────────────────────────
@@ -508,7 +510,7 @@ function ServiceBtn({ icon: Icon, label, sub, color, bg, onClick }: {
 }
 
 /* ─── Timeline Row ───────────────────────────── */
-function TimelineRow({ event, canDelete, onDelete }: { event: HerdEvent; canDelete: boolean; onDelete: () => void }) {
+function TimelineRow({ event, canDelete, onDelete, onEdit }: { event: HerdEvent; canDelete: boolean; onDelete: () => void; onEdit?: () => void }) {
   const cfg = EV[event.eventType] || DEF_EV;
   const Icon = cfg.icon;
   const [showMenu, setShowMenu] = React.useState(false);
@@ -549,7 +551,7 @@ function TimelineRow({ event, canDelete, onDelete }: { event: HerdEvent; canDele
         <div className="relative flex-shrink-0">
           <button
             onClick={() => setShowMenu(v => !v)}
-            className="p-1.5 rounded-lg text-text3 opacity-0 group-hover:opacity-100 hover:bg-slate-200 transition-all"
+            className="p-1.5 rounded-lg text-text3 md:opacity-0 md:group-hover:opacity-100 hover:bg-slate-200 transition-all"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
           </button>
@@ -557,6 +559,14 @@ function TimelineRow({ event, canDelete, onDelete }: { event: HerdEvent; canDele
             <>
               <div className="fixed inset-0 z-[50]" onClick={() => setShowMenu(false)}/>
               <div className="absolute right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-[60] overflow-hidden min-w-[130px]">
+                {onEdit && (
+                  <button
+                    onClick={() => { setShowMenu(false); onEdit(); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-[12px] font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <Edit2 size={12}/> Edit
+                  </button>
+                )}
                 <button
                   onClick={() => { setShowMenu(false); onDelete(); }}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-[12px] font-bold text-red-600 hover:bg-red-50 transition-colors"
@@ -568,6 +578,77 @@ function TimelineRow({ event, canDelete, onDelete }: { event: HerdEvent; canDele
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Edit Event Modal ───────────────────────── */
+function EditEventModal({ event, onClose, onSaved }: { event: HerdEvent; onClose: () => void; onSaved: (e: HerdEvent) => void }) {
+  const isAi = event.eventType === 'SEMEN_GIVEN';
+  const [date, setDate]     = useState(event.eventDate.slice(0, 10));
+  const [title, setTitle]   = useState(event.title);
+  const [bullId, setBullId] = useState(isAi ? bullIdOf(event.details) ?? '' : '');
+  const [notes, setNotes]   = useState(isAi ? notesOf(event.details) : event.details ?? '');
+  const [saving, setSaving] = useState(false);
+  const { showToast } = useNotification();
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await api.put(`/herds/events/${event.id}`, {
+        eventDate: date, title, details: isAi ? withBullId(bullId, notes) : notes,
+      });
+      showToast('Event updated!');
+      onSaved(res.data);
+    } catch {
+      showToast('Failed.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const input = 'w-full px-3 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-[12px] font-bold text-slate-800 focus:outline-none focus:border-brand';
+  const label = 'block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5';
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[3000] flex items-end sm:items-center justify-center">
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300 overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between" style={{background:'linear-gradient(135deg,#2d6a4f,#1b4332)'}}>
+          <div>
+            <h3 className="text-[15px] font-bold text-white uppercase">Edit Event</h3>
+            <p className="text-[10px] text-white/60 mt-0.5">{(EV[event.eventType] || DEF_EV).label}</p>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all"><XCircle size={20}/></button>
+        </div>
+        <form onSubmit={submit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label}>Date</label>
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)} required className={input}/>
+            </div>
+            <div>
+              <label className={label}>Title</label>
+              <input type="text" value={title} onChange={e=>setTitle(e.target.value)} required className={input}/>
+            </div>
+          </div>
+          {isAi && (
+            <div>
+              <label className={label}>Bull ID</label>
+              <input type="text" value={bullId} onChange={e=>setBullId(e.target.value)} placeholder="e.g. HF-2204"
+                className={`${input} placeholder:text-slate-300`}/>
+            </div>
+          )}
+          <textarea rows={2} value={notes} onChange={e=>setNotes(e.target.value)}
+            placeholder="Notes (vet name, dose, semen batch, technician...)"
+            className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-[12px] text-slate-800 focus:outline-none focus:border-brand resize-none placeholder:text-slate-300"/>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold text-[12px] uppercase">Cancel</button>
+            <button type="submit" disabled={saving} className="flex-1 py-3 rounded-2xl bg-brand text-white font-bold text-[12px] uppercase disabled:opacity-60">
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -774,6 +855,7 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
   const [customTitle, setCustomTitle] = useState('');
   const [showCustomTitleInput, setShowCustomTitleInput] = useState(false);
   const [details, setDetails] = useState('');
+  const [bullId, setBullId]   = useState('');
   
   // Follow-up reminder state
   const [setReminder, setSetReminder] = useState(false);
@@ -843,7 +925,7 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
         eventDate: date,
         eventType: type,
         title: finalTitle,
-        details
+        details: type === 'SEMEN_GIVEN' ? withBullId(bullId, details) : details
       });
 
       // 2. Optional follow-up reminder event
@@ -919,6 +1001,15 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
             </div>
           )}
 
+          {type === 'SEMEN_GIVEN' && (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Bull ID</label>
+              <input type="text" value={bullId} onChange={e=>setBullId(e.target.value)}
+                placeholder="e.g. HF-2204"
+                className="w-full px-3 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-[12px] font-bold text-slate-800 focus:outline-none focus:border-brand placeholder:text-slate-300"/>
+            </div>
+          )}
+
           <textarea rows={2} value={details} onChange={e=>setDetails(e.target.value)}
             placeholder="Notes (vet name, dose, semen batch, technician...)"
             className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-[12px] text-slate-800 focus:outline-none focus:border-brand resize-none placeholder:text-slate-300"/>
@@ -981,8 +1072,9 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
 /* ─── MAIN COMPONENT ─────────────────────────────── */
 export default function AnimalWorkspace({
   herd, events, loadingEvents, userRole, failedImages,
-  onBack, onEdit, onDelete, onEventAdded, onEventDeleted, onImageError,
+  onBack, onEdit, onDelete, onEventAdded, onEventDeleted, onImageError, onEventUpdated,
 }: Props) {
+  const [editingEvent, setEditingEvent] = useState<HerdEvent | null>(null);
   const [activeTab, setActiveTab] = useState<'overview'|'breeding'|'health'|'history'|'details'|'weight'>('overview');
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showSemenSelection, setShowSemenSelection] = useState(false);
@@ -1769,7 +1861,8 @@ export default function AnimalWorkspace({
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {events.filter(e => !REMINDER_TYPES.includes(e.eventType)).map(e => (
-                      <TimelineRow key={e.id} event={e} canDelete={isAdmin} onDelete={() => deleteEvent(e.id)}/>
+                      <TimelineRow key={e.id} event={e} canDelete={isAdmin} onDelete={() => deleteEvent(e.id)}
+                        onEdit={onEventUpdated ? () => setEditingEvent(e) : undefined}/>
                     ))}
                   </div>
                 )}
@@ -1824,6 +1917,12 @@ export default function AnimalWorkspace({
       {/* Add Event Modal */}
       {showAddEvent&&(
         <AddEventModal herd={herd} prefill={prefillType} onClose={()=>{setShowAddEvent(false);setPrefillType(undefined);}} onSaved={evt=>{onEventAdded(evt);setShowAddEvent(false);setPrefillType(undefined);}}/>
+      )}
+
+      {/* Edit Event Modal */}
+      {editingEvent && onEventUpdated && (
+        <EditEventModal event={editingEvent} onClose={() => setEditingEvent(null)}
+          onSaved={evt => { onEventUpdated(evt); setEditingEvent(null); }}/>
       )}
 
       {/* ─── SEMEN SELECTION MODAL ─── */}

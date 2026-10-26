@@ -36,6 +36,18 @@ public class HerdEventController {
         return ResponseEntity.ok(saved);
     }
 
+    /** Edits date, title and details; the herd and event type stay as recorded. */
+    @PutMapping("/events/{id}")
+    @PreAuthorize("@ss.can('HERDS')")
+    public ResponseEntity<HerdEvent> updateEvent(@PathVariable Long id, @RequestBody HerdEvent body) {
+        return herdEventRepository.findById(id).map(event -> {
+            if (body.getEventDate() != null) event.setEventDate(body.getEventDate());
+            if (body.getTitle() != null && !body.getTitle().isBlank()) event.setTitle(body.getTitle());
+            event.setDetails(body.getDetails());
+            return ResponseEntity.ok(herdEventRepository.save(event));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/events/{id}")
     @PreAuthorize("@ss.can('HERDS')")
     public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {

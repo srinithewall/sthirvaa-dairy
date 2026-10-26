@@ -16,6 +16,7 @@ import BatchIcon from '@/components/BatchIcon';
 import { BATCH_TYPES, batchType, isPoultryType, liveBirds } from '@/lib/poultry';
 import { DIM_STAGES, DIM_GRADIENT, dimStage } from '@/lib/dimStages';
 import { useNotification } from '@/components/NotificationContext';
+import { bullIdOf as bullIdFromDetails, notesOf, withBullId, PD_AFTER_AI_DAYS } from '@/lib/breeding';
 
 interface Herd {
   id: number;
@@ -72,6 +73,20 @@ const EVENT_CONFIG: Record<string, { icon: React.ElementType; color: string; bg:
 
 const REMINDER_TYPES = ['VACCINATION_DUE', 'DEWORMING_DUE', 'PREGNANCY_CHECK_DUE'];
 
+/** Groups of figures the phone table view can show, one group at a time. */
+type PhoneGroup = 'milk' | 'breeding' | 'weight' | 'health' | 'next';
+const PHONE_GROUPS: { key: PhoneGroup; label: string }[] = [
+  { key: 'milk', label: 'Milk' },
+  { key: 'breeding', label: 'Breeding' },
+  { key: 'weight', label: 'Weight' },
+  { key: 'health', label: 'Health' },
+  { key: 'next', label: 'Next event' },
+];
+
+/** "26 Oct" for an ISO date; the year is left out to fit a phone column. */
+const shortDate = (iso?: string | null) =>
+  iso && iso !== '—' ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
+
 
 export default function HerdsPage() {
   const [herds, setHerds] = useState<Herd[]>([]);
@@ -86,9 +101,11 @@ export default function HerdsPage() {
   const [userRole, setUserRole] = useState<string>('');
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+  // Table view on phones: one group of figures at a time instead of a 15-column sideways scroll.
+  const [phoneGroup, setPhoneGroup] = useState<PhoneGroup>('milk');
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [filterSemenPending, setFilterSemenPending] = useState(false);
+  const [showBreedingModal, setShowBreedingModal] = useState(false);
   const { showToast, confirm } = useNotification();
 
   // Events & Timeline
@@ -466,24 +483,6 @@ export default function HerdsPage() {
 
   let activeHerds = herds.filter(h => h.status !== 'DISPOSED');
 
-  if (filterSemenPending) {
-    activeHerds = activeHerds.filter(item => {
-      if (item.animalType !== 'COW') return false;
-      if (item.animalStatus === 'CALF') return false; // Heifers, Dry, Lactating are okay.
-
-      const herdEvents = allGlobalEvents.filter(e => e.herdId === item.id);
-      const lastCalving = herdEvents.filter(e => e.eventType === 'CALF_DELIVERED').sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
-      const lastPd = herdEvents.filter(e => e.eventType === 'PREGNANCY_CONFIRMED').sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
-
-      let isPregnant = false;
-      if (lastPd && (!lastCalving || new Date(lastPd.eventDate) > new Date(lastCalving.eventDate))) {
-         isPregnant = true;
-      }
-      
-      return !isPregnant;
-    });
-  }
-
   // Sorting Logic
   if (sortColumn) {
     activeHerds.sort((a, b) => {
@@ -555,6 +554,111 @@ export default function HerdsPage() {
     return sortDirection === 'asc' ? <span className="ml-1">↑</span> : <span className="ml-1">↓</span>;
   };
 
+  /** Figures for one cow in the table view: used by the full table and by the phone list. */
+  const cowFigures = (item: Herd) => {
+    const hGirth = item.heartGirth || 0;
+    const weight = item.calculatedWeight || 0;
+    
+    let weightStatus = item.weightStatus || 'Unknown';
+    let wColor = 'bg-gray-100 text-gray-600';
+    
+    if (weightStatus === 'Very Low' || weightStatus === 'Low' || weightStatus === 'Underweight') wColor = 'bg-orange-100 text-orange-700';
+    else if (weightStatus === 'Below Avg' || weightStatus === 'Avg' || weightStatus === 'Healthy' || weightStatus === 'Above Avg') wColor = 'bg-green-100 text-green-700';
+    else if (weightStatus === 'Slightly Overweight' || weightStatus === 'Overweight') wColor = 'bg-red-100 text-red-700';
+    else if (item.healthStatus && item.healthStatus.toUpperCase() !== 'HEALTHY') {
+      wColor = 'bg-red-100 text-red-700';
+      if (weightStatus === 'Unknown') weightStatus = item.healthStatus;
+    }
+
+    // Events
+    const herdEvents = allGlobalEvents.filter(e => e.herdId === item.id);
+    const semenEvents = herdEvents.filter(e => e.eventType === 'SEMEN_GIVEN').sort((a,b) => b.eventDate.localeCompare(a.eventDate));
+    let daysSinceAI = 0;
+    if (semenEvents[0]) {
+      const diffTime = Math.abs(Date.now() - new Date(semenEvents[0].eventDate).getTime());
+      daysSinceAI = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+    const fmtDate = (iso?: string | null) => iso
+      ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '—';
+    const latestDeworm = item.lastDewormingDate ? fmtDate(item.lastDewormingDate) : (item.nextDewormingDate ? 'Never' : '—');
+    let dewormDue: { text: string; cls: string } | null = null;
+    if (item.nextDewormingDate) {
+      const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+      const daysTo = Math.round((new Date(item.nextDewormingDate + 'T00:00:00').getTime() - todayMid.getTime()) / 86400000);
+      const doseLbl = item.nextDewormingDose ? ` · dose ${item.nextDewormingDose}` : '';
+      if (daysTo < 0) dewormDue = { text: `Overdue ${-daysTo}d${doseLbl}`, cls: 'bg-red-100 text-red-700' };
+      else if (daysTo === 0) dewormDue = { text: `Today${doseLbl}`, cls: 'bg-amber-100 text-amber-700' };
+      else dewormDue = { text: `${fmtDate(item.nextDewormingDate)}${doseLbl}`, cls: daysTo <= 7 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600' };
+    }
+
+    // DIM & Calving Date
+    const lastCalving = herdEvents.filter(e => e.eventType === 'CALF_DELIVERED').sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
+    let dim = 0;
+    if (item.animalStatus === 'LACTATING' && lastCalving) {
+      const diffTime = Math.abs(Date.now() - new Date(lastCalving.eventDate).getTime());
+      dim = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+    const calvingDateStr = lastCalving ? lastCalving.eventDate : '—';
+
+    // Next Event
+    const futureEvents = herdEvents.filter(e => new Date(e.eventDate) >= new Date()).sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+    let nextEventStr = '—';
+    if (futureEvents.length > 0) {
+       const ne = futureEvents[0];
+       const eConf = EVENT_CONFIG[ne.eventType];
+       nextEventStr = `${eConf ? eConf.label : ne.title} - ${ne.eventDate}`;
+    }
+
+    // Calculations
+    const avgMilk = item.avgMilk30Days || 0;
+    const pot = item.milkPotential || 0;
+    const conf = item.milkPotentialConfidence || 'Low';
+    let targetMissed: any = '—';
+    if (pot > 0 && avgMilk > 0) {
+       targetMissed = (pot - avgMilk).toFixed(1);
+    }
+
+    const isImageFailed = failedImages[item.id];
+    const imgUrl = (item.imageUrl && !isImageFailed) ? formatImageUrl(item.imageUrl) : null;
+    const initials = item.animalName ? item.animalName.substring(0, 2).toUpperCase() : item.tagNumber.substring(0,2);
+    return { hGirth, weight, weightStatus, wColor, daysSinceAI, fmtDate, latestDeworm, dewormDue, dim, calvingDateStr,
+      nextEventStr, avgMilk, pot, conf, targetMissed, imgUrl, initials };
+  };
+
+  /** Columns of the phone table view for a group: heading, sort key (same as the full table), width, cell. */
+  type CowFigures = ReturnType<typeof cowFigures>;
+  const phoneColumns = (group: PhoneGroup): { label: string; sort?: string; width: string; render: (f: CowFigures) => React.ReactNode }[] => {
+    const dash = <span className="text-text3 font-normal">—</span>;
+    switch (group) {
+      case 'milk': return [
+        { label: 'Avg', sort: 'avgMilk', width: 'w-[58px]', render: f => f.avgMilk > 0 ? `${f.avgMilk.toFixed(1)} L` : dash },
+        { label: 'Target', sort: 'milkPotential', width: 'w-[58px]', render: f => f.pot > 0 ? `${f.pot} L` : dash },
+        { label: 'Missed', sort: 'targetMissed', width: 'w-[62px]', render: f => f.targetMissed !== '—' ? <span className="text-red-600">{f.targetMissed} L</span> : dash },
+      ];
+      case 'breeding': return [
+        { label: 'DIM', sort: 'dim', width: 'w-[44px]', render: f => f.dim > 0 ? f.dim : dash },
+        { label: 'AI days', sort: 'aiDate', width: 'w-[56px]', render: f => f.daysSinceAI > 0 ? f.daysSinceAI : dash },
+        { label: 'Calved', sort: 'calvingDate', width: 'w-[60px]', render: f => f.calvingDateStr !== '—' ? shortDate(f.calvingDateStr) : dash },
+      ];
+      case 'weight': return [
+        { label: 'Girth', sort: 'heartGirth', width: 'w-[56px]', render: f => f.hGirth > 0 ? `${f.hGirth} cm` : dash },
+        { label: 'Weight', sort: 'weight', width: 'w-[60px]', render: f => f.weight > 0 ? <span className="text-brand">{f.weight} kg</span> : dash },
+        { label: 'Status', sort: 'weightStatus', width: 'w-[72px]', render: f => (
+          <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase leading-tight ${f.wColor}`}>{f.weightStatus}</span>
+        ) },
+      ];
+      case 'health': return [
+        { label: 'Dewormed', width: 'w-[78px]', render: f => <span className="text-xs">{f.latestDeworm}</span> },
+        { label: 'Due', width: 'w-[92px]', render: f => f.dewormDue
+          ? <span className={`inline-block px-1.5 py-0.5 rounded-md text-[10px] font-bold leading-tight ${f.dewormDue.cls}`}>{f.dewormDue.text}</span> : dash },
+      ];
+      case 'next': return [
+        { label: 'Next event', width: 'w-[150px]', render: f => <span className="text-xs font-semibold leading-tight">{f.nextEventStr}</span> },
+      ];
+    }
+  };
+
   /* ──────────────────────────────── MAIN RENDER ──────────────────────────────── */
   return (
     <AppLayout noPadding={showModal && !!selectedHerd}>
@@ -594,45 +698,48 @@ export default function HerdsPage() {
               api.get(`/herds/${selectedHerd.id}`).then(res => setSelectedHerd(res.data)).catch(console.error);
             }
           }}
+          onEventUpdated={(evt) => {
+            setEvents(prev => prev.map(e => e.id === evt.id ? evt : e).sort((a, b) => b.eventDate.localeCompare(a.eventDate)));
+            fetchHerds();
+          }}
           onImageError={(id) => setFailedImages(prev => ({ ...prev, [id]: true }))}
         />
       ) : (
       <>
-      <div className="flex items-start justify-between mb-6 gap-3 flex-wrap">
+      <div className="flex items-start justify-between mb-4 md:mb-6 gap-3 flex-wrap">
         <div className="px-1">
           <h1 className="text-xl md:text-2xl font-black text-text tracking-tight uppercase">Herd Management</h1>
           <p className="text-[12px] text-text3 mt-0.5 underline font-medium">Sthirvaa Farms Dashboard</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex bg-surface p-1 rounded-xl border border-border-custom shadow-sm mr-2 hidden md:flex">
+        <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+          <div className="flex bg-surface p-1 rounded-xl border border-border-custom shadow-sm md:mr-2">
             <button
               onClick={() => setViewMode('card')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${viewMode === 'card' ? 'bg-white text-brand shadow-sm' : 'text-text3 hover:text-text'}`}
+              className={`px-2.5 md:px-3 py-1.5 rounded-lg text-[11px] md:text-xs font-bold uppercase transition-all ${viewMode === 'card' ? 'bg-white text-brand shadow-sm' : 'text-text3 hover:text-text'}`}
             >
               Cards
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${viewMode === 'table' ? 'bg-white text-brand shadow-sm' : 'text-text3 hover:text-text'}`}
+              className={`px-2.5 md:px-3 py-1.5 rounded-lg text-[11px] md:text-xs font-bold uppercase transition-all ${viewMode === 'table' ? 'bg-white text-brand shadow-sm' : 'text-text3 hover:text-text'}`}
             >
               Table
             </button>
           </div>
           <button
-            onClick={() => setFilterSemenPending(!filterSemenPending)}
-            className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm ${filterSemenPending ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-border-custom bg-white hover:bg-surface text-text3 hover:text-brand'}`}
-            title="Filter Semen Pending Cows/Heifers/Dry"
+            onClick={() => setShowBreedingModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 border border-pink-200 bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm"
+            title="Upcoming deliveries and AI cows"
           >
-            <Syringe size={14} />
-            <span className="hidden md:inline">Semen Pending</span>
+            <Baby size={14} />
           </button>
           <button
             onClick={() => setShowDisposedModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 border border-border-custom bg-white hover:bg-surface text-text3 hover:text-brand rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm"
-            title="View Disposed Animals Archive"
+            className="flex items-center px-3 py-2 border border-border-custom bg-white hover:bg-surface text-text3 hover:text-brand rounded-xl transition-all shadow-sm"
+            title={`Disposed animals (${herds.filter(h => h.status === 'DISPOSED').length})`}
+            aria-label="Disposed animals"
           >
             <Archive size={14} />
-            <span>Disposed ({herds.filter(h => h.status === 'DISPOSED').length})</span>
           </button>
           <button onClick={() => setShowAllEventsModal(true)} className="flex items-center gap-1.5 px-3 py-2 border border-brand/20 bg-brand/5 hover:bg-brand/10 text-brand rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm">
             <Calendar size={14} />
@@ -650,12 +757,67 @@ export default function HerdsPage() {
 
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {viewMode === 'table' ? (
-          <div className="bg-white border border-border-custom rounded-xl shadow-xl overflow-hidden">
+          <>
+          {/* Phones: rows only scroll up and down; the chips pick which figures each row shows. */}
+          <div className="md:hidden">
+            <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-4 px-4">
+              {PHONE_GROUPS.map(g => (
+                <button key={g.key} onClick={() => setPhoneGroup(g.key)}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                    phoneGroup === g.key ? 'bg-brand text-white border-brand' : 'bg-white text-text2 border-border-custom'}`}>
+                  {g.label}
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const cows = activeHerds.filter(h => h.animalType === 'COW');
+              const cols = phoneColumns(phoneGroup);
+              return (
+                <div className="bg-white border border-border-custom rounded-xl shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-surface border-b border-border-custom text-[10px] font-black text-text3 uppercase tracking-wider">
+                    <span className="flex-1">Name</span>
+                    {cols.map(c => (
+                      <button key={c.label} disabled={!c.sort} onClick={() => c.sort && handleSort(c.sort)}
+                        className={`${c.width} text-right uppercase ${c.sort ? 'hover:text-brand' : 'cursor-default'}`}>
+                        {c.label}{c.sort && getSortIcon(c.sort)}
+                      </button>
+                    ))}
+                  </div>
+                  <ul className="divide-y divide-border-custom/50">
+                    {cows.map(item => {
+                      const f = cowFigures(item);
+                      return (
+                        <li key={item.id} onClick={() => handleHerdClick(item.id)}
+                          className="flex items-center gap-2 px-3 py-2.5 active:bg-brand/5 cursor-pointer">
+                          {f.imgUrl ? (
+                            <img src={f.imgUrl} onError={() => setFailedImages(prev => ({ ...prev, [item.id]: true }))}
+                              className="w-9 h-9 shrink-0 rounded-lg object-cover border border-slate-200" />
+                          ) : (
+                            <div className="w-9 h-9 shrink-0 rounded-lg bg-gray-200 flex items-center justify-center text-xs font-black text-gray-500">{f.initials}</div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm text-text truncate">{item.animalName || '—'}</p>
+                            <p className="text-[11px] text-text3 truncate capitalize">{(item.animalStatus || '—').toLowerCase().replace(/_/g, ' ')}</p>
+                          </div>
+                          {cols.map(c => (
+                            <div key={c.label} className={`${c.width} text-right text-[13px] font-bold`}>{c.render(f)}</div>
+                          ))}
+                        </li>
+                      );
+                    })}
+                    {cows.length === 0 && <li className="py-8 text-center text-text3 italic text-sm">No cows found in herd.</li>}
+                  </ul>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="hidden md:block bg-white border border-border-custom rounded-xl shadow-xl overflow-hidden">
             <div className="overflow-x-auto" style={{ transform: 'rotateX(180deg)' }}>
               <table className="w-full text-left border-collapse" style={{ transform: 'rotateX(180deg)' }}>
                 <thead>
                   <tr className="bg-surface border-b border-border-custom">
-                    <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Name</th>
+                    <th className="sticky left-0 z-10 bg-surface py-3 px-3 md:px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Name</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Breed</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('age')}>Age {getSortIcon('age')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Stage</th>
@@ -676,91 +838,17 @@ export default function HerdsPage() {
                 </thead>
                 <tbody className="divide-y divide-border-custom/50">
                   {activeHerds.filter(h => h.animalType === 'COW').map(item => {
-                    const hGirth = item.heartGirth || 0;
-                    const weight = item.calculatedWeight || 0;
-                    
-                    let weightStatus = item.weightStatus || 'Unknown';
-                    let wColor = 'bg-gray-100 text-gray-600';
-                    
-                    if (weightStatus === 'Very Low' || weightStatus === 'Low' || weightStatus === 'Underweight') wColor = 'bg-orange-100 text-orange-700';
-                    else if (weightStatus === 'Below Avg' || weightStatus === 'Avg' || weightStatus === 'Healthy' || weightStatus === 'Above Avg') wColor = 'bg-green-100 text-green-700';
-                    else if (weightStatus === 'Slightly Overweight' || weightStatus === 'Overweight') wColor = 'bg-red-100 text-red-700';
-                    else if (item.healthStatus && item.healthStatus.toUpperCase() !== 'HEALTHY') {
-                      wColor = 'bg-red-100 text-red-700';
-                      if (weightStatus === 'Unknown') weightStatus = item.healthStatus;
-                    }
-
-                    // Events
-                    const herdEvents = allGlobalEvents.filter(e => e.herdId === item.id);
-                    const semenEvents = herdEvents.filter(e => e.eventType === 'SEMEN_GIVEN').sort((a,b) => b.eventDate.localeCompare(a.eventDate));
-                    const latestSemen = semenEvents[0]?.eventDate || '—';
-                    let daysSinceAI = 0;
-                    if (semenEvents[0]) {
-                      const diffTime = Math.abs(Date.now() - new Date(semenEvents[0].eventDate).getTime());
-                      daysSinceAI = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    }
-                    const fmtDate = (iso?: string | null) => iso
-                      ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                      : '—';
-                    const latestDeworm = item.lastDewormingDate ? fmtDate(item.lastDewormingDate) : (item.nextDewormingDate ? 'Never' : '—');
-                    let dewormDue: { text: string; cls: string } | null = null;
-                    if (item.nextDewormingDate) {
-                      const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
-                      const daysTo = Math.round((new Date(item.nextDewormingDate + 'T00:00:00').getTime() - todayMid.getTime()) / 86400000);
-                      const doseLbl = item.nextDewormingDose ? ` · dose ${item.nextDewormingDose}` : '';
-                      if (daysTo < 0) dewormDue = { text: `Overdue ${-daysTo}d${doseLbl}`, cls: 'bg-red-100 text-red-700' };
-                      else if (daysTo === 0) dewormDue = { text: `Today${doseLbl}`, cls: 'bg-amber-100 text-amber-700' };
-                      else dewormDue = { text: `${fmtDate(item.nextDewormingDate)}${doseLbl}`, cls: daysTo <= 7 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600' };
-                    }
-
-                    // DIM & Calving Date
-                    const lastCalving = herdEvents.filter(e => e.eventType === 'CALF_DELIVERED').sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
-                    let dim = 0;
-                    if (item.animalStatus === 'LACTATING' && lastCalving) {
-                      const diffTime = Math.abs(Date.now() - new Date(lastCalving.eventDate).getTime());
-                      dim = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    }
-                    const calvingDateStr = lastCalving ? lastCalving.eventDate : '—';
-
-                    // Pregnancy
-                    const lastPd = herdEvents.filter(e => e.eventType === 'PREGNANCY_CONFIRMED').sort((a, b) => b.eventDate.localeCompare(a.eventDate))[0];
-                    let pregnancyStr = 'Not Pregnant';
-                    if (lastPd && (!lastCalving || new Date(lastPd.eventDate) > new Date(lastCalving.eventDate))) {
-                       const pdDate = new Date(lastPd.eventDate);
-                       const months = Math.floor((Date.now() - pdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-                       pregnancyStr = `${months} Months`;
-                    }
-
-                    // Next Event
-                    const futureEvents = herdEvents.filter(e => new Date(e.eventDate) >= new Date()).sort((a, b) => a.eventDate.localeCompare(b.eventDate));
-                    let nextEventStr = '—';
-                    if (futureEvents.length > 0) {
-                       const ne = futureEvents[0];
-                       const eConf = EVENT_CONFIG[ne.eventType];
-                       nextEventStr = `${eConf ? eConf.label : ne.title} - ${ne.eventDate}`;
-                    }
-
-                    // Calculations
-                    const avgMilk = item.avgMilk30Days || 0;
-                    const pot = item.milkPotential || 0;
-                    const conf = item.milkPotentialConfidence || 'Low';
-                    let targetMissed: any = '—';
-                    if (pot > 0 && avgMilk > 0) {
-                       targetMissed = (pot - avgMilk).toFixed(1);
-                    }
-
-                    const isImageFailed = failedImages[item.id];
-                    const imgUrl = (item.imageUrl && !isImageFailed) ? formatImageUrl(item.imageUrl) : null;
-                    const initials = item.animalName ? item.animalName.substring(0, 2).toUpperCase() : item.tagNumber.substring(0,2);
+                    const { hGirth, weight, weightStatus, wColor, daysSinceAI, fmtDate, latestDeworm, dewormDue, dim, calvingDateStr,
+                      nextEventStr, avgMilk, pot, conf, targetMissed, imgUrl, initials } = cowFigures(item);
 
                     return (
-                      <tr key={item.id} onClick={() => handleHerdClick(item.id)} className="hover:bg-brand/5 cursor-pointer transition-colors">
-                        <td className="py-3 px-4 whitespace-nowrap min-w-[200px]">
+                      <tr key={item.id} onClick={() => handleHerdClick(item.id)} className="group hover:bg-brand/5 cursor-pointer transition-colors">
+                        <td className="sticky left-0 z-10 bg-white group-hover:bg-[#f3f8f5] py-2.5 md:py-3 px-3 md:px-4 whitespace-nowrap min-w-[150px] md:min-w-[200px] shadow-[1px_0_0_rgba(0,0,0,0.06)]">
                           <div className="flex items-center gap-3">
                             {imgUrl ? (
-                              <img src={imgUrl} onError={() => setFailedImages(prev => ({ ...prev, [item.id]: true }))} className="w-10 h-10 flex-shrink-0 rounded-lg object-cover border border-slate-200" />
+                              <img src={imgUrl} onError={() => setFailedImages(prev => ({ ...prev, [item.id]: true }))} className="w-8 h-8 md:w-10 md:h-10 flex-shrink-0 rounded-lg object-cover border border-slate-200" />
                             ) : (
-                              <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-gray-200 flex items-center justify-center text-xs font-black text-gray-500">{initials}</div>
+                              <div className="w-8 h-8 md:w-10 md:h-10 flex-shrink-0 rounded-lg bg-gray-200 flex items-center justify-center text-xs font-black text-gray-500">{initials}</div>
                             )}
                             <div className="truncate">
                               <div className="font-bold text-sm text-text truncate">{item.animalName || '—'}</div>
@@ -800,6 +888,7 @@ export default function HerdsPage() {
               </table>
             </div>
           </div>
+          </>
         ) : (
           <>
         {/* Milk Production Section */}
@@ -966,6 +1055,16 @@ export default function HerdsPage() {
         />
       )}
 
+      {/* Breeding Modal: upcoming deliveries + AI cows */}
+      {showBreedingModal && (
+        <BreedingModal
+          onClose={() => setShowBreedingModal(false)}
+          events={allGlobalEvents}
+          herds={herds}
+          onAnimalClick={handleHerdClick}
+        />
+      )}
+
       {/* All Events Modal */}
       {showAllEventsModal && (
         <AllEventsModal
@@ -1036,6 +1135,242 @@ function DisposedAnimalsModal({ isOpen, onClose, herds, onAnimalClick }: {
           <button onClick={onClose} className="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors shadow-md">
             Close Archive
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Breeding Modal: upcoming deliveries + AI cows ─── */
+function BreedingModal({ onClose, events, herds, onAnimalClick }: {
+  onClose: () => void; events: HerdEvent[]; herds: Herd[]; onAnimalClick: (id: number) => void;
+}) {
+  const [tab, setTab] = useState<'deliveries' | 'ai'>('deliveries');
+
+  const DAY = 86400000;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const toDate = (iso: string) => new Date(iso.slice(0, 10) + 'T00:00:00');
+  const daysBetween = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / DAY);
+  // dd-mm-yyyy
+  const fmt = (d: Date | string) => {
+    const x = typeof d === 'string' ? toDate(d) : d;
+    return `${String(x.getDate()).padStart(2, '0')}-${String(x.getMonth() + 1).padStart(2, '0')}-${x.getFullYear()}`;
+  };
+  const isAi = (t: string) => t === 'SEMEN_GIVEN' || t === 'AI_DONE';
+  const { showToast } = useNotification();
+  // Bull IDs added from this window, by AI event id, so they show without reloading the herd.
+  const [addedBullIds, setAddedBullIds] = useState<Record<number, string>>({});
+  const [bullDraft, setBullDraft] = useState<{ eventId: number; value: string } | null>(null);
+  const bullIdOf = (e?: HerdEvent) => (e && addedBullIds[e.id]) || bullIdFromDetails(e?.details);
+
+  const saveBullId = async (e: HerdEvent) => {
+    const value = bullDraft?.value.trim() ?? '';
+    if (!value) { setBullDraft(null); return; }
+    try {
+      // Same storage as the AI form: "Bull ID: X." in front of the notes; date and title stay as recorded.
+      await api.put(`/herds/events/${e.id}`, { details: withBullId(value, notesOf(e.details)) });
+      setAddedBullIds(prev => ({ ...prev, [e.id]: value }));
+      setBullDraft(null);
+      showToast('Bull ID saved');
+    } catch {
+      showToast('Could not save the bull ID', 'error');
+    }
+  };
+
+  /** Bull ID, or (when the AI was recorded without one) a small "+ Add" that edits it in place. */
+  const bullCell = (e: HerdEvent) => {
+    const id = bullIdOf(e);
+    if (id) return id;
+    if (bullDraft?.eventId === e.id) {
+      return (
+        // Shrinks to fit the narrow phone cards; Enter or ✓ saves, Esc cancels.
+        <span className="flex items-center gap-1 w-full" onClick={ev => ev.stopPropagation()}>
+          <input autoFocus value={bullDraft.value} placeholder="HF-2204" aria-label="Bull ID"
+            onChange={ev => setBullDraft({ eventId: e.id, value: ev.target.value })}
+            onKeyDown={ev => { if (ev.key === 'Enter') saveBullId(e); if (ev.key === 'Escape') setBullDraft(null); }}
+            className="flex-1 min-w-0 max-w-[96px] px-1.5 py-1 border border-brand rounded-md text-[11px] font-mono font-bold focus:outline-none" />
+          <button onClick={() => saveBullId(e)} aria-label="Save bull ID"
+            className="shrink-0 w-6 h-6 rounded-md bg-brand text-white text-[12px] font-bold">✓</button>
+        </span>
+      );
+    }
+    return (
+      <button onClick={ev => { ev.stopPropagation(); setBullDraft({ eventId: e.id, value: '' }); }}
+        className="text-brand font-bold font-sans hover:underline">+ Add</button>
+    );
+  };
+
+  // Current breeding cycle per animal: AI / PD events after the latest calving
+  const rows = herds
+    .filter(h => h.status !== 'DISPOSED' && (h.animalType === 'COW' || h.animalType === 'BUFFALO'))
+    .map(h => {
+      const evs = events.filter(e => e.herdId === h.id);
+      const lastCalving = evs.filter(e => e.eventType === 'CALF_DELIVERED')
+        .reduce((m, e) => (e.eventDate > m ? e.eventDate : m), '');
+      const cycle = evs.filter(e => e.eventDate > lastCalving);
+      // Latest first; a detailed record wins over a blank one on the same day
+      const ais = cycle.filter(e => isAi(e.eventType))
+        .sort((a, b) => b.eventDate.localeCompare(a.eventDate) || (bullIdOf(b) ? 1 : 0) - (bullIdOf(a) ? 1 : 0));
+      const pdDate = cycle.filter(e => e.eventType === 'PREGNANCY_CONFIRMED')
+        .map(e => e.eventDate.slice(0, 10)).sort().pop() ?? null;
+      const latestAi = ais[0] ?? null;
+      // PD due: a PD check scheduled on/after the latest AI, else AI + PD_AFTER_AI_DAYS
+      let pdDue: Date | null = null;
+      if (latestAi) {
+        const scheduled = cycle.filter(e => e.eventType === 'PREGNANCY_CHECK_DUE' && e.eventDate >= latestAi.eventDate)
+          .map(e => e.eventDate.slice(0, 10)).sort()[0];
+        pdDue = scheduled ? toDate(scheduled) : new Date(toDate(latestAi.eventDate).getTime() + PD_AFTER_AI_DAYS * DAY);
+      }
+      // Conceiving AI: latest AI on or before the PD
+      const conceivingAi = pdDate ? ais.find(e => e.eventDate.slice(0, 10) <= pdDate) ?? null : null;
+      const gestationLen = h.animalType === 'BUFFALO' ? 310 : 283;
+      let edd: Date | null = null, gestationDays = 0, daysToEdd = 0;
+      if (conceivingAi) {
+        const ai = toDate(conceivingAi.eventDate);
+        edd = new Date(ai.getTime() + gestationLen * DAY);
+        gestationDays = daysBetween(ai, today);
+        daysToEdd = daysBetween(today, edd);
+      }
+      return { h, latestAi, pdDue, pdDate, conceivingAi, edd, gestationDays, gestationLen, daysToEdd };
+    });
+
+  // What needs attention first goes on top: the nearest calving, and the nearest (or overdue) PD check.
+  const deliveries = rows.filter(r => r.conceivingAi)
+    .sort((a, b) => a.edd!.getTime() - b.edd!.getTime());
+  const aiCows = rows.filter(r => r.latestAi && !r.pdDate)
+    .sort((a, b) => a.pdDue!.getTime() - b.pdDue!.getTime());
+
+  const Name = ({ h }: { h: Herd }) => (
+    <div className="flex items-center gap-2.5 min-w-0">
+      {h.imageUrl
+        ? <img src={formatImageUrl(h.imageUrl)} alt="" className="w-9 h-9 rounded-lg object-cover border border-slate-200 shrink-0" />
+        : <div className="w-9 h-9 rounded-lg bg-gray-200 flex items-center justify-center text-[11px] font-black text-gray-500 shrink-0">
+            {(h.animalName || h.tagNumber).substring(0, 2).toUpperCase()}
+          </div>}
+      <div className="min-w-0">
+        <div className="font-bold text-[13px] text-text truncate">{h.animalName || '—'}</div>
+        <div className="text-[10px] text-text3 font-mono truncate">{h.tagNumber}</div>
+      </div>
+    </div>
+  );
+  const dueBadge = (d: number, what: string) => {
+    const cls = d <= 0 ? 'bg-red-100 text-red-700' : d <= 30 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600';
+    const text = d < 0 ? `${what} overdue ${-d}d` : d === 0 ? `${what} today` : `${what} in ${d}d`;
+    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${cls}`}>{text}</span>;
+  };
+  const stat = (label: string, value: React.ReactNode) => (
+    <div className="bg-surface rounded-lg px-2.5 py-1.5 min-w-0">
+      <div className="text-text3 font-semibold uppercase text-[9px]">{label}</div>
+      <div className="font-bold text-text truncate">{value}</div>
+    </div>
+  );
+  const open = (id: number) => { onAnimalClick(id); onClose(); };
+  const th = 'py-2.5 px-4 text-[10px] font-black text-text3 uppercase tracking-wider whitespace-nowrap';
+  const empty = (msg: string) => <div className="py-16 text-center text-text3 italic text-sm">{msg}</div>;
+
+  return (
+    // Phone: full screen. Desktop: centred dialog that grows with its rows.
+    <div className="fixed inset-0 z-[2000] bg-white md:bg-black/75 md:backdrop-blur-sm flex md:items-center md:justify-center md:p-6" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()}
+        className="bg-white w-full h-full md:h-auto md:max-w-3xl md:max-h-[88vh] md:rounded-2xl md:shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-200">
+        <div className="px-4 md:px-5 py-3.5 md:py-4 pt-[max(0.875rem,env(safe-area-inset-top))] flex items-center justify-between shrink-0"
+             style={{ background: 'linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 100%)' }}>
+          <div className="flex items-center gap-3">
+            <div className="bg-white/15 p-1.5 rounded-lg"><Baby size={16} className="text-white" /></div>
+            <div>
+              <h2 className="text-[15px] font-black text-white tracking-tight uppercase">Breeding</h2>
+              <p className="text-[10px] text-white/75 font-semibold uppercase mt-0.5">Current cycle since last calving</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="bg-white/10 hover:bg-white/20 text-white p-2 md:p-1.5 rounded-full transition-all" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex gap-1.5 px-4 py-2.5 border-b border-border-custom bg-surface/40 shrink-0">
+          {([['deliveries', 'Upcoming Deliveries', deliveries.length], ['ai', 'AI Cows', aiCows.length]] as const).map(([k, label, n]) => (
+            <button key={k} onClick={() => setTab(k)}
+              className={`flex-1 md:flex-none px-3 py-2 md:py-1.5 rounded-lg text-[12px] font-bold whitespace-nowrap transition-all ${tab === k ? 'bg-brand text-white shadow-sm' : 'bg-white border border-border-custom text-text2 hover:text-brand'}`}>
+              {k === 'deliveries' ? <><span className="hidden sm:inline">Upcoming </span>Deliveries</> : label} <span className="opacity-60">({n})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Phone: fills the screen and scrolls. Desktop: grows with the list, scrolls past 5 rows (57px rows + 36px header) */}
+        <div className="flex-1 md:flex-none min-h-0 overflow-y-auto overscroll-contain md:max-h-[322px] pb-[env(safe-area-inset-bottom)]">
+          {tab === 'deliveries' ? (deliveries.length === 0 ? empty('No PD-confirmed animals.') : (
+            <>
+              <table className="hidden md:table w-full text-left">
+                <thead className="sticky top-0 bg-surface border-b border-border-custom">
+                  <tr><th className={th}>Cow</th><th className={th}>AI Date</th><th className={th}>Bull ID</th><th className={`${th} text-right`}>Gestation</th><th className={th}>EDD</th><th className={th}></th></tr>
+                </thead>
+                <tbody className="divide-y divide-border-custom/50">
+                  {deliveries.map(r => (
+                    <tr key={r.h.id} onClick={() => open(r.h.id)} className="hover:bg-brand/5 cursor-pointer">
+                      <td className="py-2.5 px-4"><Name h={r.h} /></td>
+                      <td className="py-2.5 px-4 text-xs font-semibold text-text2 whitespace-nowrap">{fmt(r.conceivingAi!.eventDate)}</td>
+                      <td className="py-2.5 px-4 text-xs font-bold text-text font-mono whitespace-nowrap">{bullCell(r.conceivingAi!)}</td>
+                      <td className="py-2.5 px-4 text-sm font-bold text-text text-right whitespace-nowrap">{r.gestationDays} <span className="text-[10px] text-text3 font-semibold">/ {r.gestationLen} d</span></td>
+                      <td className="py-2.5 px-4 text-sm font-bold text-text whitespace-nowrap">{fmt(r.edd!)}</td>
+                      <td className="py-2.5 px-4 text-right">{dueBadge(r.daysToEdd, 'Calving')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="md:hidden divide-y divide-border-custom/60">
+                {deliveries.map(r => (
+                  <div key={r.h.id} onClick={() => open(r.h.id)} className="px-4 py-3.5 active:bg-brand/5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Name h={r.h} />
+                      {dueBadge(r.daysToEdd, 'Calving')}
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
+                      {stat('Gestation', `${r.gestationDays} / ${r.gestationLen}`)}
+                      {stat('EDD', fmt(r.edd!))}
+                      {stat('Bull ID', bullCell(r.conceivingAi!))}
+                    </div>
+                    <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-pink-400" style={{ width: `${Math.min(100, Math.round(r.gestationDays / r.gestationLen * 100))}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )) : (aiCows.length === 0 ? empty('No cows awaiting PD.') : (
+            <>
+              <table className="hidden md:table w-full text-left">
+                <thead className="sticky top-0 bg-surface border-b border-border-custom">
+                  <tr><th className={th}>Cow</th><th className={th}>AI Date</th><th className={th}>Bull ID</th><th className={th}>PD Due</th><th className={th}></th></tr>
+                </thead>
+                <tbody className="divide-y divide-border-custom/50">
+                  {aiCows.map(r => (
+                    <tr key={r.h.id} onClick={() => open(r.h.id)} className="hover:bg-brand/5 cursor-pointer">
+                      <td className="py-2.5 px-4"><Name h={r.h} /></td>
+                      <td className="py-2.5 px-4 text-xs font-semibold text-text2 whitespace-nowrap">{fmt(r.latestAi!.eventDate)}</td>
+                      <td className="py-2.5 px-4 text-xs font-bold text-text font-mono whitespace-nowrap">{bullCell(r.latestAi!)}</td>
+                      <td className="py-2.5 px-4 text-sm font-bold text-text whitespace-nowrap">{fmt(r.pdDue!)}</td>
+                      <td className="py-2.5 px-4 text-right">{dueBadge(daysBetween(today, r.pdDue!), 'PD')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="md:hidden divide-y divide-border-custom/60">
+                {aiCows.map(r => (
+                  <div key={r.h.id} onClick={() => open(r.h.id)} className="px-4 py-3.5 active:bg-brand/5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Name h={r.h} />
+                      {dueBadge(daysBetween(today, r.pdDue!), 'PD')}
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
+                      {stat('AI Date', fmt(r.latestAi!.eventDate))}
+                      {stat('Bull ID', bullCell(r.latestAi!))}
+                      {stat('PD Due', fmt(r.pdDue!))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ))}
         </div>
       </div>
     </div>

@@ -189,3 +189,139 @@ server {
 /home/ubuntu/dairy-deployment/docker-compose.yml
 /home/ubuntu/myproject/docker-compose.yml
 /home/ubuntu/nammagrama/docker-compose.yml
+=== SYSTEM LOAD / MEMORY / DISK ===
+ 08:40:44 up 38 days, 17:45,  1 user,  load average: 0.66, 0.53, 0.36
+               total        used        free      shared  buff/cache   available
+Mem:             952         717          96           7         265         235
+Swap:           4095        1742        2353
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        27G   22G  4.4G  84% /
+=== UFW STATUS ===
+Status: inactive
+=== FAIL2BAN STATUS ===
+sudo: fail2ban-client: command not found
+=== IPTABLES INPUT RULES (DROP/REJECT) ===
+=== LISTENING PORTS ===
+LISTEN 0      4096         0.0.0.0:443       0.0.0.0:*    users:(("docker-proxy",pid=2070,fd=8))                   
+LISTEN 0      511          0.0.0.0:3000      0.0.0.0:*    users:(("next-server (v",pid=371576,fd=18))              
+LISTEN 0      4096         0.0.0.0:80        0.0.0.0:*    users:(("docker-proxy",pid=1976,fd=8))                   
+LISTEN 0      4096         0.0.0.0:3306      0.0.0.0:*    users:(("docker-proxy",pid=2324,fd=8))                   
+LISTEN 0      4096            [::]:443          [::]:*    users:(("docker-proxy",pid=2079,fd=8))                   
+LISTEN 0      100                *:8080            *:*    users:(("java",pid=372048,fd=21))                        
+LISTEN 0      4096            [::]:80           [::]:*    users:(("docker-proxy",pid=1989,fd=8))                   
+LISTEN 0      4096            [::]:3306         [::]:*    users:(("docker-proxy",pid=2328,fd=8))                   
+=== TCP CONNECTION STATES ON 443 ===
+      2 LISTEN
+=== DOCKER CONTAINERS ===
+NAMES                STATUS                      IMAGE
+dairy-backend        Up 2 minutes                ghcr.io/srinithewall/dairy-backend:latest
+dairy-ui             Up 25 minutes               ghcr.io/srinithewall/dairy-ui:latest
+nammagrama-backend   Up 10 days                  ghcr.io/srinithewall/nammagrama-backend:latest
+ng-redis             Up 3 weeks                  redis:alpine
+re_scrapper          Exited (137) 5 weeks ago    myproject-scraper
+myproject-n8n-1      Exited (137) 5 weeks ago    n8nio/n8n:latest
+pw                   Exited (255) 4 months ago   playwright-api
+nginx                Up 5 weeks                  nginx:alpine
+st.app               Exited (137) 5 weeks ago    myproject-st_app
+phpmyadmin           Up 5 weeks                  phpmyadmin/phpmyadmin
+postgres_db          Up 5 weeks                  postgres:15-alpine
+mysql_db             Up 5 weeks                  mysql:8.0
+=== DOCKER STATS ===
+NAME                 CPU %     MEM USAGE / LIMIT
+dairy-backend        0.28%     194.6MiB / 952.8MiB
+dairy-ui             0.00%     3.09MiB / 952.8MiB
+nammagrama-backend   0.53%     110.6MiB / 952.8MiB
+ng-redis             0.17%     2.277MiB / 952.8MiB
+nginx                0.00%     3.324MiB / 952.8MiB
+phpmyadmin           0.00%     16.97MiB / 952.8MiB
+postgres_db          0.00%     2.707MiB / 952.8MiB
+mysql_db             2.52%     45.79MiB / 952.8MiB
+=== NGINX CONFIG TEST ===
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+=== NGINX LIMITS (limit_req / limit_conn / worker_connections / deny) ===
+/etc/nginx/nginx.conf:10:    worker_connections  1024;
+=== NGINX LOG TAIL (last 80 lines) ===
+172.69.94.44 - - [27/Oct/2026:08:33:19 +0000] "GET /ws-chat/info?t=1793089998711 HTTP/1.1" 200 79 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.69.178.218 - - [27/Oct/2026:08:33:19 +0000] "GET /api/chat/conversations?userId=1 HTTP/1.1" 200 3281 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.69.178.218 - - [27/Oct/2026:08:33:19 +0000] "GET /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 6732 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.166 - - [27/Oct/2026:08:35:03 +0000] "GET /ws-chat/109/4d0bqvl5/websocket HTTP/1.1" 101 140 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:35:03 +0000] "OPTIONS /api/auth/device/token=REDACTED HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:35:03 +0000] "POST /api/auth/device/token=REDACTED HTTP/1.1" 200 859 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:35:03 +0000] "GET /ws-chat/info?t=1793090103098 HTTP/1.1" 200 79 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:35:03 +0000] "OPTIONS /api/chat/conversations?userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:35:03 +0000] "OPTIONS /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:35:03 +0000] "GET /api/chat/conversations?userId=1 HTTP/1.1" 200 3281 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:35:03 +0000] "GET /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 6732 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.16 - - [27/Oct/2026:08:36:36 +0000] "GET /ws-chat/601/2ewmbt0h/websocket HTTP/1.1" 101 211 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:36 +0000] "OPTIONS /api/auth/device/token=REDACTED HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:36 +0000] "POST /api/auth/device/token=REDACTED HTTP/1.1" 200 859 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:36:36 +0000] "GET /ws-chat/info?t=1793090195903 HTTP/1.1" 200 79 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:36 +0000] "OPTIONS /api/chat/conversations?userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:36 +0000] "OPTIONS /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:36 +0000] "GET /api/chat/conversations?userId=1 HTTP/1.1" 200 3281 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:36 +0000] "GET /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 6732 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+162.158.235.53 - - [27/Oct/2026:08:36:49 +0000] "GET /ws-chat/995/qyha1r2o/websocket HTTP/1.1" 101 82 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:49 +0000] "OPTIONS /api/auth/device/token=REDACTED HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:49 +0000] "POST /api/auth/device/token=REDACTED HTTP/1.1" 200 859 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:36:49 +0000] "GET /ws-chat/info?t=1793090209456 HTTP/1.1" 200 78 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:50 +0000] "OPTIONS /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:50 +0000] "OPTIONS /api/chat/conversations?userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:50 +0000] "GET /api/chat/conversations?userId=1 HTTP/1.1" 200 3281 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:36:50 +0000] "GET /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 6732 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.160 - - [27/Oct/2026:08:38:26 +0000] "GET /ws-chat/746/fiqoo5lf/websocket HTTP/1.1" 101 211 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:38:26 +0000] "OPTIONS /api/auth/device/token=REDACTED HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:38:26 +0000] "POST /api/auth/device/token=REDACTED HTTP/1.1" 200 859 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:26 +0000] "GET /ws-chat/info?t=1793090305979 HTTP/1.1" 200 79 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.90 - - [27/Oct/2026:08:38:28 +0000] "GET /ws-chat/060/asbhal4z/websocket HTTP/1.1" 499 0 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:29 +0000] "POST /ws-chat/060/y3qrdked/xhr_streaming?t=1793090307827 HTTP/1.1" 499 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:29 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090308830 HTTP/1.1" 200 44 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:29 +0000] "POST /ws-chat/060/bo3h2eoh/xhr_send?t=1793090308939 HTTP/1.1" 204 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:29 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090308959 HTTP/1.1" 200 116 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:38:29 +0000] "OPTIONS /api/chat/conversations?userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:38:29 +0000] "OPTIONS /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:38:29 +0000] "GET /api/chat/conversations?userId=1 HTTP/1.1" 200 3281 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.70.219.94 - - [27/Oct/2026:08:38:29 +0000] "GET /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 6732 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:30 +0000] "POST /ws-chat/060/bo3h2eoh/xhr_send?t=1793090309814 HTTP/1.1" 204 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:40 +0000] "POST /ws-chat/060/bo3h2eoh/xhr_send?t=1793090319816 HTTP/1.1" 204 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:45 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090309230 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:50 +0000] "POST /ws-chat/060/bo3h2eoh/xhr_send?t=1793090329817 HTTP/1.1" 204 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:38:55 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090325736 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:00 +0000] "POST /ws-chat/060/bo3h2eoh/xhr_send?t=1793090339817 HTTP/1.1" 204 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:05 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090335738 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:10 +0000] "POST /ws-chat/060/bo3h2eoh/xhr_send?t=1793090349824 HTTP/1.1" 204 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:15 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090345757 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:20 +0000] "POST /ws-chat/060/bo3h2eoh/xhr_send?t=1793090359817 HTTP/1.1" 204 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:25 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090355736 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:39:35 +0000] "GET /api/posts/all?limit=200 HTTP/1.1" 200 5636 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:39:35 +0000] "OPTIONS /api/marketplace/listings?villageId=25044 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:39:35 +0000] "GET /api/marketplace/listings?villageId=25044 HTTP/1.1" 200 2 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:39:35 +0000] "GET /api/apps HTTP/1.1" 304 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:35 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090365773 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:39:37 +0000] "GET /api/village-entities/village/25044 HTTP/1.1" 500 97 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:39:37 +0000] "OPTIONS /api/chat/conversations?userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.198.76 - - [27/Oct/2026:08:39:37 +0000] "GET /api/chat/conversations?userId=1 HTTP/1.1" 200 3281 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:38 +0000] "POST /ws-chat/060/bo3h2eoh/xhr_send?t=1793090377849 HTTP/1.1" 204 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:45 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090375862 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:39:55 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090385726 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:05 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090395766 HTTP/1.1" 200 50 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:16 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090405732 HTTP/1.1" 200 102 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:16 +0000] "POST /ws-chat/060/bo3h2eoh/xhr?t=1793090415877 HTTP/1.1" 200 19 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:16 +0000] "OPTIONS /api/auth/device/token=REDACTED HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:16 +0000] "POST /api/auth/device/token=REDACTED HTTP/1.1" 200 859 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:16 +0000] "GET /ws-chat/info?t=1793090416263 HTTP/1.1" 200 79 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:16 +0000] "OPTIONS /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:16 +0000] "OPTIONS /api/chat/conversations?userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:17 +0000] "GET /api/chat/conversations?userId=1 HTTP/1.1" 200 3281 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:17 +0000] "GET /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 6732 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.69.94.107 - - [27/Oct/2026:08:40:45 +0000] "GET /ws-chat/829/kvokpmxr/websocket HTTP/1.1" 101 92 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:45 +0000] "OPTIONS /api/auth/device/token=REDACTED HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:45 +0000] "POST /api/auth/device/token=REDACTED HTTP/1.1" 200 859 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:45 +0000] "GET /ws-chat/info?t=1793090445516 HTTP/1.1" 200 77 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:46 +0000] "OPTIONS /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:46 +0000] "OPTIONS /api/chat/conversations?userId=1 HTTP/1.1" 200 0 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:46 +0000] "GET /api/chat/conversations?userId=1 HTTP/1.1" 200 3281 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+172.71.202.64 - - [27/Oct/2026:08:40:46 +0000] "GET /api/chat/messages?conversationId=11&userId=1 HTTP/1.1" 200 6732 "https://nammagrama.sthirvaa.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36" "192.140.152.57"
+=== LOCAL HEALTH CHECKS FROM THE SERVER ===
+http://localhost:8080/api/herds -> 401 4.166223s
+http://localhost:3000/login -> 200 1.235969s

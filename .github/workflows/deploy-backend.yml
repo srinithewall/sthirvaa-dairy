@@ -71,6 +71,8 @@ jobs:
                 container_name: dairy-backend
                 volumes:
                   - ./resources/service-account.json:/app/firebase-service-account.json
+                env_file:
+                  - ./amcs.env
                 environment:
                   - DB_URL=${{ secrets.DB_URL }}
                   - DB_USER=${{ secrets.DB_USER }}
@@ -89,6 +91,12 @@ jobs:
             # Authenticate Docker to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
             
+            # AMCS milk-collection settings (AMCS_SYNC_ENABLED, AMCS_TOKEN, ...) live in a file that
+            # only the server owns, so this compose file being rewritten never wipes them and a
+            # token refresh needs no redeploy. An empty file is fine (the sync stays off); a missing
+            # one would make compose fail, hence the touch. See tools/amcs-sync/README.md.
+            touch amcs.env
+
             # Pull the new image and restart the container
             docker compose pull
             docker compose up -d

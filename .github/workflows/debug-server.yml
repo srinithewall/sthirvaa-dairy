@@ -28,6 +28,31 @@ jobs:
             docker exec nginx cat /etc/nginx/ssl/nginx.conf 2>/dev/null || true
             echo '=== ALL DOCKER COMPOSE CONFIG PATHS ==='
             find ~ -name 'docker-compose.yml' -o -name 'docker-compose.yaml'
+            echo '=== SYSTEM LOAD / MEMORY / DISK ==='
+            uptime; free -m; df -h /
+            echo '=== UFW STATUS ==='
+            sudo ufw status verbose 2>&1 || true
+            echo '=== FAIL2BAN STATUS ==='
+            sudo fail2ban-client status 2>&1 || true
+            for j in \$(sudo fail2ban-client status 2>/dev/null | sed -n 's/.*Jail list:\s*//p' | tr ',' ' '); do sudo fail2ban-client status \$j; done
+            echo '=== IPTABLES INPUT RULES (DROP/REJECT) ==='
+            sudo iptables -S INPUT 2>&1 | grep -E 'DROP|REJECT' | head -50 || true
+            echo '=== LISTENING PORTS ==='
+            sudo ss -tlnp 2>&1 | grep -E ':(80|443|3000|8080|3306) ' || true
+            echo '=== TCP CONNECTION STATES ON 443 ==='
+            ss -tan 'sport = :443' 2>/dev/null | awk 'NR>1 {print \$1}' | sort | uniq -c
+            echo '=== DOCKER CONTAINERS ==='
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+            echo '=== DOCKER STATS ==='
+            docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
+            echo '=== NGINX CONFIG TEST ==='
+            docker exec nginx nginx -t 2>&1 || true
+            echo '=== NGINX LIMITS (limit_req / limit_conn / worker_connections / deny) ==='
+            docker exec nginx sh -c 'grep -rnE \"limit_req|limit_conn|worker_connections|deny |allow \" /etc/nginx' 2>/dev/null || true
+            echo '=== NGINX LOG TAIL (last 80 lines) ==='
+            docker logs --tail 80 nginx 2>&1 | sed -E 's/(Authorization|Cookie|token)[^ ]*/\1=REDACTED/Ig'
+            echo '=== LOCAL HEALTH CHECKS FROM THE SERVER ==='
+            for u in http://localhost:8080/api/herds http://localhost:3000/login; do curl -s -m 10 -o /dev/null -w \"\$u -> %{http_code} %{time_total}s\n\" \$u; done
           " > debug-output.txt
           rm -f private_key.pem
 

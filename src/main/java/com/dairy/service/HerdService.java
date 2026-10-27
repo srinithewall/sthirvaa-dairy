@@ -45,14 +45,20 @@ public class HerdService {
     }
 
     /* ─── Body Condition Score ───
-       Every score is kept as a BCS_SCORED event (score in quantity) so the trend survives;
+       Every score is kept as a BCS_SCORED event (in score) so the trend survives;
        the herd's bcs/bcsDate always mirror the latest of those events. */
     public static final String BCS_EVENT = "BCS_SCORED";
-    private static final String[] BCS_LABELS = {"", "Very Thin", "Thin", "Ideal", "Fat", "Very Fat"};
+    private static final java.util.Map<Double, String> BCS_LABELS = java.util.Map.of(
+            1.0, "Very Thin", 2.0, "Thin", 2.5, "Lean", 3.0, "Ideal", 3.5, "Good Cover", 4.0, "Fat", 5.0, "Very Fat");
+
+    public static boolean isValidBcs(Double bcs) { return bcs != null && BCS_LABELS.containsKey(bcs); }
+
+    /** 3.0 → "3", 2.5 → "2.5". */
+    private static String bcsText(double bcs) { return bcs == Math.floor(bcs) ? String.valueOf((int) bcs) : String.valueOf(bcs); }
 
     /** Records today's score (re-scoring the same day corrects it); null removes today's score. */
     @org.springframework.transaction.annotation.Transactional
-    public Optional<Herd> scoreBcs(Long herdId, Integer bcs) {
+    public Optional<Herd> scoreBcs(Long herdId, Double bcs) {
         if (herdRepository.findById(herdId).isEmpty()) return Optional.empty();
         LocalDate today = LocalDate.now();
         Optional<HerdEvent> todays = herdEventRepository.findByHerdIdOrderByEventDateDesc(herdId).stream()
@@ -62,8 +68,10 @@ public class HerdService {
             todays.ifPresent(herdEventRepository::delete);
         } else {
             HerdEvent event = todays.orElseGet(() -> new HerdEvent(herdId, today, BCS_EVENT, "", null));
-            event.setQuantity(bcs);
-            event.setTitle("BCS " + bcs + " · " + BCS_LABELS[bcs]);
+            event.setScore(bcs);
+            // Whole points also go in quantity, which the not-yet-redeployed server still reads
+            event.setQuantity(bcs == Math.floor(bcs) ? bcs.intValue() : null);
+            event.setTitle("BCS " + bcsText(bcs) + " · " + BCS_LABELS.get(bcs));
             herdEventRepository.save(event);
         }
         syncBcs(herdId);
@@ -74,9 +82,9 @@ public class HerdService {
     public void syncBcs(Long herdId) {
         herdRepository.findById(herdId).ifPresent(herd -> {
             Optional<HerdEvent> latest = herdEventRepository.findByHerdIdOrderByEventDateDesc(herdId).stream()
-                    .filter(e -> BCS_EVENT.equals(e.getEventType()) && e.getQuantity() != null)
+                    .filter(e -> BCS_EVENT.equals(e.getEventType()) && e.getScore() != null)
                     .findFirst();
-            herd.setBcs(latest.map(HerdEvent::getQuantity).orElse(null));
+            herd.setBcs(latest.map(HerdEvent::getScore).orElse(null));
             herd.setBcsDate(latest.map(HerdEvent::getEventDate).orElse(null));
             herdRepository.save(herd);
         });

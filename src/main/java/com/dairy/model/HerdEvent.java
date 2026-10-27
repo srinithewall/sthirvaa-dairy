@@ -29,6 +29,13 @@ public class HerdEvent {
     /** Count for poultry events: birds died (BIRD_DEATH) or eggs collected (EGGS_COLLECTED). */
     private Integer quantity;
 
+    /** Body Condition Score of a BCS_SCORED reading, 1-5 in half points. */
+    @Column(columnDefinition = "DECIMAL(2,1)")
+    private Double score;
+
+    public Double getScore() { return score; }
+    public void setScore(Double score) { this.score = score; }
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

@@ -24,9 +24,16 @@ public class MilkDispatch {
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Customer customer;
 
-    // "CUSTOMER", "WASTE", "OWN_USE"
+    // "CUSTOMER", "WASTE", "OWN_USE", "CALF"
     @Column(name = "dispatch_type", nullable = false)
     private String dispatchType = "CUSTOMER";
+
+    /** The calf fed, for CALF rows. */
+    @Column(name = "herd_id")
+    private Long herdId;
+
+    public Long getHerdId() { return herdId; }
+    public void setHerdId(Long herdId) { this.herdId = herdId; }
 
     @Column(nullable = false)
     private Double quantity; // Litres

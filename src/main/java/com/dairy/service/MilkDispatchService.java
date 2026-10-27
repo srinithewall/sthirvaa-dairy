@@ -35,7 +35,7 @@ public class MilkDispatchService {
      * Then income is recalculated.
      *
      * Each entry in the list:
-     * { date, shift, dispatchType, customerId (optional), quantity, ratePerLitre }
+     * { date, shift, dispatchType, customerId (optional), herdId (CALF only), quantity, ratePerLitre }
      */
     @Transactional
     public List<MilkDispatch> saveSession(List<Map<String, Object>> entries) {
@@ -75,6 +75,13 @@ public class MilkDispatchService {
                         .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
                 d.setCustomer(customer);
                 rate = Double.parseDouble(e.get("ratePerLitre").toString());
+            }
+            if ("CALF".equals(type)) {
+                Object herdIdObj = e.get("herdId");
+                if (herdIdObj == null) {
+                    throw new RuntimeException("Pick the calf for each calf feeding row");
+                }
+                d.setHerdId(Long.parseLong(herdIdObj.toString()));
             }
             d.setRatePerLitre(rate);
             d.setTotalAmount(qty * rate);

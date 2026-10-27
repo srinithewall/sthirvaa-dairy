@@ -6,11 +6,14 @@ import api from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 
 interface Customer { id: number; name: string; defaultRate: number; }
+interface Calf { id: number; animalName?: string; tagNumber?: string; }
 
 interface DispatchRow {
   key: number;
-  dispatchType: 'CUSTOMER' | 'WASTE' | 'OWN_USE';
+  dispatchType: 'CUSTOMER' | 'WASTE' | 'OWN_USE' | 'CALF';
   customerId: number | null;
+  /** Calf fed, for CALF rows. */
+  herdId: number | null;
   quantity: string;
   ratePerLitre: string;
 }
@@ -84,6 +87,7 @@ function StepperInput({
 
 export default function DistributeModal({ date, shift, totalProduced, onClose, onSave }: DistributeModalProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [calves, setCalves] = useState<Calf[]>([]);
   const [rows, setRows] = useState<DispatchRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -103,6 +107,19 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
     }).catch(() => {});
   }, []);
 
+  // Calves still on milk: animals on the farm born less than 100 days ago.
+  useEffect(() => {
+    api.get('/herds').then(r => {
+      const all: any[] = r.data?.herds || r.data || [];
+      const today = new Date();
+      const ageDays = (iso: string) => Math.floor((today.getTime() - new Date(iso + 'T00:00:00').getTime()) / 86400000);
+      setCalves(all
+        .filter(h => h.status !== 'DISPOSED' && !['CHICKEN', 'DUCK', 'FISH', 'QUAIL'].includes(h.animalType)
+          && h.birthDate && ageDays(h.birthDate) >= 0 && ageDays(h.birthDate) < 100)
+        .sort((a, b) => (a.animalName || a.tagNumber || '').localeCompare(b.animalName || b.tagNumber || '')));
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     api.get(`/milk-dispatch/by-date?date=${date}`).then(r => {
       const all: any[] = r.data;
@@ -112,6 +129,7 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
           key: nk(),
           dispatchType: d.dispatchType as DispatchRow['dispatchType'],
           customerId: d.customer?.id ?? null,
+          herdId: d.herdId ?? null,
           quantity: String(d.quantity),
           // Saved rates can carry long decimals (a synced shift's amount / litres); show paise
           ratePerLitre: String(Math.round((d.ratePerLitre ?? 0) * 100) / 100),
@@ -120,14 +138,28 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
         // Default to first customer — will be patched by customers useEffect if not yet loaded
         setRows(prev => {
           const firstCust = customers[0];
-          return [{ key: nk(), dispatchType: 'CUSTOMER', customerId: firstCust?.id ?? null, quantity: '', ratePerLitre: String(firstCust?.defaultRate ?? 45) }];
+          return [{ key: nk(), dispatchType: 'CUSTOMER', customerId: firstCust?.id ?? null, herdId: null, quantity: '', ratePerLitre: String(firstCust?.defaultRate ?? 45) }];
         });
       }
     }).catch(() => {
       const firstCust = customers[0];
-      setRows([{ key: nk(), dispatchType: 'CUSTOMER', customerId: firstCust?.id ?? null, quantity: '', ratePerLitre: String(firstCust?.defaultRate ?? 45) }]);
+      setRows([{ key: nk(), dispatchType: 'CUSTOMER', customerId: firstCust?.id ?? null, herdId: null, quantity: '', ratePerLitre: String(firstCust?.defaultRate ?? 45) }]);
     });
   }, [date, shift]);
+
+  // A calf row always has a calf: fill any empty one with the first calf not already used.
+  useEffect(() => {
+    if (!calves.length || !rows.some(r => r.dispatchType === 'CALF' && r.herdId == null)) return;
+    setRows(prev => {
+      const used = new Set(prev.filter(r => r.dispatchType === 'CALF' && r.herdId != null).map(r => r.herdId));
+      return prev.map(r => {
+        if (r.dispatchType !== 'CALF' || r.herdId != null) return r;
+        const next = calves.find(c => !used.has(c.id)) ?? calves[0];
+        used.add(next.id);
+        return { ...r, herdId: next.id };
+      });
+    });
+  }, [calves, rows]);
 
   const setRow = (key: number, patch: Partial<DispatchRow>) =>
     setRows(p => p.map(r => r.key === key ? { ...r, ...patch } : r));
@@ -143,13 +175,20 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
       key: nk(),
       dispatchType: 'CUSTOMER',
       customerId: firstCust?.id ?? null,
+      herdId: null,
       quantity: '',
       ratePerLitre: String(firstCust?.defaultRate ?? 45),
     }]);
   };
   const addSpecial = (type: 'WASTE' | 'OWN_USE') => {
     if (!rows.some(r => r.dispatchType === type))
-      setRows(p => [...p, { key: nk(), dispatchType: type, customerId: null, quantity: '', ratePerLitre: '0' }]);
+      setRows(p => [...p, { key: nk(), dispatchType: type, customerId: null, herdId: null, quantity: '', ratePerLitre: '0' }]);
+  };
+  // One row per calf, so several calves can be fed in the same session.
+  const addCalf = () => {
+    const used = new Set(rows.filter(r => r.dispatchType === 'CALF').map(r => r.herdId));
+    const next = calves.find(c => !used.has(c.id));
+    setRows(p => [...p, { key: nk(), dispatchType: 'CALF', customerId: null, herdId: next?.id ?? null, quantity: '', ratePerLitre: '0' }]);
   };
   const del = (key: number) => setRows(p => p.filter(r => r.key !== key));
 
@@ -173,6 +212,7 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
         date, shift,
         dispatchType: r.dispatchType,
         customerId: r.customerId ?? undefined,
+        herdId: r.dispatchType === 'CALF' ? (r.herdId ?? undefined) : undefined,
         quantity: parseFloat(r.quantity),
         ratePerLitre: parseFloat(r.ratePerLitre) || 0,
       }));
@@ -180,6 +220,7 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
     if (overAllocated) { showToast('Over-allocated! Please fix quantities.', 'error'); return; }
     const missingCustomer = payload.some(p => p.dispatchType === 'CUSTOMER' && !p.customerId);
     if (missingCustomer) { showToast('Please select a customer for all dispatch rows.', 'warning'); return; }
+    if (payload.some(p => p.dispatchType === 'CALF' && !p.herdId)) { showToast('Pick the calf for each calf row.', 'warning'); return; }
     setSaving(true);
     try {
       await api.post('/milk-dispatch/session', payload);
@@ -261,6 +302,7 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
             const total = qty * rate;
             const isCust = row.dispatchType === 'CUSTOMER';
             const isWaste = row.dispatchType === 'WASTE';
+            const isCalf = row.dispatchType === 'CALF';
 
             return (
               <div
@@ -270,15 +312,17 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
                     ? 'bg-white border border-gray-200 shadow-sm'
                     : isWaste
                     ? 'border-2 border-dashed border-red-300 bg-red-50'
+                    : isCalf
+                    ? 'border-2 border-dashed border-sky-300 bg-sky-50'
                     : 'border-2 border-dashed border-amber-300 bg-amber-50'
                 }`}
               >
                 {/* Row header: label + delete button aligned to top */}
                 <div className="flex items-start justify-between mb-2">
                   <label className={`text-[10px] font-bold uppercase tracking-wider pt-0.5 ${
-                    isCust ? 'text-gray-400' : isWaste ? 'text-red-400' : 'text-amber-500'
+                    isCust ? 'text-gray-400' : isWaste ? 'text-red-400' : isCalf ? 'text-sky-600' : 'text-amber-500'
                   }`}>
-                    {isCust ? 'Customer' : isWaste ? '🗑 Waste' : '🏠 Own Use'}
+                    {isCust ? 'Customer' : isWaste ? '🗑 Waste' : isCalf ? '🐄 Calf' : '🏠 Own Use'}
                   </label>
                   <button
                     onClick={() => del(row.key)}
@@ -298,6 +342,26 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
                     >
                       <option value="">Select customer…</option>
                       {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  </div>
+                )}
+
+                {/* Calf picker */}
+                {isCalf && (
+                  <div className="relative mb-3">
+                    <select
+                      value={row.herdId ?? ''}
+                      onChange={e => setRow(row.key, { herdId: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full text-[14px] font-semibold border border-sky-200 rounded-xl px-3 py-2.5 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-sky-400 pr-8"
+                    >
+                      {calves.length === 0 && <option value="">No calves under 100 days</option>}
+                      {calves.map(c => (
+                        <option key={c.id} value={c.id}
+                          disabled={c.id !== row.herdId && rows.some(r => r.dispatchType === 'CALF' && r.herdId === c.id)}>
+                          {c.animalName || c.tagNumber}
+                        </option>
+                      ))}
                     </select>
                     <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   </div>
@@ -344,13 +408,17 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
             className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-4 py-2 rounded-full border-2 border-brand text-brand hover:bg-brand hover:text-white transition-all">
             <Plus size={12} /> Add Customer
           </button>
-          <button onClick={() => addSpecial('WASTE')}
-            className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-4 py-2 rounded-full border-2 border-red-400 text-red-500 hover:bg-red-50 transition-all">
-            <Plus size={12} /> Waste
+          <button onClick={addCalf}
+            className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-4 py-2 rounded-full border-2 border-sky-400 text-sky-600 hover:bg-sky-50 transition-all">
+            <Plus size={12} /> Calf
           </button>
           <button onClick={() => addSpecial('OWN_USE')}
             className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-4 py-2 rounded-full border-2 border-amber-400 text-amber-600 hover:bg-amber-50 transition-all">
             <Plus size={12} /> Own Use
+          </button>
+          <button onClick={() => addSpecial('WASTE')}
+            className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-4 py-2 rounded-full border-2 border-red-400 text-red-500 hover:bg-red-50 transition-all">
+            <Plus size={12} /> Waste
           </button>
         </div>
 

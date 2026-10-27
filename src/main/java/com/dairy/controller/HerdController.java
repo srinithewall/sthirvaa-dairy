@@ -72,8 +72,24 @@ public class HerdController {
                 .map(existing -> {
                     herd.setId(id);
                     if (herd.getDisposedDate() == null) herd.setDisposedDate(existing.getDisposedDate());
+                    // The edit form doesn't carry BCS; keep the score set from the table
+                    if (herd.getBcs() == null) {
+                        herd.setBcs(existing.getBcs());
+                        herd.setBcsDate(existing.getBcsDate());
+                    }
                     return ResponseEntity.ok(herdService.saveHerd(herd));
                 })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /** Records today's Body Condition Score (1-5) in the animal's history; null removes today's score. */
+    @PatchMapping("/{id}/bcs")
+    @PreAuthorize("@ss.can('HERDS')")
+    public ResponseEntity<?> updateBcs(@PathVariable Long id, @RequestBody java.util.Map<String, Integer> body) {
+        Integer bcs = body.get("bcs");
+        if (bcs != null && (bcs < 1 || bcs > 5)) return ResponseEntity.badRequest().body("BCS must be 1 to 5");
+        return herdService.scoreBcs(id, bcs)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 

@@ -89,6 +89,17 @@ public class Herd {
     public String getPurpose() { return purpose; }
     public void setPurpose(String purpose) { this.purpose = purpose; }
 
+    /** Body Condition Score, 1 (very thin) to 5 (very fat); 3 is ideal. Set by eye from the herds table. */
+    private Integer bcs;
+
+    @Column(name = "bcs_date")
+    private LocalDate bcsDate;
+
+    public Integer getBcs() { return bcs; }
+    public void setBcs(Integer bcs) { this.bcs = bcs; }
+    public LocalDate getBcsDate() { return bcsDate; }
+    public void setBcsDate(LocalDate bcsDate) { this.bcsDate = bcsDate; }
+
     // Computed / UI Fields
     @Transient
     private Double calculatedWeight;

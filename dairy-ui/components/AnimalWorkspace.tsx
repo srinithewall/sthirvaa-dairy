@@ -11,6 +11,7 @@ import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 import WeightTracker from '@/components/WeightTracker';
 import { bullIdOf, notesOf, withBullId } from '@/lib/breeding';
+import { BcsTrendCard } from '@/components/BcsPicker';
 
 /* ─── Types ─────────────────────────────────────── */
 interface Herd {
@@ -21,7 +22,7 @@ interface Herd {
 }
 interface HerdEvent {
   id: number; herdId: number; eventDate: string; eventType: string;
-  title: string; details?: string; createdAt: string;
+  title: string; details?: string; createdAt: string; quantity?: number | null;
 }
 interface Props {
   herd: Herd; events: HerdEvent[]; loadingEvents: boolean; userRole: string;
@@ -29,6 +30,8 @@ interface Props {
   onDelete: () => void; onEventAdded: (e: HerdEvent) => void;
   onEventDeleted: (id: number) => void; onImageError: (id: number) => void;
   onEventUpdated?: (e: HerdEvent) => void;
+  /** Saves a BCS reading (null removes today's) and reloads the animal. */
+  onBcsScored?: (bcs: number | null) => Promise<void>;
 }
 
 /* ─── Semen Catalog ──────────────────────────────
@@ -284,6 +287,7 @@ const EV: Record<string, { icon: React.ElementType; color: string; bg: string; l
   DEWORMING_DONE:       { icon: Bug,         color: 'text-orange-700',  bg: 'bg-orange-100',  label: 'Dewormed',            emoji: '✅' },
   PREGNANCY_CHECK_DUE:  { icon: Microscope,  color: 'text-indigo-700',  bg: 'bg-indigo-100',  label: 'PD Check',            emoji: '🔬' },
   TREATMENT:            { icon: Pill,        color: 'text-red-700',     bg: 'bg-red-100',     label: 'Treatment',           emoji: '💊' },
+  BCS_SCORED:           { icon: Activity,    color: 'text-lime-700',    bg: 'bg-lime-100',    label: 'Body Condition',      emoji: '📏' },
 };
 const DEF_EV = { icon: Activity, color: 'text-slate-600', bg: 'bg-slate-100', label: 'Event', emoji: '📋' };
 
@@ -628,7 +632,9 @@ function EditEventModal({ event, onClose, onSaved }: { event: HerdEvent; onClose
             </div>
             <div>
               <label className={label}>Title</label>
-              <input type="text" value={title} onChange={e=>setTitle(e.target.value)} required className={input}/>
+              {/* A BCS reading's title comes from its score; re-score from the table to change it */}
+              <input type="text" value={title} onChange={e=>setTitle(e.target.value)} required
+                readOnly={event.eventType === 'BCS_SCORED'} className={`${input} read-only:text-slate-400`}/>
             </div>
           </div>
           {isAi && (
@@ -1072,7 +1078,7 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
 /* ─── MAIN COMPONENT ─────────────────────────────── */
 export default function AnimalWorkspace({
   herd, events, loadingEvents, userRole, failedImages,
-  onBack, onEdit, onDelete, onEventAdded, onEventDeleted, onImageError, onEventUpdated,
+  onBack, onEdit, onDelete, onEventAdded, onEventDeleted, onImageError, onEventUpdated, onBcsScored,
 }: Props) {
   const [editingEvent, setEditingEvent] = useState<HerdEvent | null>(null);
   const [activeTab, setActiveTab] = useState<'overview'|'breeding'|'health'|'history'|'details'|'weight'>('overview');
@@ -1874,6 +1880,12 @@ export default function AnimalWorkspace({
         {/* ─── DETAILS TAB ─── */}
         {activeTab==='weight' && (
           <div className="animate-in fade-in duration-200">
+            <div className="p-4 md:px-6 md:pt-6 md:pb-0 max-w-4xl mx-auto">
+              <BcsTrendCard animalName={herd.animalName || herd.tagNumber}
+                readings={events.filter(e => e.eventType === 'BCS_SCORED')}
+                canEdit={isAdmin && !!onBcsScored}
+                onScore={bcs => onBcsScored?.(bcs)} />
+            </div>
             <WeightTracker herdId={herd.id} />
           </div>
         )}

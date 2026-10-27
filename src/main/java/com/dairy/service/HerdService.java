@@ -44,6 +44,44 @@ public class HerdService {
         return enrichAll(herdRepository.findAll());
     }
 
+    /* ─── Body Condition Score ───
+       Every score is kept as a BCS_SCORED event (score in quantity) so the trend survives;
+       the herd's bcs/bcsDate always mirror the latest of those events. */
+    public static final String BCS_EVENT = "BCS_SCORED";
+    private static final String[] BCS_LABELS = {"", "Very Thin", "Thin", "Ideal", "Fat", "Very Fat"};
+
+    /** Records today's score (re-scoring the same day corrects it); null removes today's score. */
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<Herd> scoreBcs(Long herdId, Integer bcs) {
+        if (herdRepository.findById(herdId).isEmpty()) return Optional.empty();
+        LocalDate today = LocalDate.now();
+        Optional<HerdEvent> todays = herdEventRepository.findByHerdIdOrderByEventDateDesc(herdId).stream()
+                .filter(e -> BCS_EVENT.equals(e.getEventType()) && today.equals(e.getEventDate()))
+                .findFirst();
+        if (bcs == null) {
+            todays.ifPresent(herdEventRepository::delete);
+        } else {
+            HerdEvent event = todays.orElseGet(() -> new HerdEvent(herdId, today, BCS_EVENT, "", null));
+            event.setQuantity(bcs);
+            event.setTitle("BCS " + bcs + " · " + BCS_LABELS[bcs]);
+            herdEventRepository.save(event);
+        }
+        syncBcs(herdId);
+        return getHerdById(herdId);
+    }
+
+    /** Sets the herd's current BCS from its latest BCS event (none left: no score). */
+    public void syncBcs(Long herdId) {
+        herdRepository.findById(herdId).ifPresent(herd -> {
+            Optional<HerdEvent> latest = herdEventRepository.findByHerdIdOrderByEventDateDesc(herdId).stream()
+                    .filter(e -> BCS_EVENT.equals(e.getEventType()) && e.getQuantity() != null)
+                    .findFirst();
+            herd.setBcs(latest.map(HerdEvent::getQuantity).orElse(null));
+            herd.setBcsDate(latest.map(HerdEvent::getEventDate).orElse(null));
+            herdRepository.save(herd);
+        });
+    }
+
     public Optional<Herd> getHerdById(Long id) {
         return herdRepository.findById(id).map(herd -> {
             enrichHerd(herd);

@@ -16,6 +16,7 @@ import BatchIcon from '@/components/BatchIcon';
 import { BATCH_TYPES, batchType, isPoultryType, liveBirds } from '@/lib/poultry';
 import { DIM_STAGES, DIM_GRADIENT, dimStage } from '@/lib/dimStages';
 import { useNotification } from '@/components/NotificationContext';
+import { BcsBadge, BcsPickerModal, bcsTodayIso } from '@/components/BcsPicker';
 import { bullIdOf as bullIdFromDetails, notesOf, withBullId, PD_AFTER_AI_DAYS } from '@/lib/breeding';
 
 interface Herd {
@@ -41,6 +42,8 @@ interface Herd {
   lactationNumber?: number;
   calculatedWeight?: number;
   weightStatus?: string;
+  bcs?: number | null;
+  bcsDate?: string | null;
   birdCount?: number;
   purpose?: string;
   lastDewormingDate?: string | null;
@@ -103,6 +106,7 @@ export default function HerdsPage() {
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   // Table view on phones: one group of figures at a time instead of a 15-column sideways scroll.
   const [phoneGroup, setPhoneGroup] = useState<PhoneGroup>('milk');
+  const [bcsTarget, setBcsTarget] = useState<Herd | null>(null);
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showBreedingModal, setShowBreedingModal] = useState(false);
@@ -155,6 +159,22 @@ export default function HerdsPage() {
       setAllGlobalEvents(eventsRes.data || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
+  };
+
+  // Body Condition Score: show the new score at once, roll back if the save fails
+  const saveBcs = async (herd: Herd, bcs: number | null) => {
+    setBcsTarget(null);
+    const prev = { bcs: herd.bcs, bcsDate: herd.bcsDate };
+    setHerds(hs => hs.map(h => h.id === herd.id ? { ...h, bcs } : h));
+    try {
+      const res = await api.patch(`/herds/${herd.id}/bcs`, { bcs });
+      // Removing today's score falls back to the previous reading
+      setHerds(hs => hs.map(h => h.id === herd.id ? { ...h, bcs: res.data.bcs, bcsDate: res.data.bcsDate } : h));
+      api.get('/herds/events/all').then(r => setAllGlobalEvents(r.data || [])).catch(console.error);
+    } catch {
+      setHerds(hs => hs.map(h => h.id === herd.id ? { ...h, ...prev } : h));
+      showToast('Failed to save BCS.', 'error');
+    }
   };
 
   const handleDeleteHerd = (id: number) => {
@@ -623,7 +643,7 @@ export default function HerdsPage() {
     const imgUrl = (item.imageUrl && !isImageFailed) ? formatImageUrl(item.imageUrl) : null;
     const initials = item.animalName ? item.animalName.substring(0, 2).toUpperCase() : item.tagNumber.substring(0,2);
     return { hGirth, weight, weightStatus, wColor, daysSinceAI, fmtDate, latestDeworm, dewormDue, dim, calvingDateStr,
-      nextEventStr, avgMilk, pot, conf, targetMissed, imgUrl, initials };
+      nextEventStr, avgMilk, pot, conf, targetMissed, imgUrl, initials, item };
   };
 
   /** Columns of the phone table view for a group: heading, sort key (same as the full table), width, cell. */
@@ -642,10 +662,16 @@ export default function HerdsPage() {
         { label: 'Calved', sort: 'calvingDate', width: 'w-[60px]', render: f => f.calvingDateStr !== '—' ? shortDate(f.calvingDateStr) : dash },
       ];
       case 'weight': return [
-        { label: 'Girth', sort: 'heartGirth', width: 'w-[56px]', render: f => f.hGirth > 0 ? `${f.hGirth} cm` : dash },
-        { label: 'Weight', sort: 'weight', width: 'w-[60px]', render: f => f.weight > 0 ? <span className="text-brand">{f.weight} kg</span> : dash },
-        { label: 'Status', sort: 'weightStatus', width: 'w-[72px]', render: f => (
-          <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase leading-tight ${f.wColor}`}>{f.weightStatus}</span>
+        { label: 'Girth', sort: 'heartGirth', width: 'w-[48px]', render: f => f.hGirth > 0 ? `${f.hGirth} cm` : dash },
+        // Weight status sits under the weight so the name keeps room next to BCS
+        { label: 'Weight', sort: 'weight', width: 'w-[66px]', render: f => (
+          <div className="flex flex-col items-end gap-0.5">
+            {f.weight > 0 ? <span className="text-brand">{f.weight} kg</span> : dash}
+            <span className={`px-1.5 rounded-full text-[8px] font-black uppercase leading-[14px] whitespace-nowrap ${f.wColor}`}>{f.weightStatus}</span>
+          </div>
+        ) },
+        { label: 'BCS', sort: 'bcs', width: 'w-[40px]', render: f => (
+          <BcsBadge bcs={f.item.bcs} size={34} onClick={e => { e.stopPropagation(); setBcsTarget(f.item); }} />
         ) },
       ];
       case 'health': return [
@@ -701,6 +727,15 @@ export default function HerdsPage() {
           onEventUpdated={(evt) => {
             setEvents(prev => prev.map(e => e.id === evt.id ? evt : e).sort((a, b) => b.eventDate.localeCompare(a.eventDate)));
             fetchHerds();
+          }}
+          onBcsScored={async (bcs) => {
+            try {
+              const res = await api.patch(`/herds/${selectedHerd.id}/bcs`, { bcs });
+              setSelectedHerd(res.data);
+              const ev = await api.get(`/herds/${selectedHerd.id}/events`);
+              setEvents(ev.data || []);
+              fetchHerds();
+            } catch { showToast('Failed to save BCS.', 'error'); }
           }}
           onImageError={(id) => setFailedImages(prev => ({ ...prev, [id]: true }))}
         />
@@ -829,6 +864,7 @@ export default function HerdsPage() {
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('heartGirth')}>Heart Girth {getSortIcon('heartGirth')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-right cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('weight')}>Weight {getSortIcon('weight')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-center cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('weightStatus')}>Weight Status {getSortIcon('weightStatus')}</th>
+                    <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider text-center cursor-pointer hover:text-brand whitespace-nowrap" title="Body Condition Score 1-5, tap to set" onClick={() => handleSort('bcs')}>BCS {getSortIcon('bcs')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Next Event</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider cursor-pointer hover:text-brand whitespace-nowrap" onClick={() => handleSort('calvingDate')}>Calving Date {getSortIcon('calvingDate')}</th>
                     <th className="py-3 px-4 text-[11px] font-black text-text3 uppercase tracking-wider whitespace-nowrap">Last Deworming</th>
@@ -871,6 +907,9 @@ export default function HerdsPage() {
                             {weightStatus}
                           </span>
                         </td>
+                        <td className="py-2 px-4 text-center whitespace-nowrap">
+                          <BcsBadge bcs={item.bcs} onClick={e => { e.stopPropagation(); setBcsTarget(item); }} />
+                        </td>
                         <td className="py-3 px-4 text-xs font-semibold text-text whitespace-nowrap">{nextEventStr}</td>
                         <td className="py-3 px-4 text-xs font-semibold text-text whitespace-nowrap">{calvingDateStr}</td>
                         <td className="py-3 px-4 text-xs font-semibold text-text whitespace-nowrap">{latestDeworm}</td>
@@ -882,7 +921,7 @@ export default function HerdsPage() {
                     );
                   })}
                   {activeHerds.filter(h => h.animalType === 'COW').length === 0 && (
-                    <tr><td colSpan={17} className="py-8 text-center text-text3 italic">No cows found in herd.</td></tr>
+                    <tr><td colSpan={18} className="py-8 text-center text-text3 italic">No cows found in herd.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1052,6 +1091,17 @@ export default function HerdsPage() {
           onClose={() => setShowDisposedModal(false)}
           herds={herds}
           onAnimalClick={handleHerdClick}
+        />
+      )}
+
+      {/* Body Condition Score picker */}
+      {bcsTarget && (
+        <BcsPickerModal
+          animalName={bcsTarget.animalName || bcsTarget.tagNumber}
+          value={bcsTarget.bcs}
+          scoredToday={bcsTarget.bcsDate === bcsTodayIso()}
+          onSelect={bcs => saveBcs(bcsTarget, bcs)}
+          onClose={() => setBcsTarget(null)}
         />
       )}
 

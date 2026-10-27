@@ -16,6 +16,9 @@ public class HerdEventController {
     @Autowired
     private HerdEventRepository herdEventRepository;
 
+    @Autowired
+    private com.dairy.service.HerdService herdService;
+
     @GetMapping("/{herdId}/events")
     public ResponseEntity<List<HerdEvent>> getEventsByHerd(@PathVariable Long herdId) {
         List<HerdEvent> events = herdEventRepository.findByHerdIdOrderByEventDateDesc(herdId);
@@ -42,19 +45,27 @@ public class HerdEventController {
     public ResponseEntity<HerdEvent> updateEvent(@PathVariable Long id, @RequestBody HerdEvent body) {
         return herdEventRepository.findById(id).map(event -> {
             if (body.getEventDate() != null) event.setEventDate(body.getEventDate());
-            if (body.getTitle() != null && !body.getTitle().isBlank()) event.setTitle(body.getTitle());
+            // A BCS reading's title is derived from its score, so only its date and notes change
+            boolean isBcs = com.dairy.service.HerdService.BCS_EVENT.equals(event.getEventType());
+            if (!isBcs && body.getTitle() != null && !body.getTitle().isBlank()) event.setTitle(body.getTitle());
             event.setDetails(body.getDetails());
-            return ResponseEntity.ok(herdEventRepository.save(event));
+            HerdEvent saved = herdEventRepository.save(event);
+            // A moved BCS reading can change which one is latest
+            if (com.dairy.service.HerdService.BCS_EVENT.equals(saved.getEventType())) herdService.syncBcs(saved.getHerdId());
+            return ResponseEntity.ok(saved);
         }).orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/events/{id}")
     @PreAuthorize("@ss.can('HERDS')")
     public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {
-        if (!herdEventRepository.existsById(id)) {
+        HerdEvent event = herdEventRepository.findById(id).orElse(null);
+        if (event == null) {
             return ResponseEntity.notFound().build();
         }
         herdEventRepository.deleteById(id);
+        // Deleting a BCS reading falls back to the previous one
+        if (com.dairy.service.HerdService.BCS_EVENT.equals(event.getEventType())) herdService.syncBcs(event.getHerdId());
         return ResponseEntity.noContent().build();
     }
 }

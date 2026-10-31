@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Camera, ChevronDown } from 'lucide-react';
+import { X, Camera, ChevronDown, ShieldCheck } from 'lucide-react';
 import BatchIcon from '@/components/BatchIcon';
 import { BATCH_TYPES, batchType } from '@/lib/poultry';
 import api, { formatImageUrl } from '@/lib/api';
@@ -26,6 +26,11 @@ interface FormData {
   motherName: string;
   fatherSemen: string;
   heartGirth: string;
+  pashuAadhaar: string;
+  insuranceCompany: string;
+  insurancePolicyNo: string;
+  insuredValue: string;
+  insuranceExpiry: string;
 }
 
 interface Herd {
@@ -51,6 +56,11 @@ interface Herd {
   costPerBird?: number;
   purpose?: string;
   notes?: string;
+  pashuAadhaar?: string;
+  insuranceCompany?: string;
+  insurancePolicyNo?: string;
+  insuredValue?: number;
+  insuranceExpiry?: string;
 }
 
 // ─── Reusable styled select dropdown ────────
@@ -262,7 +272,18 @@ export default function RegisterAnimalModal({
     motherName: herdToEdit?.motherName || '',
     fatherSemen: herdToEdit?.fatherSemen || '',
     heartGirth: herdToEdit?.heartGirth ? String(herdToEdit.heartGirth) : '',
+    pashuAadhaar: herdToEdit?.pashuAadhaar || '',
+    insuranceCompany: herdToEdit?.insuranceCompany || '',
+    insurancePolicyNo: herdToEdit?.insurancePolicyNo || '',
+    insuredValue: herdToEdit?.insuredValue ? String(herdToEdit.insuredValue) : '',
+    insuranceExpiry: herdToEdit?.insuranceExpiry || '',
   });
+
+  // Advanced section starts open when editing an animal that already has any of its fields
+  const [showAdvanced, setShowAdvanced] = useState(
+    !!(herdToEdit?.pashuAadhaar || herdToEdit?.insuranceCompany || herdToEdit?.insurancePolicyNo
+      || herdToEdit?.insuredValue || herdToEdit?.insuranceExpiry)
+  );
 
   const set = (key: keyof FormData, value: string) =>
     setFormData((p) => ({ ...p, [key]: value }));
@@ -380,10 +401,14 @@ export default function RegisterAnimalModal({
     if (!formData.animalType) {
       newErrors.animalType = 'Animal type is required';
     }
+    if (formData.pashuAadhaar && !/^\d{12}$/.test(formData.pashuAadhaar)) {
+      newErrors.pashuAadhaar = 'Pashu Aadhaar must be 12 digits';
+      setShowAdvanced(true);
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      showToast('Please fill in all mandatory fields.', 'error');
+      showToast(newErrors.pashuAadhaar ?? 'Please fill in all mandatory fields.', 'error');
       return;
     }
 
@@ -394,6 +419,11 @@ export default function RegisterAnimalModal({
         birthDate: formData.birthDate || null,
         birthTime: formData.birthTime || null,
         procuredDate: formData.procuredDate || null,
+        pashuAadhaar: formData.pashuAadhaar || null,
+        insuranceCompany: formData.insuranceCompany.trim() || null,
+        insurancePolicyNo: formData.insurancePolicyNo.trim() || null,
+        insuredValue: formData.insuredValue ? parseFloat(formData.insuredValue) : null,
+        insuranceExpiry: formData.insuranceExpiry || null,
       };
 
       let response;
@@ -845,6 +875,84 @@ export default function RegisterAnimalModal({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Advanced: Pashu Aadhaar and insurance */}
+            <div className="col-span-1 sm:col-span-2 border border-border-custom rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((o) => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-surface hover:bg-surface/70 transition-colors"
+              >
+                <span className="flex items-center gap-2 text-[11px] font-bold text-text3 uppercase tracking-wider">
+                  <ShieldCheck size={14} className="text-brand" />
+                  Advanced — Pashu Aadhaar &amp; Insurance
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`text-text3 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {showAdvanced && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 p-4">
+                  <Field label="Pashu Aadhaar (12-digit ear tag)" fullWidth error={errors.pashuAadhaar}>
+                    <input
+                      inputMode="numeric"
+                      maxLength={12}
+                      value={formData.pashuAadhaar}
+                      onChange={(e) => {
+                        set('pashuAadhaar', e.target.value.replace(/\D/g, '').slice(0, 12));
+                        setErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.pashuAadhaar;
+                          return copy;
+                        });
+                      }}
+                      placeholder="e.g. 123456789012"
+                      className={`${INPUT_CLS} tracking-widest ${errors.pashuAadhaar ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10' : ''}`}
+                    />
+                  </Field>
+
+                  <Field label="Insurance Company">
+                    <input
+                      value={formData.insuranceCompany}
+                      onChange={(e) => set('insuranceCompany', e.target.value)}
+                      placeholder="e.g. New India Assurance"
+                      className={INPUT_CLS}
+                    />
+                  </Field>
+
+                  <Field label="Policy Number">
+                    <input
+                      value={formData.insurancePolicyNo}
+                      onChange={(e) => set('insurancePolicyNo', e.target.value)}
+                      placeholder="e.g. 4521/CTL/0098"
+                      className={INPUT_CLS}
+                    />
+                  </Field>
+
+                  <Field label="Sum Insured (₹)">
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.insuredValue}
+                      onChange={(e) => set('insuredValue', e.target.value)}
+                      placeholder="e.g. 60000"
+                      className={INPUT_CLS}
+                    />
+                  </Field>
+
+                  <Field label="Insurance Valid Till">
+                    <input
+                      type="date"
+                      value={formData.insuranceExpiry}
+                      onChange={(e) => set('insuranceExpiry', e.target.value)}
+                      className={INPUT_CLS}
+                    />
+                  </Field>
+                </div>
+              )}
             </div>
           </div>
           )}

@@ -100,6 +100,34 @@ public class Herd {
     public LocalDate getBcsDate() { return bcsDate; }
     public void setBcsDate(LocalDate bcsDate) { this.bcsDate = bcsDate; }
 
+    // Advanced: government ID and insurance
+    @Column(name = "pashu_aadhaar", length = 12)
+    private String pashuAadhaar; // 12-digit Bharat Pashudhan ear tag
+
+    @Column(name = "insurance_company")
+    private String insuranceCompany;
+
+    @Column(name = "insurance_policy_no")
+    private String insurancePolicyNo;
+
+    @Column(name = "insured_value")
+    private Double insuredValue;
+
+    @Column(name = "insurance_expiry")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate insuranceExpiry;
+
+    public String getPashuAadhaar() { return pashuAadhaar; }
+    public void setPashuAadhaar(String pashuAadhaar) { this.pashuAadhaar = pashuAadhaar; }
+    public String getInsuranceCompany() { return insuranceCompany; }
+    public void setInsuranceCompany(String insuranceCompany) { this.insuranceCompany = insuranceCompany; }
+    public String getInsurancePolicyNo() { return insurancePolicyNo; }
+    public void setInsurancePolicyNo(String insurancePolicyNo) { this.insurancePolicyNo = insurancePolicyNo; }
+    public Double getInsuredValue() { return insuredValue; }
+    public void setInsuredValue(Double insuredValue) { this.insuredValue = insuredValue; }
+    public LocalDate getInsuranceExpiry() { return insuranceExpiry; }
+    public void setInsuranceExpiry(LocalDate insuranceExpiry) { this.insuranceExpiry = insuranceExpiry; }
+
     // Computed / UI Fields
     @Transient
     private Double calculatedWeight;

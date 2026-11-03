@@ -4,5 +4,7 @@ public enum Role {
     ADMIN,
     STAFF,
     PARTNER,
-    CUSTOMER
+    CUSTOMER,
+    /** Accounts: the bank account screen and the ledger. */
+    FINANCE
 }

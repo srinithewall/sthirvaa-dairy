@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 import { UserPlus, MessageCircle, Search, User, ArrowLeft } from 'lucide-react';
+import RolePermissions from '@/components/RolePermissions';
 
 interface Staff {
   id: number;
@@ -26,9 +27,13 @@ export default function StaffPage() {
   
   // Mobile UX: toggle between list and detail view
   const [showMobileList, setShowMobileList] = useState(true);
+  const [tab, setTab] = useState<'TEAM' | 'ROLES'>('TEAM');
+  // Roles is for admins; the server decides, so a stale role saved at login does not matter.
+  const [canManageRoles, setCanManageRoles] = useState(false);
 
   useEffect(() => {
     fetchStaff();
+    api.get('/permissions').then(() => setCanManageRoles(true)).catch(() => setCanManageRoles(false));
   }, []);
 
   const fetchStaff = async () => {
@@ -75,14 +80,28 @@ export default function StaffPage() {
         <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-black text-text tracking-tight uppercase">Staff Management</h1>
-            <p className="text-[13px] text-text3 mt-1 font-medium">Directory and profiles of all team members</p>
+            <p className="text-[13px] text-text3 mt-1 font-medium">
+              {tab === 'ROLES' ? 'What each role can see and do' : 'Directory and profiles of all team members'}
+            </p>
           </div>
-          <button className="bg-brand text-white flex items-center gap-1.5 py-2 px-4 rounded-radius-custom font-black text-[12px] uppercase tracking-wider hover:bg-brand-dark transition-all shadow-sm">
+          {tab === 'TEAM' && <button className="bg-brand text-white flex items-center gap-1.5 py-2 px-4 rounded-radius-custom font-black text-[12px] uppercase tracking-wider hover:bg-brand-dark transition-all shadow-sm">
             <UserPlus size={14} />
             <span>Add Member</span>
-          </button>
+          </button>}
         </div>
 
+        {canManageRoles && (
+          <div className="flex gap-1 mb-4 border-b border-border-custom">
+            {([['TEAM', 'Team'], ['ROLES', 'Roles']] as const).map(([v, label]) => (
+              <button key={v} onClick={() => setTab(v)}
+                className={`px-4 py-2.5 text-[12px] font-black uppercase tracking-wider border-b-2 -mb-px ${tab === v ? 'border-brand text-brand' : 'border-transparent text-text3 hover:text-text'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === 'ROLES' && canManageRoles ? <RolePermissions /> : (
         <div className="flex flex-col md:flex-row bg-white rounded-radius-custom-lg border border-border-custom card-shadow h-auto md:h-[450px] overflow-hidden">
           
           {/* Left Sidebar - Staff List */}
@@ -226,6 +245,7 @@ export default function StaffPage() {
             )}
           </div>
         </div>
+        )}
       </div>
     </AppLayout>
   );

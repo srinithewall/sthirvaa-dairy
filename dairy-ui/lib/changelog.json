@@ -1,122 +1,122 @@
 [
   {
     "version": "v0.1.1",
-    "date": "2026-10-13",
-    "commit": "3c3be7d",
+    "date": "2026-10-27",
+    "commit": "4a78e4a",
     "changes": [
-      "feat: animal birth time, disposal date, ledger category controls, push fix"
+      "feat(herds): BCS half points 2.5 and 3.5"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-09-15",
-    "commit": "347b989",
+    "date": "2026-10-27",
+    "commit": "9ece9ed",
     "changes": [
-      "feat(ledger): track and settle staff-paid expense reimbursements"
+      "chore(debug): collect load, firewall, docker and nginx diagnostics"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-09-06",
-    "commit": "095c02e",
+    "date": "2026-10-27",
+    "commit": "107042f",
     "changes": [
-      "fix(chores): distinguish all-done from nothing-scheduled on the dashboard"
+      "feat(distribute): record milk fed to calves, per calf"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-09-06",
-    "commit": "770f762",
+    "date": "2026-10-27",
+    "commit": "aa9f5ee",
     "changes": [
-      "feat(chores): manual reminder trigger and in-app chore banner"
+      "fix(deploy): load AMCS settings from the server's amcs.env"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-09-06",
-    "commit": "8c60e5b",
+    "date": "2026-10-27",
+    "commit": "32ce64d",
     "changes": [
-      "fix(chores): show overdue chores in today's checklist"
+      "feat(herds): body condition score with history and low-BCS risks"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-09-06",
-    "commit": "fb2e482",
+    "date": "2026-10-27",
+    "commit": "30dce09",
     "changes": [
-      "feat: Feed Optimizer UI/UX redesign - collapsible animal info, customize ration modal, daily schedule modal, fix double scrollbar"
+      "feat(herds): phone table view, breeding bull ID and order, deworming fix"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-08-27",
-    "commit": "f44c922",
+    "date": "2026-10-27",
+    "commit": "9939dfa",
     "changes": [
-      "fix(docker): enable standalone output in next.config.ts"
+      "feat(store): billing fixes, bill change log and Sthirvaa Diamonds rewards"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-08-27",
-    "commit": "4f2d391",
+    "date": "2026-10-27",
+    "commit": "0b4d7da",
     "changes": [
-      "Revert login page redirect to ng app"
+      "feat(assets): value dry cows from their last lactation; recalibrate milk factor"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-08-27",
-    "commit": "e1bfefe",
+    "date": "2026-10-24",
+    "commit": "1f101c9",
     "changes": [
-      "fix(sso): set correct IDP url and nammagrama base URL"
+      "feat(production): list animals in Log Milk Yield by DIM, lowest first"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-08-27",
-    "commit": "4f8af25",
+    "date": "2026-10-24",
+    "commit": "4d75276",
     "changes": [
-      "fix(sso): resolve redirect race condition and correct SSO tokens"
+      "fix(distribute): round the rate per litre to paise"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-08-26",
-    "commit": "cdd02eb",
+    "date": "2026-10-24",
+    "commit": "4198f4b",
     "changes": [
-      "Update DIM text colors, injection icon visibility, and map expenses to individual cows"
+      "feat(production): show only the Sales figure; calf/own use/waste stay in the hover tooltip"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-08-03",
-    "commit": "8e2a0ca",
+    "date": "2026-10-24",
+    "commit": "a8e9748",
     "changes": [
-      "feat(auth): add seamless sso login from ng app"
+      "feat(production): 0.5 L tolerance on the Sales accounting; drop the \"not accounted\" text"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-07-29",
-    "commit": "4bb9054",
+    "date": "2026-10-24",
+    "commit": "53690da",
     "changes": [
-      "fix(herds): hide semen syringe icon for calves"
+      "feat(production): show Sales apart from calf/own use/waste; green only when all milk is accounted"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-07-29",
-    "commit": "4603662",
+    "date": "2026-10-24",
+    "commit": "4ecd0cb",
     "changes": [
-      "feat(herds): render large animal cards displaying DIM, age for calves, and semen injection syringe status"
+      "feat(production): AMCS collection report with PDF; take quality off the history table"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-07-28",
-    "commit": "3823cd6",
+    "date": "2026-10-24",
+    "commit": "86109b3",
     "changes": [
-      "fix(herds): allow STAFF role to edit animals and logs"
+      "feat(amcs): sync society milk collections twice daily; show FAT/SNF/CLR with A/M badge"
     ]
   }
 ]

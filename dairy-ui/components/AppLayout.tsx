@@ -7,13 +7,13 @@ import Navbar from './Navbar';
 import api from '@/lib/api';
 import ChoreBanner from './ChoreBanner';
 
-const BUSINESS_PATHS = ['/store', '/inventory', '/ledger', '/sales'];
+const BUSINESS_PATHS = ['/store', '/inventory', '/ledger', '/bank', '/sales'];
 
 export default function AppLayout({ children, headerAction, noPadding }: { children: React.ReactNode, headerAction?: React.ReactNode, noPadding?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-  // Farm chore reminders aren't shown on the Business screens (shop, inventory, ledger, sales).
+  // Farm chore reminders aren't shown on the Business screens (shop, inventory, ledger, bank, sales).
   const isBusinessScreen = BUSINESS_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
   useEffect(() => {

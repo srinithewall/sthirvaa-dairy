@@ -7,11 +7,12 @@ import NutritionTab from './components/NutritionTab';
 import AnimalRequirementsTab from './components/AnimalRequirementsTab';
 import FeedOptimizerTab from './components/FeedOptimizerTab';
 import KnowledgeBaseTab from './components/KnowledgeBaseTab';
-import { Leaf, FlaskConical, Activity, Calculator, BookOpen, Search, Download } from 'lucide-react';
+import RationPlanTab from './components/RationPlanTab';
+import { Leaf, FlaskConical, Activity, Calculator, BookOpen, Search, Download, ClipboardList } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function FeedsPage() {
-  const [activeTab, setActiveTab] = useState('master');
+  const [activeTab, setActiveTab] = useState('ration');
   const [search, setSearch] = useState('');
 
   // Four of the five tabs need the same feed list, and switching tabs unmounts the old
@@ -54,6 +55,7 @@ export default function FeedsPage() {
   };
 
   const tabs = [
+    { id: 'ration',       label: 'Ration Plan',         shortLabel: 'Ration',    icon: ClipboardList },
     { id: 'master',       label: 'Feed Master',        shortLabel: 'Feed',      icon: Leaf },
     { id: 'nutrition',    label: 'Nutrition',           shortLabel: 'Nutrition', icon: FlaskConical },
     { id: 'requirements', label: 'Animal Requirements', shortLabel: 'Animal',    icon: Activity },
@@ -102,7 +104,7 @@ export default function FeedsPage() {
 
         {/* Mobile tab bar: icon stacked over short label, equal-width tiles */}
         <div className="md:hidden bg-white border border-border-custom rounded-2xl shadow-sm overflow-hidden">
-          <div className="grid grid-cols-5">
+          <div className="grid grid-cols-6">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -136,6 +138,7 @@ export default function FeedsPage() {
         </div>
 
         <div className="flex-1 bg-white rounded-radius-custom-lg border border-border-custom shadow-sm p-3 overflow-y-auto">
+          {activeTab === 'ration' && <RationPlanTab />}
           {activeTab === 'master' && <FeedMasterTab feeds={feeds} loading={feedsLoading} onRefresh={refreshFeeds} />}
           {activeTab === 'nutrition' && <NutritionTab feeds={feeds} loading={feedsLoading} />}
           {activeTab === 'requirements' && <AnimalRequirementsTab />}

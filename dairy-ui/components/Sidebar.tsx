@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf, Landmark } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api, { formatImageUrl } from '@/lib/api';
@@ -14,6 +14,8 @@ interface SidebarItem {
   badge?: string | number;
   /** Other path prefixes that should highlight this item. */
   also?: string[];
+  /** role_permissions module; hidden when the user's role cannot view it. */
+  module?: string;
 }
 
 interface SidebarSection {
@@ -24,22 +26,23 @@ interface SidebarSection {
 const sidebarItems: SidebarSection[] = [
   { group: 'Overview', items: [
     // Reports & Analytics is opened from a button on the Dashboard.
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', also: ['/reports'] }
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', also: ['/reports'], module: 'DASHBOARD' }
   ]},
   { group: 'Farm Management', items: [
-    { name: 'Herd Management', icon: Layout, path: '/herds' },
-    { name: 'Milk Production', icon: Droplets, path: '/production' },
-    { name: 'Feed Management', icon: Leaf, path: '/feeds' },
-    { name: 'Farm Chores', icon: ClipboardList, path: '/activities' }
+    { name: 'Herd Management', icon: Layout, path: '/herds', module: 'HERDS' },
+    { name: 'Milk Production', icon: Droplets, path: '/production', module: 'PRODUCTION' },
+    { name: 'Feed Management', icon: Leaf, path: '/feeds', module: 'FEEDS' },
+    { name: 'Farm Chores', icon: ClipboardList, path: '/activities', module: 'ACTIVITIES' }
   ]},
   { group: 'Business', items: [
     // Opens the shop's New Bill (used most); the Shop | Farm toggle switches to farm inventory.
-    { name: 'Inventory', icon: Package, path: '/store/billing', also: ['/store', '/inventory'] },
-    { name: 'Digital Ledger', icon: FileText, path: '/ledger' },
-    { name: 'Sales', icon: ShoppingCart, path: '/sales' }
+    { name: 'Inventory', icon: Package, path: '/store/billing', also: ['/store', '/inventory'], module: 'INVENTORY' },
+    { name: 'Digital Ledger', icon: FileText, path: '/ledger', module: 'LEDGER' },
+    { name: 'Bank Account', icon: Landmark, path: '/bank', module: 'BANK' },
+    { name: 'Sales', icon: ShoppingCart, path: '/sales', module: 'SALES' }
   ]},
   { group: 'Operations', items: [
-    { name: 'Staff Management', icon: Users, path: '/staff' }
+    { name: 'Staff Management', icon: Users, path: '/staff', module: 'STAFF' }
   ]}
 ];
 
@@ -53,6 +56,21 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   const [reminderTime, setReminderTime] = React.useState('18:00');
   const [reminderStaffs, setReminderStaffs] = React.useState('');
   const [isSavingSettings, setIsSavingSettings] = React.useState(false);
+  // Module -> can view, from role_permissions. Until it loads, only the bank stays hidden.
+  const [canView, setCanView] = React.useState<Record<string, boolean> | null>(null);
+
+  React.useEffect(() => {
+    api.get('/permissions/me')
+      .then(res => setCanView(Object.fromEntries(
+        Object.entries(res.data as Record<string, { view: boolean }>).map(([m, p]) => [m, p.view]))))
+      .catch(() => setCanView(null));
+  }, []);
+
+  const isVisible = (item: SidebarItem) => {
+    if (!item.module) return true;
+    if (!canView) return item.module !== 'BANK';
+    return canView[item.module] ?? item.module !== 'BANK';
+  };
 
   const fetchNotificationSettings = async () => {
     try {
@@ -296,7 +314,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
           <div className="px-4 pt-4 pb-1 text-[10px] font-bold text-text3 uppercase tracking-widest">
             {section.group}
           </div>
-          {section.items.map((item) => {
+          {section.items.filter(isVisible).map((item) => {
             const isActive = pathname === item.path
               || !!item.also?.some((p) => pathname.startsWith(p));
             const Icon = item.icon;

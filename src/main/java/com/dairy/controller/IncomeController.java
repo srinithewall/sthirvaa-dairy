@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/income")
@@ -20,6 +21,12 @@ public class IncomeController {
     @GetMapping
     public List<Income> getAllIncome() {
         return incomeService.getAllIncome();
+    }
+
+    /** Society milk payments credited to the bank, per month: [{month, received, pending, payments}]. */
+    @GetMapping("/milk-received")
+    public List<Map<String, Object>> getMilkReceived() {
+        return incomeService.getMilkReceivedByMonth();
     }
 
     @GetMapping("/{id}")

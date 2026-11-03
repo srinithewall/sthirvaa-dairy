@@ -6,6 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 @Service("ss")
 public class SecurityService {
 
@@ -48,6 +52,32 @@ public class SecurityService {
      */
     public boolean can(String module) {
         return can(module, "VIEW");
+    }
+
+    /**
+     * The signed-in user's permissions by module, for the app to show only what they can use.
+     * ADMIN gets every module, matching the bypass in can().
+     */
+    public Map<String, Map<String, Boolean>> myPermissions(List<String> modules) {
+        String role = currentRole();
+        Map<String, Map<String, Boolean>> out = new LinkedHashMap<>();
+        if ("ADMIN".equals(role)) {
+            modules.forEach(m -> out.put(m, Map.of("view", true, "create", true, "edit", true, "delete", true)));
+            return out;
+        }
+        for (RolePermission rp : rolePermissionRepository.findByRole(role)) {
+            out.put(rp.getModuleName(), Map.of("view", rp.isCanView(), "create", rp.isCanCreate(),
+                "edit", rp.isCanEdit(), "delete", rp.isCanDelete()));
+        }
+        return out;
+    }
+
+    private String currentRole() {
+        return SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .findFirst()
+                .orElse("GUEST");
     }
 
 }

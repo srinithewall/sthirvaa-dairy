@@ -15,11 +15,12 @@ import java.util.List;
 /**
  * Feed Store API. Operators (ADMIN, PARTNER, STAFF) bill and stock-in;
  * and manage items; stock adjustments are limited to ADMIN and PARTNER. Items marked
- * hidePrice have their min (cost) price hidden from STAFF.
+ * hidePrice have their min (cost) price hidden from STAFF. FINANCE may come in too; what each
+ * role may actually do is the SHOP row of role_permissions (ModulePermissionInterceptor).
  */
 @RestController
 @RequestMapping("/api/store")
-@PreAuthorize("hasAnyRole('ADMIN','PARTNER','STAFF')")
+@PreAuthorize("hasAnyRole('ADMIN','PARTNER','STAFF','FINANCE')")
 public class StoreController {
 
     private final StoreMasterService masterService;

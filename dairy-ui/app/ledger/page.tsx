@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown, Layers, Bell } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
+import LedgerCostTracker from '@/components/LedgerCostTracker';
 
 interface Category {
   id: number;
@@ -28,7 +29,14 @@ interface Transaction {
   settledAt?: string | null;
   settledBy?: string | null;
   segment?: string | null;
+  // Set on the one row a month's daily MILK_SALES entries are folded into.
+  milkMonth?: { month: string; estimated: number; days: number; received: number; pending: number };
 }
+
+interface MilkReceived { month: string; received: number; pending: number; payments: number; }
+
+const MILK = 'MILK_SALES';
+const rupees = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 type Segment = 'CATTLE' | 'POULTRY';
 const POULTRY_TYPES = ['CHICKEN', 'DUCK', 'FISH', 'QUAIL'];
@@ -46,6 +54,8 @@ function LedgerPage() {
   const [loading, setLoading] = useState(true);
   const [herds, setHerds] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
+  const [milkReceived, setMilkReceived] = useState<MilkReceived[]>([]);
+  const [showTracker, setShowTracker] = useState(false);
   
   // Selection & Form State
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -107,7 +117,8 @@ function LedgerPage() {
         api.get('/expenses'),
         api.get('/income'),
         api.get('/herds'),
-        api.get('/staff')
+        api.get('/staff'),
+        api.get('/income/milk-received')
       ]);
       
       const catRes = responses[0].status === 'fulfilled' ? responses[0].value.data : [];
@@ -119,6 +130,7 @@ function LedgerPage() {
       setCategories(catRes);
       setHerds(Array.isArray(herdRes) ? herdRes : []);
       setStaffList(Array.isArray(staffRes) ? staffRes : []);
+      setMilkReceived(responses[5].status === 'fulfilled' && Array.isArray(responses[5].value.data) ? responses[5].value.data : []);
       
       const combined: Transaction[] = [
         ...expRes.map((e: any) => ({ ...e, type: 'EXPENSE' })),
@@ -160,9 +172,38 @@ function LedgerPage() {
     return matches;
   });
 
+  // Daily MILK_SALES rows are only the estimate at the AMCS rate. What counts is what the society
+  // actually paid (incentives and deductions included): its credits in the bank, by the month they came in.
+  const isMilk = (h: Transaction) => h.type === 'INCOME' && h.category === MILK;
+  const milkInView = segmentFilter !== 'POULTRY' && (filterCategory === 'ALL' || filterCategory === MILK);
+  const receivedInView = milkInView ? milkReceived.filter(r => filterMonth === 'ALL' || r.month === filterMonth) : [];
+  const milkEstimated = filteredHistory.filter(isMilk).reduce((a, b) => a + b.amount, 0);
+  const milkReceivedTotal = receivedInView.reduce((a, r) => a + r.received, 0);
+  const milkPendingTotal = receivedInView.reduce((a, r) => a + r.pending, 0);
+
   const totalExpense = filteredHistory.filter(h => h.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
-  const totalIncome = filteredHistory.filter(h => h.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
+  const totalIncome = filteredHistory.filter(h => h.type === 'INCOME' && !isMilk(h)).reduce((a, b) => a + b.amount, 0) + milkReceivedTotal;
   const balance = totalIncome - totalExpense;
+
+  // The list shows one milk row per month in place of a row for every day.
+  const listed: Transaction[] = (() => {
+    const rows = filteredHistory.filter(h => h.type === activeTab && !isMilk(h));
+    if (activeTab !== 'INCOME' || !milkInView) return rows;
+    const months: Record<string, NonNullable<Transaction['milkMonth']> & { last: string }> = {};
+    const monthOf = (m: string) => (months[m] = months[m] || { month: m, estimated: 0, days: 0, received: 0, pending: 0, last: `${m}-01` });
+    filteredHistory.filter(isMilk).forEach(h => {
+      const m = monthOf(h.date.substring(0, 7));
+      m.estimated += h.amount;
+      m.days++;
+      if (h.date > m.last) m.last = h.date;
+    });
+    receivedInView.forEach(r => { const m = monthOf(r.month); m.received += r.received; m.pending += r.pending; });
+    const milkRows = Object.values(months).map(({ last, ...m }, i): Transaction => ({
+      id: -(i + 1), category: MILK, amount: m.received, date: last, type: 'INCOME',
+      description: '', milkMonth: m,
+    }));
+    return [...rows, ...milkRows].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  })();
 
   // Paid-by summary (respects the month filter, independent of the category filter)
   const paidByEntries = history.filter(h =>
@@ -424,21 +465,28 @@ function LedgerPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        {/* Stats Cards: income at the milk estimate, and what was actually received (what the balance uses) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           <div className="bg-white px-4 py-3 rounded-radius-custom-lg border border-border-custom shadow-sm flex flex-col items-center justify-center gap-1 text-center">
              <span className="text-[10px] font-black text-text3 uppercase tracking-[0.2em]">Net Balance</span>
              <span className={`text-2xl font-black ${balance >= 0 ? 'text-brand' : 'text-danger'}`}>
-               {balance < 0 ? "−" : ""}₹{Math.abs(balance).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+               {balance < 0 ? "−" : ""}{rupees(Math.abs(balance))}
              </span>
           </div>
           <div className="bg-danger/5 border border-danger/10 px-4 py-3 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
              <span className="text-[10px] font-black text-danger uppercase tracking-[0.2em]">Total Expense</span>
-             <span className="text-2xl font-black text-danger">₹{totalExpense.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+             <span className="text-2xl font-black text-danger">{rupees(totalExpense)}</span>
           </div>
-          <div className="bg-brand/5 border border-brand/10 px-4 py-3 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
-             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em]">Total Income</span>
-             <span className="text-2xl font-black text-brand">₹{totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+          <div className="bg-white border border-border-custom px-4 py-3 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center"
+            title="Milk sales at the AMCS rate, plus other income">
+             <span className="text-[10px] font-black text-text3 uppercase tracking-[0.2em]">Est. Income</span>
+             <span className="text-2xl font-black text-text2">{rupees(totalIncome - milkReceivedTotal + milkEstimated)}</span>
+          </div>
+          <div className="bg-brand/5 border border-brand/10 px-4 py-3 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center"
+            title="The society's milk payments credited to the bank, plus other income. The net balance uses this.">
+             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em]">Amount Received</span>
+             <span className="text-2xl font-black text-brand">{rupees(totalIncome)}</span>
+             {milkPendingTotal > 0 && <span className="text-[10px] text-text3">+{rupees(milkPendingTotal)} awaiting approval</span>}
           </div>
         </div>
 
@@ -565,6 +613,20 @@ function LedgerPage() {
           </div>
         )}
 
+        {/* Cost Tracker: follows the month and cattle/poultry filters (All Time shows this month) */}
+        <div className="mb-4 flex items-center justify-between px-1">
+          <button onClick={() => setShowTracker(v => !v)} aria-expanded={showTracker}
+            className="flex items-center gap-1.5 text-[12px] font-black text-text2 uppercase tracking-widest hover:text-text">
+            Cost Tracker
+            <ChevronDown size={16} className={`transition-transform ${showTracker ? '' : '-rotate-90'}`} />
+          </button>
+        </div>
+        {showTracker && (
+          <LedgerCostTracker entries={history.filter(inSegment)}
+            milkReceived={segmentFilter === 'POULTRY' ? [] : milkReceived}
+            month={filterMonth === 'ALL' ? currentMonth : filterMonth} />
+        )}
+
         {/* Category Selection Section */}
         <div className="mb-4 flex items-center justify-between px-1">
           <button
@@ -624,9 +686,33 @@ function LedgerPage() {
               <div className="p-10 sm:p-20 text-center">
                  <div className="inline-block w-8 h-8 border-4 border-brand/30 border-t-brand rounded-full animate-spin"></div>
               </div>
-            ) : filteredHistory.length === 0 ? (
+            ) : listed.length === 0 ? (
               <div className="p-10 sm:p-20 text-center text-text3 font-bold">NO TRANSACTIONS YET</div>
-            ) : filteredHistory.filter(item => item.type === activeTab).map((item) => {
+            ) : listed.map((item) => {
+              const mm = item.milkMonth;
+              if (mm) return (
+              <div key={`MILK-${mm.month}`} className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-surface transition-all border-l-4 border-transparent hover:border-brand gap-4 sm:gap-0">
+                <div className="flex items-center gap-4 sm:gap-5 w-full sm:w-auto">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-xl flex items-center justify-center text-lg sm:text-xl font-bold shadow-sm bg-brand/10 text-brand">
+                    {categories.find(c => c.name === MILK)?.iconCode || 'M'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-black text-text text-[14px] sm:text-[15px]">{MILK}</div>
+                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                      <span className="text-[10px] font-black bg-surface2 px-1.5 py-0.5 rounded text-text2 flex-shrink-0">{shortMonth(mm.month)}</span>
+                      <span className="text-[11px] sm:text-[12px] text-text3 font-medium">
+                        Estimated {rupees(mm.estimated)}{mm.days > 0 && ` from ${mm.days} day${mm.days === 1 ? '' : 's'} of milk`}
+                        {mm.pending > 0 && ` · ${rupees(mm.pending)} awaiting approval`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-left sm:text-right w-full sm:w-auto mt-1 sm:mt-0">
+                  <div className="font-black text-[16px] sm:text-[18px] text-brand">+ {rupees(mm.received)}</div>
+                  <div className="text-[10px] font-black text-text3 uppercase tracking-widest">Received</div>
+                </div>
+              </div>
+              );
               const isHighlighted = filterPaidBy !== 'ALL' && filterPaidBy !== 'SETTLED' && !item.settled && (filterPaidBy === 'UNSETTLED' ? !!item.paidBy : item.paidBy === filterPaidBy);
               return (
               <div key={`${item.type}-${item.id}`} className={`p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-surface transition-all group border-l-4 gap-4 sm:gap-0 ${isHighlighted ? 'bg-amber-400/10 border-amber-400' : 'border-transparent hover:border-brand'}`}>

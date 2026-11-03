@@ -19,6 +19,8 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
     @Cacheable(CacheConfig.ROLE_PERMISSIONS)
     Optional<RolePermission> findByRoleAndModuleName(String role, String moduleName);
 
+    java.util.List<RolePermission> findByRole(String role);
+
     @Override
     @CacheEvict(value = CacheConfig.ROLE_PERMISSIONS, allEntries = true)
     <S extends RolePermission> S save(S permission);

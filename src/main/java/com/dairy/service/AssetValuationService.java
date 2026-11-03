@@ -36,8 +36,8 @@ public class AssetValuationService {
     private static final double ADULT_FLOOR = 0.30;
     private static final double SICK_FACTOR = 0.75;
     private static final double MAX_PREGNANCY_BONUS = 0.15;
-    private static final int GESTATION_COW = 283;
-    private static final int GESTATION_BUFFALO = 310;
+    static final int GESTATION_COW = 283;
+    static final int GESTATION_BUFFALO = 310;
     /** A pregnant heifer starts at this share of adult value and reaches ~100% by calving. */
     private static final double PREGNANT_HEIFER_START = 0.85;
     /** Unbred heifers stop growing in value here (reached 6 months after the 24-month mark). */
@@ -282,6 +282,11 @@ public class AssetValuationService {
      */
     static double lactationShape(int dim) {
         return wood(Math.max(1, Math.min(dim, LACTATION_DAYS))) / WOOD_MEAN;
+    }
+
+    /** Same curve, but carried on past day 305 for cows milked beyond a normal lactation. */
+    static double lactationShapeUncapped(int dim) {
+        return wood(Math.max(1, dim)) / WOOD_MEAN;
     }
 
     private static double wood(int day) {

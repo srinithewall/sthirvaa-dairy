@@ -95,6 +95,12 @@
 			<artifactId>ojalgo</artifactId>
 			<version>55.2.0</version>
 		</dependency>
+		<!-- Reads the period and account number off Kotak PDF statements -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.5</version>
+		</dependency>
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>

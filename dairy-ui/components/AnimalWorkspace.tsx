@@ -12,6 +12,7 @@ import { useNotification } from '@/components/NotificationContext';
 import WeightTracker from '@/components/WeightTracker';
 import { bullIdOf, notesOf, withBullId } from '@/lib/breeding';
 import { BcsTrendCard } from '@/components/BcsPicker';
+import { CallButton } from '@/components/EmergencyContacts';
 
 /* ─── Types ─────────────────────────────────────── */
 interface Herd {
@@ -19,6 +20,7 @@ interface Herd {
   breed: string; milkType: string; healthStatus: string; source: string;
   birthDate: string; procuredDate: string; animalStatus: string;
   status: string; age: string; calculatedAge?: string; imageUrl?: string;
+  onboardingDay?: number | null; quarantineDays?: number | null;
 }
 interface HerdEvent {
   id: number; herdId: number; eventDate: string; eventType: string;
@@ -288,6 +290,11 @@ const EV: Record<string, { icon: React.ElementType; color: string; bg: string; l
   PREGNANCY_CHECK_DUE:  { icon: Microscope,  color: 'text-indigo-700',  bg: 'bg-indigo-100',  label: 'PD Check',            emoji: '🔬' },
   TREATMENT:            { icon: Pill,        color: 'text-red-700',     bg: 'bg-red-100',     label: 'Treatment',           emoji: '💊' },
   BCS_SCORED:           { icon: Activity,    color: 'text-lime-700',    bg: 'bg-lime-100',    label: 'Body Condition',      emoji: '📏' },
+  DEWORMED:             { icon: Bug,         color: 'text-orange-700',  bg: 'bg-orange-100',  label: 'Dewormed',            emoji: '✅' },
+  QUARANTINE_STARTED:   { icon: Home,        color: 'text-amber-700',   bg: 'bg-amber-100',   label: 'Arrived · Quarantine', emoji: '🚚' },
+  QUARANTINE_ENDED:     { icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-100', label: 'Joined the Herd',     emoji: '🏠' },
+  VET_CHECK:            { icon: Microscope,  color: 'text-teal-700',    bg: 'bg-teal-100',    label: 'Vet Check',           emoji: '🩺' },
+  HEALTH_CHECK:         { icon: Activity,    color: 'text-amber-700',   bg: 'bg-amber-100',   label: 'Health Check',        emoji: '👀' },
 };
 const DEF_EV = { icon: Activity, color: 'text-slate-600', bg: 'bg-slate-100', label: 'Event', emoji: '📋' };
 
@@ -1462,6 +1469,14 @@ export default function AnimalWorkspace({
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm">
                 {herd.healthStatus==='HEALTHY'?'Healthy':'Requires Attention'}
               </span>
+              {herd.healthStatus!=='HEALTHY' && <CallButton label="Call" tone="alert" sheetTitle={`Call for ${herd.animalName || herd.tagNumber}`} />}
+              {herd.onboardingDay != null && (
+                <a href={`/activities/onboarding?herdId=${herd.id}`}
+                  className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-800 shadow-sm hover:bg-amber-100"
+                  title="Open the onboarding checklist">
+                  In quarantine · day {Math.max(0, herd.onboardingDay)} of {herd.quarantineDays ?? 14}
+                </a>
+              )}
               {reproStats.isPregnant && reproStats.gestationPct > 0 && (
                 <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm">
                   {reproStats.gestationPct}% gestation · EDD {reproStats.expectedDelivery ? fmtDate(reproStats.expectedDelivery) : '—'}

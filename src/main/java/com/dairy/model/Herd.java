@@ -265,6 +265,17 @@ public class Herd {
     public Integer getNextDewormingDose() { return nextDewormingDose; }
     public void setNextDewormingDose(Integer nextDewormingDose) { this.nextDewormingDose = nextDewormingDose; }
 
+    // Onboarding - set while the animal is still in quarantine after arrival (see OnboardingService).
+    @Transient
+    private Integer onboardingDay;
+    public Integer getOnboardingDay() { return onboardingDay; }
+    public void setOnboardingDay(Integer onboardingDay) { this.onboardingDay = onboardingDay; }
+
+    @Transient
+    private Integer quarantineDays;
+    public Integer getQuarantineDays() { return quarantineDays; }
+    public void setQuarantineDays(Integer quarantineDays) { this.quarantineDays = quarantineDays; }
+
     @Transient
     private String pregnancyStatus;
     public String getPregnancyStatus() { return pregnancyStatus; }

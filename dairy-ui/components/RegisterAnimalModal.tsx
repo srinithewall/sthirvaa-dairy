@@ -181,6 +181,10 @@ interface PoultryForm {
 }
 
 // ─── Main modal ───────────────────────────────────────────────────────────────
+/** Livestock that get a quarantine checklist on arrival (see OnboardingProtocol on the server). */
+const ONBOARD_TYPES = ['COW', 'BUFFALO', 'GOAT'];
+const DEFAULT_QUARANTINE = 14;
+
 export default function RegisterAnimalModal({
   onClose,
   onSuccess,
@@ -201,6 +205,8 @@ export default function RegisterAnimalModal({
   const [saleAmount, setSaleAmount] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [purchaseAmount, setPurchaseAmount] = useState('');
+  // New arrivals go through quarantine; null follows the Sourced field until the box is touched.
+  const [onboardChoice, setOnboardChoice] = useState<boolean | null>(null);
   const [breedOptions, setBreedOptions] = useState<{value: string, label: string}[]>([]);
 
   // C = cattle (one record per animal), P = poultry (one record per batch of birds).
@@ -263,6 +269,8 @@ export default function RegisterAnimalModal({
     fatherSemen: herdToEdit?.fatherSemen || '',
     heartGirth: herdToEdit?.heartGirth ? String(herdToEdit.heartGirth) : '',
   });
+
+  const startOnboarding = onboardChoice ?? !/self|born|home/i.test(formData.source || '');
 
   const set = (key: keyof FormData, value: string) =>
     setFormData((p) => ({ ...p, [key]: value }));
@@ -403,6 +411,20 @@ export default function RegisterAnimalModal({
         response = await api.post('/herds', payload);
       }
 
+      // A bought-in animal starts its quarantine checklist straight away
+      let onboarded = false;
+      if (!herdToEdit && startOnboarding && ONBOARD_TYPES.includes(payload.animalType) && response.data?.id) {
+        try {
+          await api.post('/onboarding', {
+            herdId: response.data.id,
+            arrivalDate: payload.procuredDate || todayIso(),
+          });
+          onboarded = true;
+        } catch (onboardErr) {
+          console.error("Failed to start onboarding:", onboardErr);
+        }
+      }
+
       // Record a sale if status is DISPOSED and sale amount is entered
       if (payload.status === 'DISPOSED' && parseFloat(saleAmount) > 0 && selectedCustomerId) {
         const salePayload = {
@@ -455,7 +477,9 @@ export default function RegisterAnimalModal({
       if (herdToEdit) {
         showToast('Animal record updated successfully!');
       } else {
-        showToast('New animal registered successfully!');
+        showToast(onboarded
+          ? 'New animal registered - quarantine started'
+          : 'New animal registered successfully!');
       }
 
       onSuccess();
@@ -769,6 +793,15 @@ export default function RegisterAnimalModal({
                 className={INPUT_CLS}
               />
             </Field>
+
+            {!herdToEdit && ONBOARD_TYPES.includes(formData.animalType) && (
+              <label className="sm:col-span-2 flex items-start gap-2.5 p-3 rounded-xl border border-amber-200 bg-amber-50 cursor-pointer select-none">
+                <input type="checkbox" checked={startOnboarding} onChange={(e) => setOnboardChoice(e.target.checked)} className="mt-0.5 w-4 h-4" />
+                <span className="text-[12px] text-amber-900 leading-5">
+                  <span className="font-bold">Bought from outside?</span> Keep apart {DEFAULT_QUARANTINE} days. The app tells you what to do each day.
+                </span>
+              </label>
+            )}
 
             {!herdToEdit && (
               <Field label="Purchase Amount (₹)">

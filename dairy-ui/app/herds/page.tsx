@@ -18,6 +18,20 @@ import { DIM_STAGES, DIM_GRADIENT, dimStage } from '@/lib/dimStages';
 import { useNotification } from '@/components/NotificationContext';
 import { BcsBadge, BcsPickerModal, bcsTodayIso } from '@/components/BcsPicker';
 import { bullIdOf as bullIdFromDetails, notesOf, withBullId, PD_AFTER_AI_DAYS } from '@/lib/breeding';
+import Link from 'next/link';
+
+/** Small amber tag for an animal still in quarantine after arrival; links to its onboarding checklist. */
+function QuarantineBadge({ herd, compact }: { herd: { id: number; onboardingDay?: number | null; quarantineDays?: number | null }; compact?: boolean }) {
+  if (herd.onboardingDay == null) return null;
+  const day = Math.max(0, herd.onboardingDay);
+  return (
+    <Link href={`/activities/onboarding?herdId=${herd.id}`} onClick={e => e.stopPropagation()}
+      title={`In quarantine - day ${day} of ${herd.quarantineDays ?? 14}. Open the onboarding checklist.`}
+      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-wide hover:bg-amber-200 whitespace-nowrap">
+      <ShieldAlert size={10} />{compact ? `D${day}` : `Quarantine D${day}`}
+    </Link>
+  );
+}
 
 interface Herd {
   id: number;
@@ -47,6 +61,9 @@ interface Herd {
   birdCount?: number;
   purpose?: string;
   lastDewormingDate?: string | null;
+  /** Days since arrival while the animal is still in quarantine (onboarding). */
+  onboardingDay?: number | null;
+  quarantineDays?: number | null;
   nextDewormingDate?: string | null;
   nextDewormingDose?: number | null;
 }
@@ -413,6 +430,10 @@ export default function HerdsPage() {
                     <span className="text-[12px] md:text-[13px] font-black text-white uppercase drop-shadow-sm">{initials}</span>
                   )}
                   
+                  {!isPoultry && item.onboardingDay != null && (
+                    <div className="absolute top-1 left-1"><QuarantineBadge herd={item} compact /></div>
+                  )}
+
                   {/* Name overlay */}
                   <div className="absolute bottom-0 left-0 right-0 bg-black/70 py-0.5 px-1 text-center backdrop-blur-[0.5px]">
                     <div className="text-[7.5px] md:text-[9px] font-black text-white truncate uppercase tracking-tight">
@@ -768,6 +789,19 @@ export default function HerdsPage() {
           >
             <Baby size={14} />
           </button>
+          <Link
+            href="/activities/onboarding"
+            className="relative flex items-center gap-1.5 px-3 py-2 border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl font-bold text-xs uppercase tracking-wide transition-all shadow-sm"
+            title="New animal onboarding - quarantine, vet check, deworming, feed change-over"
+          >
+            <ShieldAlert size={14} />
+            <span className="hidden md:inline">Onboarding</span>
+            {herds.some(h => h.onboardingDay != null && h.status === 'ACTIVE') && (
+              <span className="min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[10px] leading-4 text-center">
+                {herds.filter(h => h.onboardingDay != null && h.status === 'ACTIVE').length}
+              </span>
+            )}
+          </Link>
           <button
             onClick={() => setShowDisposedModal(true)}
             className="flex items-center px-3 py-2 border border-border-custom bg-white hover:bg-surface text-text3 hover:text-brand rounded-xl transition-all shadow-sm"
@@ -831,7 +865,7 @@ export default function HerdsPage() {
                             <div className="w-9 h-9 shrink-0 rounded-lg bg-gray-200 flex items-center justify-center text-xs font-black text-gray-500">{f.initials}</div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="font-bold text-sm text-text truncate">{item.animalName || '—'}</p>
+                            <p className="font-bold text-sm text-text truncate flex items-center gap-1.5">{item.animalName || '—'} <QuarantineBadge herd={item} compact /></p>
                             <p className="text-[11px] text-text3 truncate capitalize">{(item.animalStatus || '—').toLowerCase().replace(/_/g, ' ')}</p>
                           </div>
                           {cols.map(c => (
@@ -887,7 +921,7 @@ export default function HerdsPage() {
                               <div className="w-8 h-8 md:w-10 md:h-10 flex-shrink-0 rounded-lg bg-gray-200 flex items-center justify-center text-xs font-black text-gray-500">{initials}</div>
                             )}
                             <div className="truncate">
-                              <div className="font-bold text-sm text-text truncate">{item.animalName || '—'}</div>
+                              <div className="font-bold text-sm text-text truncate flex items-center gap-1.5">{item.animalName || '—'} <QuarantineBadge herd={item} /></div>
                               <div className="text-[10px] text-text3 font-mono">{item.tagNumber}</div>
                             </div>
                           </div>

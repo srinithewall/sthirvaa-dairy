@@ -40,6 +40,13 @@ public class HerdService {
     @Autowired
     private com.dairy.repo.HerdWeightRecordRepository herdWeightRecordRepository;
 
+    @Autowired
+    private com.dairy.repo.onboarding.AnimalOnboardingRepository onboardingRepository;
+
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private OnboardingService onboardingService;
+
     public List<Herd> getAllHerds() {
         return enrichAll(herdRepository.findAll());
     }
@@ -134,6 +141,7 @@ public class HerdService {
     public void deleteHerd(Long id) {
         milkRecordRepository.deleteByHerdId(id);
         herdEventRepository.deleteByHerdId(id);
+        onboardingRepository.deleteByHerdId(id);
         herdRepository.deleteById(id);
     }
 
@@ -200,8 +208,17 @@ public class HerdService {
             }
         }
 
+        // 5. Animals still in quarantine after arrival
+        Map<Long, int[]> onboardingDays = onboardingService.activeDays(herdIds);
+
         for (Herd herd : herds) {
             List<HerdEvent> events = eventsByHerd.getOrDefault(herd.getId(), Collections.emptyList());
+
+            int[] onboarding = onboardingDays.get(herd.getId());
+            if (onboarding != null) {
+                herd.setOnboardingDay(onboarding[0]);
+                herd.setQuarantineDays(onboarding[1]);
+            }
 
             herd.setAvgMilk30Days(averageOf(dailyTotalsByHerd.get(herd.getId())));
 

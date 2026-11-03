@@ -28,6 +28,9 @@ public class SystemRoutineInitializer implements CommandLineRunner {
     public static final String HERD_DEWORMING_KEY = "HERD_DEWORMING";
     public static final String HERD_DEWORMING_ROUTE = "/activities/deworming-round";
 
+    public static final String ANIMAL_ONBOARDING_KEY = "ANIMAL_ONBOARDING";
+    public static final String ANIMAL_ONBOARDING_ROUTE = "/activities/onboarding";
+
     @Autowired
     private FarmActivityRepository activityRepository;
 
@@ -35,6 +38,41 @@ public class SystemRoutineInitializer implements CommandLineRunner {
     public void run(String... args) {
         seedHerdWeightRoutine();
         seedHerdDewormingRoutine();
+        seedAnimalOnboardingRoutine();
+    }
+
+    /**
+     * A daily chore for newly arrived animals that closes itself when no onboarding step is due
+     * (see OnboardingCompletionCheck), so it only reminds while an animal needs something done.
+     */
+    private void seedAnimalOnboardingRoutine() {
+        Optional<FarmActivity> existing = activityRepository.findBySystemKey(ANIMAL_ONBOARDING_KEY);
+        if (existing.isPresent()) {
+            FarmActivity routine = existing.get();
+            if (!ANIMAL_ONBOARDING_ROUTE.equals(routine.getActionRoute())) {
+                routine.setActionRoute(ANIMAL_ONBOARDING_ROUTE);
+                activityRepository.save(routine);
+            }
+            return;
+        }
+
+        FarmActivity routine = new FarmActivity();
+        routine.setSystemKey(ANIMAL_ONBOARDING_KEY);
+        routine.setTitle("New animal onboarding");
+        routine.setDescription("Quarantine care for newly arrived animals: vet check, deworming, feed change-over, vaccination.");
+        routine.setCategory(ActivityCategory.HERD_CHECK);
+        routine.setFrequency(ActivityFrequency.DAILY);
+        routine.setDueTime(LocalTime.of(9, 0));
+        routine.setActionRoute(ANIMAL_ONBOARDING_ROUTE);
+        routine.setReminderEnabled(true);
+        routine.setReminderIntervalHours(4);
+        routine.setReminderStartTime(LocalTime.of(8, 0));
+        routine.setReminderEndTime(LocalTime.of(18, 0));
+        routine.setReminderMaxPerDay(3);
+        routine.setIsActive(true);
+
+        activityRepository.save(routine);
+        logger.info("Seeded system routine {}.", ANIMAL_ONBOARDING_KEY);
     }
 
     /**

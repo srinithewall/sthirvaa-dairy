@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Check, ClipboardList, AlertCircle, RefreshCw } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Check, ClipboardList, AlertCircle, RefreshCw, X } from "lucide-react";
 import api from "@/lib/api";
 import Link from "next/link";
 
@@ -31,6 +32,9 @@ const overdueLabel = (dueDate: string) => {
 export default function TodayFarmActions() {
   const [logs, setLogs] = useState<FarmActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  /** The chore open in the pop-up. */
+  const [openLog, setOpenLog] = useState<FarmActivityLog | null>(null);
+  const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
     fetchTodayLogs();
@@ -52,10 +56,14 @@ export default function TodayFarmActions() {
 
   const handleComplete = async (id: number) => {
     try {
+      setCompleting(true);
       await api.patch(`/activities/logs/${id}/status`, { status: "COMPLETED" });
+      setOpenLog(null);
       fetchTodayLogs();
     } catch (err) {
       alert("Failed to complete task");
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -108,33 +116,113 @@ export default function TodayFarmActions() {
           View all
         </Link>
       </div>
-      <div className="space-y-3">
-        {pendingLogs.map((log) => (
-          <div key={log.id} className="flex items-start gap-3 p-3 bg-surface rounded-radius-custom border border-border hover:border-brand/30 transition-colors">
+      {/* Pending chores are red buttons; the ones done today stay beside them in green. */}
+      <div className="flex flex-wrap gap-2">
+        {[...pendingLogs, ...completedLogs].map((log) => {
+          const done = log.status === "COMPLETED";
+          return (
             <button
-              onClick={() => handleComplete(log.id)}
-              className="mt-0.5 w-5 h-5 rounded border border-border flex items-center justify-center hover:border-brand hover:bg-brand/5 text-transparent hover:text-brand transition-colors flex-shrink-0"
-              title="Mark as completed"
+              key={log.id}
+              type="button"
+              onClick={() => setOpenLog(log)}
+              title={done ? "Done - see the details" : "Pending - open to complete"}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-semibold border transition-colors ${
+                done
+                  ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                  : "bg-red-600 border-red-600 text-white hover:bg-red-700 shadow-sm"
+              }`}
             >
-              <Check size={14} />
-            </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-[14px] text-text">{log.activityDetails.title}</span>
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                  {CATEGORY_LABEL[log.activityDetails.category] || log.activityDetails.category}
-                </span>
-              </div>
-              {log.activityDetails.description && (
-                <p className="text-[12px] text-text3 mt-0.5">{log.activityDetails.description}</p>
-              )}
+              {done ? <Check size={14} /> : <AlertCircle size={14} />}
+              {log.activityDetails.title}
               {log.status === "OVERDUE" && (
-                <p className="text-[11px] font-semibold text-red-600 mt-0.5">{overdueLabel(log.dueDate)} · overdue</p>
+                <span className="text-[10px] font-black uppercase tracking-wide bg-white/20 rounded px-1.5 py-0.5">Overdue</span>
               )}
-            </div>
-          </div>
-        ))}
+            </button>
+          );
+        })}
       </div>
+
+      {openLog && (
+        <ChoreModal
+          log={openLog}
+          completing={completing}
+          onClose={() => setOpenLog(null)}
+          onComplete={() => handleComplete(openLog.id)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Pop-up for one chore: what it is, when it was due, and the button to mark it done. */
+function ChoreModal({ log, completing, onClose, onComplete }: {
+  log: FarmActivityLog; completing: boolean; onClose: () => void; onComplete: () => void;
+}) {
+  const done = log.status === "COMPLETED";
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="chore-title"
+        className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden"
+        onClick={e => e.stopPropagation()}>
+        <div className={`px-5 py-4 flex items-start justify-between gap-3 ${done ? "bg-green-50" : "bg-red-50"}`}>
+          <div className="min-w-0">
+            <span className={`inline-block text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded-full mb-1.5 ${
+              done ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+              {done ? "Done" : log.status === "OVERDUE" ? "Overdue" : "Pending"}
+            </span>
+            <h2 id="chore-title" className="font-semibold text-[17px] text-text">{log.activityDetails.title}</h2>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5 text-text3">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-3 text-[13px]">
+          <div className="flex items-center justify-between">
+            <span className="text-text3">Type</span>
+            <span className="text-[11px] uppercase font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+              {CATEGORY_LABEL[log.activityDetails.category] || log.activityDetails.category}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-text3">Due</span>
+            <span className={`font-semibold ${log.status === "OVERDUE" ? "text-red-600" : "text-text"}`}>
+              {overdueLabel(log.dueDate).replace("Due ", "")}{log.status === "OVERDUE" ? " · overdue" : ""}
+            </span>
+          </div>
+          {log.activityDetails.description && (
+            <p className="text-text2 leading-relaxed bg-surface rounded-lg border border-border px-3 py-2.5">
+              {log.activityDetails.description}
+            </p>
+          )}
+        </div>
+
+        <div className="px-5 pb-5 flex items-center justify-between gap-3">
+          <Link href="/activities" className="text-[13px] text-brand font-medium hover:underline">
+            Manage routines
+          </Link>
+          {done ? (
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-[13px] font-semibold text-text2 hover:bg-surface">
+              Close
+            </button>
+          ) : (
+            <button onClick={onComplete} disabled={completing}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-[13px] font-semibold">
+              {completing ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+              Mark as done
+            </button>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

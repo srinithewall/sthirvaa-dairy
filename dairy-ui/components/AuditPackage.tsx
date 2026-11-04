@@ -1,18 +1,15 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import api from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 import { rupees, categoryLabel } from '@/lib/bank';
 import PdfViewer from '@/components/PdfViewer';
-import { AuditPackageView, CashExpense, LedgerExpense, SECTIONS, buildPackagePdf, figures, monthLabel } from '@/lib/auditPackage';
-import { AlertTriangle, Check, Eye, FileDown, Paperclip, Pencil, Plus, RefreshCw, RotateCcw, Save, Trash2, X } from 'lucide-react';
+import { AuditPackageView, CashExpense, LedgerExpense, buildPackageCsv, buildPackagePdf, figures } from '@/lib/auditPackage';
+import { AlertTriangle, Check, ChevronDown, Eye, FileDown, FileSpreadsheet, Paperclip, Pencil, Plus, RefreshCw, RotateCcw, Save, Trash2, X } from 'lucide-react';
 
-const lastMonth = () => {
-  const d = new Date();
-  const m = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-  return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
-};
+const monthName = (ym: string) => new Date(`${ym}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 const shortDate = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 const stamp = (s?: string | null) => s
   ? new Date(s).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
@@ -22,15 +19,23 @@ const stamp = (s?: string | null) => s
  * removed or added; the rest is worked out from the books. Download builds the merged PDF in the
  * agreed order and keeps a copy with the package.
  */
-export default function AuditPackage() {
+/** month: YYYY-MM, taken from the Bank page's period (its From date), so there is one date control. */
+export default function AuditPackage({ month }: { month: string }) {
   const { showToast } = useNotification();
-  const [month, setMonth] = useState(lastMonth());
   const [view, setView] = useState<AuditPackageView | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<'' | 'save' | 'refresh' | 'pdf' | 'view' | 'upload'>('');
   /** The PDF shown in the viewer: a preview, or the saved copy. */
   const [viewer, setViewer] = useState<{ url: string; blob: Blob; label: string } | null>(null);
-  const viewerRef = useRef<HTMLDivElement>(null);
+  // The preview pops up over the page: Escape closes it, and the page behind does not scroll.
+  useEffect(() => {
+    if (!viewer) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setViewer(null); };
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; };
+  }, [viewer]);
   useEffect(() => () => { if (viewer) URL.revokeObjectURL(viewer.url); }, [viewer]);
   const [includeGst, setIncludeGst] = useState(false);
   const [gstNote, setGstNote] = useState('');
@@ -38,6 +43,8 @@ export default function AuditPackage() {
   const [adding, setAdding] = useState(false);
   const [showRemoved, setShowRemoved] = useState(false);
   const [editingLine, setEditingLine] = useState<number | null>(null);
+  /** The purchase list starts folded; its header carries the totals. */
+  const [purchasesOpen, setPurchasesOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const apply = (v: AuditPackageView) => {
@@ -60,13 +67,16 @@ export default function AuditPackage() {
     }
   };
 
-  useEffect(() => { open(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { open(month); }, [month]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const id = view?.package.id;
   const call = async (what: () => Promise<any>, ok?: string) => {
     try {
       const res = await what();
-      if (res?.data?.package) apply(res.data);
+      if (res?.data?.package) {
+        apply(res.data);
+        setViewer(null); // the package changed, so an open preview is out of date
+      }
       if (ok) showToast(ok);
     } catch (err: any) {
       showToast(err.response?.data?.message || 'Something went wrong.', 'error');
@@ -125,7 +135,6 @@ export default function AuditPackage() {
 
   const showInViewer = (blob: Blob, label: string) => {
     setViewer(prev => { if (prev) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(blob), blob, label }; });
-    setTimeout(() => viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   /** Builds the PDF and shows it here, without saving or downloading anything. */
@@ -170,6 +179,29 @@ export default function AuditPackage() {
     }
   };
 
+  /** The package as a CSV for Excel, from the books as they stand now (unsaved notes are saved first). */
+  const downloadCsv = async () => {
+    if (!view) return;
+    try {
+      let v = view;
+      if (dirty) {
+        v = (await api.put(`/audit-packages/${id}`, { includeGst, gstNote, notes })).data;
+        apply(v);
+      }
+      const who = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').username || 'admin'; } catch { return 'admin'; } })();
+      const url = URL.createObjectURL(new Blob([buildPackageCsv(v, who)], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-${month}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Could not build the CSV.', 'error');
+    }
+  };
+
   /** Shows the copy kept with the package (what was last downloaded). */
   const viewSaved = async () => {
     try {
@@ -201,40 +233,46 @@ export default function AuditPackage() {
   const removed = view?.cashExpenses.filter(c => c.excluded) || [];
   /** Bank expenses and manual ones in one date order, so the two can be told apart by colour. */
   const purchaseRows = useMemo(() => {
-    const bank = (view?.bank.lines || []).filter(l => l.status === 'MAPPED' && l.direction === 'DEBIT' && l.kind === 'EXPENSE')
+    const bank = (view?.bank.lines || []).filter(l => l.status === 'MAPPED' && l.direction === 'DEBIT' && l.kind === 'EXPENSE' && !l.salaryOf)
       .map(line => ({ kind: 'BANK' as const, date: line.date, line }));
     const manual = kept.map(line => ({ kind: 'MANUAL' as const, date: line.date, line }));
-    return [...bank, ...manual].sort((a, b) => a.date.localeCompare(b.date));
+    const salary = (view?.salaries || []).map(line => ({ kind: 'SALARY' as const, date: view!.package.periodTo, line }));
+    return [...bank, ...manual, ...salary].sort((a, b) => a.date.localeCompare(b.date));
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
       {/* Month and actions */}
-      <div className="bg-white p-4 rounded-radius-custom-lg border border-border-custom shadow-sm flex flex-col sm:flex-row sm:items-end gap-3">
-        <label className="block">
-          <span className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Month</span>
-          <input type="month" value={month} max={new Date().toISOString().slice(0, 7)}
-            onChange={e => { setMonth(e.target.value); if (e.target.value) open(e.target.value); }}
-            className="bg-surface2 border border-border-custom text-text text-sm rounded-lg px-3 py-2" />
-        </label>
-        <div className="text-[12px] text-text3 sm:mb-2">
-          {view?.package.documentSavedAt
-            ? <>PDF saved {stamp(view.package.documentSavedAt)}{view.package.documentSavedBy ? ` by ${view.package.documentSavedBy}` : ''} · <button onClick={viewSaved} className="underline text-brand">view</button> · <button onClick={downloadSaved} className="underline text-brand">download</button></>
-            : 'No PDF saved for this month yet.'}
-        </div>
-        <div className="sm:ml-auto grid grid-cols-3 sm:flex gap-2">
-          <button onClick={preview} disabled={!view || !!busy} title="Build the PDF and show it below, without saving"
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border border-border-custom bg-white text-text2 text-[12px] font-black disabled:opacity-40">
-            <Eye size={15} /> {busy === 'view' ? 'BUILDING...' : 'VIEW'}
-          </button>
-          <button onClick={save} disabled={!view || !dirty || !!busy}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border border-border-custom bg-white text-text2 text-[12px] font-black disabled:opacity-40">
-            <Save size={15} /> {busy === 'save' ? 'SAVING...' : 'SAVE'}
-          </button>
-          <button onClick={downloadPdf} disabled={!view || !!busy}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-brand text-white text-[12px] font-black shadow disabled:opacity-40">
-            <FileDown size={15} /> {busy === 'pdf' ? 'BUILDING...' : 'DOWNLOAD PDF'}
-          </button>
+      <div className="bg-white p-3 sm:p-4 rounded-radius-custom-lg border border-border-custom shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="min-w-0">
+            <div className="text-[14px] font-black text-text">{monthName(month)}</div>
+            {view?.package.documentSavedAt && (
+              <div className="text-[11px] text-text3">
+                Saved {stamp(view.package.documentSavedAt)} · <button onClick={viewSaved} className="underline text-brand">view</button> · <button onClick={downloadSaved} className="underline text-brand">download</button>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-1.5 sm:gap-2 sm:ml-auto">
+            <button onClick={preview} disabled={!view || !!busy} title="Show the PDF below without saving"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 rounded-lg border border-border-custom bg-white text-text2 text-[12px] font-black disabled:opacity-40">
+              <Eye size={15} /> {busy === 'view' ? '…' : 'VIEW'}
+            </button>
+            {dirty && (
+              <button onClick={save} disabled={!view || !!busy}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 rounded-lg border border-amber-400 bg-amber-50 text-amber-800 text-[12px] font-black disabled:opacity-40">
+                <Save size={15} /> {busy === 'save' ? '…' : 'SAVE'}
+              </button>
+            )}
+            <button onClick={downloadCsv} disabled={!view || !!busy} title="Download as CSV"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 rounded-lg border border-border-custom bg-white text-text2 text-[12px] font-black disabled:opacity-40">
+              <FileSpreadsheet size={15} className="text-brand" /> CSV
+            </button>
+            <button onClick={downloadPdf} disabled={!view || !!busy} title="Download as PDF (a copy is kept with the package)"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 rounded-lg bg-brand text-white text-[12px] font-black shadow disabled:opacity-40">
+              <FileDown size={15} /> {busy === 'pdf' ? '…' : 'PDF'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -243,56 +281,39 @@ export default function AuditPackage() {
       ) : (
         <>
           {/* Executive summary figures */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
             <Tile label="Sales" value={rupees(f.totalSales)} tone="brand"
-              sub={view.sales.unreviewedCount ? `received in the bank · ${view.sales.unreviewedCount} not reviewed` : 'received in the bank'} />
-            <Tile label="Purchases" value={rupees(f.totalPurchases)} sub={`bank ${rupees(f.bankPurchases)} · manual ${rupees(f.cashPurchases)}`} tone="danger" />
+              sub={view.sales.unreviewedCount ? `${view.sales.unreviewedCount} not reviewed` : undefined} />
+            <Tile label="Purchases" value={rupees(f.totalPurchases)} tone="danger" />
             <Tile label="Net result" value={`${f.totalSales - f.totalPurchases < 0 ? '−' : ''}${rupees(Math.abs(f.totalSales - f.totalPurchases))}`} tone={f.totalSales >= f.totalPurchases ? 'brand' : 'danger'} />
-            <Tile label="Bank closing" value={view.bank.closingBalance == null ? '—' : rupees(view.bank.closingBalance)}
-              sub={view.bank.openingBalance == null ? 'no bank lines this month' : `opening ${rupees(view.bank.openingBalance)}`} />
-          </div>
-
-          {/* What goes in, in order */}
-          <div className="bg-white rounded-radius-custom-lg border border-border-custom card-shadow">
-            <div className="px-4 py-3 border-b border-border-custom text-[12px] font-black uppercase tracking-widest text-text2">
-              Package for {monthLabel(view.package.periodFrom)}
-            </div>
-            <ol className="divide-y divide-border-custom text-[13px]">
-              {SECTIONS.map((title, i) => {
-                const n = i + 1;
-                const [state, warn] = sectionState(n, view, f, includeGst);
-                return (
-                  <li key={title} className="px-4 py-2.5 flex items-center gap-3">
-                    <span className="w-5 text-text3 font-black">{n}</span>
-                    <span className="font-bold text-text flex-1">{title}</span>
-                    <span className={`text-[12px] text-right ${warn ? 'text-amber-700 font-bold' : 'text-text3'}`}>
-                      {warn && <AlertTriangle size={12} className="inline mr-1 -mt-0.5" />}{state}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
+            <Tile label="Bank closing" value={view.bank.closingBalance == null ? '—' : rupees(view.bank.closingBalance)} />
           </div>
 
           {/* Purchases: bank lines (blue) and manual entries from the app (amber) */}
           <div className="bg-white rounded-radius-custom-lg border border-border-custom card-shadow overflow-hidden">
-            <div className="px-4 py-3 border-b border-border-custom flex flex-wrap items-center gap-2">
-              <div className="mr-auto">
+            <button onClick={() => setPurchasesOpen(v => !v)} aria-expanded={purchasesOpen}
+              className="w-full px-3 sm:px-4 py-3 flex items-center gap-2 text-left">
+              <ChevronDown size={16} className={`text-text3 flex-shrink-0 transition-transform ${purchasesOpen ? '' : '-rotate-90'}`} />
+              <div className="min-w-0 flex-1">
                 <div className="text-[12px] font-black uppercase tracking-widest text-text2">Purchases · {rupees(f.totalPurchases)}</div>
-                <div className="text-[11px] text-text3 flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
-                  <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-sky-100 border border-sky-300" /> Bank {rupees(f.bankPurchases)}: change on the Transactions tab</span>
-                  <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-100 border border-amber-300" /> Manual {rupees(f.cashPurchases)}: entered in the app, check each one</span>
+                <div className="text-[11px] text-text3 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5">
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-sky-200" /> Bank {rupees(f.bankPurchases)}</span>
+                  {f.salaryPurchases > 0 && <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-violet-200" /> Salary {rupees(f.salaryPurchases)}</span>}
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-200" /> Manual {rupees(f.cashPurchases)}</span>
                 </div>
               </div>
               {f.manualToReview > 0 && (
-                <span className="text-[11px] font-black text-amber-800 bg-amber-100 rounded px-2 py-1">{f.manualToReview} to review</span>
+                <span className="text-[10px] font-black text-amber-800 bg-amber-100 rounded px-1.5 py-1 flex-shrink-0">{f.manualToReview} TO REVIEW</span>
               )}
+            </button>
+            {purchasesOpen && <>
+            <div className="px-3 sm:px-4 pb-3 flex gap-2 border-b border-border-custom">
               <button onClick={refresh} disabled={!!busy} title="Add new manual expenses from the Digital Ledger"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border-custom text-text2 text-[12px] font-black disabled:opacity-40">
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border-custom text-text2 text-[12px] font-black disabled:opacity-40">
                 <RefreshCw size={14} className={busy === 'refresh' ? 'animate-spin' : ''} /> CHECK LEDGER
               </button>
               <button onClick={() => setAdding(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1b4332] text-white text-[12px] font-black">
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#1b4332] text-white text-[12px] font-black">
                 <Plus size={14} /> ADD
               </button>
             </div>
@@ -300,8 +321,21 @@ export default function AuditPackage() {
               <div className="p-8 text-center text-text3 text-[13px]">No purchases this month.</div>
             ) : (
               <div className="divide-y divide-border-custom">
-                {purchaseRows.map(r => r.kind === 'BANK' ? (
-                  <div key={`b${r.line.id}`} className="px-4 py-2.5 flex items-center gap-3 bg-sky-50/70 border-l-4 border-sky-300">
+                {purchaseRows.map(r => r.kind === 'SALARY' ? (
+                  <div key={`s${r.line.staffId}`} className="px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3 bg-violet-50/70 border-l-4 border-violet-300">
+                    <div className="w-14 text-[11px] font-black text-text2">{shortDate(r.date)}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-text text-[13px] truncate">
+                        Salary · {r.line.name}
+                        <span className="ml-2 align-middle text-[10px] font-black px-1.5 py-0.5 rounded bg-violet-100 text-violet-800">SALARY</span>
+                      </div>
+                      <div className="text-[11px] text-text3 truncate">Fixed monthly salary</div>
+                    </div>
+                    <div className="font-black text-danger whitespace-nowrap">{rupees(r.line.amount)}</div>
+                    <div className="w-[68px]" />
+                  </div>
+                ) : r.kind === 'BANK' ? (
+                  <div key={`b${r.line.id}`} className="px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3 bg-sky-50/70 border-l-4 border-sky-300">
                     <div className="w-14 text-[11px] font-black text-text2">{shortDate(r.line.date)}</div>
                     <div className="min-w-0 flex-1">
                       <div className="font-bold text-text text-[13px] truncate">
@@ -318,7 +352,7 @@ export default function AuditPackage() {
                     onCancel={() => setEditingLine(null)}
                     onSave={async body => { await call(() => api.patch(`/audit-packages/${id}/expenses/${r.line.id}`, body), 'Saved in the package.'); setEditingLine(null); }} />
                 ) : (
-                  <div key={`m${r.line.id}`} className="px-4 py-2.5 flex items-center gap-3 bg-amber-50/70 border-l-4 border-amber-300">
+                  <div key={`m${r.line.id}`} className="px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3 bg-amber-50/70 border-l-4 border-amber-300">
                     <div className="w-14 text-[11px] font-black text-text2">{shortDate(r.line.date)}</div>
                     <div className="min-w-0 flex-1">
                       <div className="font-bold text-text text-[13px] truncate">
@@ -363,34 +397,30 @@ export default function AuditPackage() {
                 ))}
               </div>
             )}
+            </>}
           </div>
 
           {/* GST and notes */}
-          <div className="bg-white rounded-radius-custom-lg border border-border-custom card-shadow p-4 space-y-3">
+          <div className="bg-white rounded-radius-custom-lg border border-border-custom card-shadow p-3 sm:p-4 space-y-3">
             <label className="flex items-center gap-2.5 text-[13px] font-bold text-text cursor-pointer">
               <input type="checkbox" checked={includeGst} onChange={e => setIncludeGst(e.target.checked)} />
-              Include a GST summary (section 5)
+              Include GST summary
             </label>
             {includeGst && (
               <textarea value={gstNote} onChange={e => setGstNote(e.target.value)} rows={3}
                 className="w-full text-[13px] border border-border-custom rounded-lg p-2.5" />
             )}
             <label className="block">
-              <span className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Notes for the auditor (on the summary page)</span>
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} maxLength={2000}
-                placeholder="e.g. Lokesh's transfers on 6 and 19 Oct reimburse feed bought in cash."
+              <span className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">Notes for the auditor</span>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} maxLength={2000}
                 className="w-full text-[13px] border border-border-custom rounded-lg p-2.5" />
             </label>
-            {dirty && <div className="text-[12px] text-amber-700">Unsaved changes. Save, or they are saved when you download the PDF.</div>}
           </div>
 
           {/* Invoices */}
           <div className="bg-white rounded-radius-custom-lg border border-border-custom card-shadow overflow-hidden">
-            <div className="px-4 py-3 border-b border-border-custom flex items-center gap-2">
-              <div className="mr-auto">
-                <div className="text-[12px] font-black uppercase tracking-widest text-text2">Invoices (section 9)</div>
-                <div className="text-[11px] text-text3">Attach what the auditor asks for. Only ticked ones go into the PDF.</div>
-              </div>
+            <div className="px-3 sm:px-4 py-2.5 border-b border-border-custom flex items-center gap-2">
+              <div className="mr-auto text-[12px] font-black uppercase tracking-widest text-text2">Invoices</div>
               <input ref={fileRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" className="hidden" onChange={upload} />
               <button onClick={() => fileRef.current?.click()} disabled={!!busy}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border-custom text-text2 text-[12px] font-black disabled:opacity-40">
@@ -398,7 +428,7 @@ export default function AuditPackage() {
               </button>
             </div>
             {view.attachments.length === 0 ? (
-              <div className="p-6 text-center text-text3 text-[13px]">No invoices attached.</div>
+              <div className="px-4 py-3 text-text3 text-[12px]">None attached.</div>
             ) : (
               <div className="divide-y divide-border-custom">
                 {view.attachments.map(a => (
@@ -417,17 +447,22 @@ export default function AuditPackage() {
         </>
       )}
 
-      {viewer && (
-        <div ref={viewerRef} className="bg-white rounded-radius-custom-lg border border-border-custom card-shadow overflow-hidden scroll-mt-4">
-          <div className="px-4 py-2.5 border-b border-border-custom flex items-center gap-2">
-            <Eye size={15} className="text-brand" />
-            <span className="text-[12px] font-black uppercase tracking-widest text-text2">Viewer</span>
-            <span className="text-[12px] text-text3">· {viewer.label}</span>
-            <a href={viewer.url} target="_blank" rel="noreferrer" className="ml-auto text-[12px] text-brand underline">open in a new tab</a>
-            <button onClick={() => setViewer(null)} title="Close the viewer" className="p-1 rounded-md text-text3 hover:text-text"><X size={16} /></button>
+      {viewer && createPortal(
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setViewer(null)} role="dialog" aria-modal="true" aria-label="PDF preview">
+          <div className="bg-white w-full h-full sm:h-[92vh] sm:max-w-4xl sm:rounded-[20px] overflow-hidden shadow-2xl flex flex-col"
+            onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-border-custom flex items-center gap-2 flex-shrink-0">
+              <Eye size={16} className="text-brand" />
+              <span className="text-[12px] font-black uppercase tracking-widest text-text2 truncate">{viewer.label}</span>
+              <a href={viewer.url} target="_blank" rel="noreferrer" className="ml-auto text-[12px] text-brand underline whitespace-nowrap">new tab</a>
+              <button onClick={() => setViewer(null)} title="Close" aria-label="Close the preview"
+                className="p-1.5 rounded-lg text-text3 hover:text-text hover:bg-surface2"><X size={20} /></button>
+            </div>
+            <PdfViewer blob={viewer.blob} className="flex-1 min-h-0" />
           </div>
-          <PdfViewer blob={viewer.blob} />
-        </div>
+        </div>,
+        document.body,
       )}
 
       {adding && view && (
@@ -436,32 +471,6 @@ export default function AuditPackage() {
       )}
     </div>
   );
-}
-
-/** What each numbered section will show, and whether it needs attention first. */
-function sectionState(n: number, v: AuditPackageView, f: ReturnType<typeof figures>, includeGst: boolean): [string, boolean] {
-  switch (n) {
-    case 1: return ['Key figures, notes and contents', false];
-    case 2: return f.manualToReview
-      ? [`${f.purchases.length} entries · ${f.manualToReview} manual to review`, true]
-      : [`${f.purchases.length} entries · ${rupees(f.totalPurchases)}`, v.cashExpenses.some(c => !c.excluded && c.paidThroughBank)];
-    case 3: return v.sales.unreviewedCount
-      ? [`${rupees(f.totalSales)} received · ${v.sales.unreviewedCount} receipt(s) not reviewed`, true]
-      : [`${rupees(f.totalSales)} received in the bank`, false];
-    case 4: return f.unreviewed.length
-      ? [`${f.unreviewed.length} bank line(s) not reviewed`, true]
-      : v.bank.lines.length ? ['All bank lines accounted for', false] : ['No bank lines this month', true];
-    case 5: return [includeGst ? 'Included' : 'Not applicable', false];
-    case 6: return [v.receivables.length ? rupees(f.receivables) : 'None', false];
-    case 7: return [v.payables.length ? rupees(f.payables) : 'None', false];
-    case 8: return v.statements.length
-      ? [`Kotak PDF on file (${v.statements.reduce((a, s) => a + (s.pages || 0), 0)} pages)`, false]
-      : ['No statement PDF: import it on the Bank Account screen', true];
-    default: {
-      const k = v.attachments.filter(a => a.included).length;
-      return [k ? `${k} attached` : 'None (only if the auditor asks)', false];
-    }
-  }
 }
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'brand' | 'danger' }) {

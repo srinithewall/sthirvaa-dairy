@@ -273,7 +273,7 @@ public class BankFeedService {
      * different ways - "GOPAL  S O RAMASWAMI REDDY", "SentIMPS629208547469LOKESH G/..." - so the
      * words are looked for, not the exact text.
      */
-    static boolean matches(String narration, String pattern) {
+    public static boolean matches(String narration, String pattern) {
         String n = normal(narration);
         String[] words = normal(pattern).split(" ");
         if (words.length == 0 || words[0].isEmpty()) return false;

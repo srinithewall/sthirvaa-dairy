@@ -1,10 +1,14 @@
 package com.dairy.service.bank;
 
 import com.dairy.model.Expense;
+import com.dairy.model.Income;
+import com.dairy.model.bank.BankTransaction;
 import com.dairy.model.Staff;
 import com.dairy.model.bank.SalaryAdvance;
 import com.dairy.model.bank.SalaryRule;
 import com.dairy.repo.ExpenseRepository;
+import com.dairy.repo.IncomeRepository;
+import com.dairy.repo.bank.BankTransactionRepository;
 import com.dairy.repo.StaffRepository;
 import com.dairy.repo.bank.SalaryAdvanceRepository;
 import com.dairy.repo.bank.SalaryRuleRepository;
@@ -39,6 +43,8 @@ class SalaryRuleServiceTest {
     @Mock private ExpenseRepository expenseRepository;
     @Mock private IncomeService incomeService;
     @Mock private SalaryAdvanceRepository advanceRepository;
+    @Mock private IncomeRepository incomeRepository;
+    @Mock private BankTransactionRepository bankRepository;
 
     private SalaryRuleService service;
     private SalaryRule lokesh;
@@ -52,6 +58,8 @@ class SalaryRuleServiceTest {
         ReflectionTestUtils.setField(service, "expenseRepository", expenseRepository);
         ReflectionTestUtils.setField(service, "incomeService", incomeService);
         ReflectionTestUtils.setField(service, "advanceRepository", advanceRepository);
+        ReflectionTestUtils.setField(service, "incomeRepository", incomeRepository);
+        ReflectionTestUtils.setField(service, "bankRepository", bankRepository);
 
         Staff staff = new Staff();
         staff.setId(7L);
@@ -68,7 +76,11 @@ class SalaryRuleServiceTest {
 
         advances.add(given("2026-10-01", 65000, 18, "2026-10"));
         when(advanceRepository.findByStaffIdOrderByDateAscIdAsc(7L)).thenAnswer(inv -> advances);
-        when(advanceRepository.save(any())).thenAnswer(inv -> { advances.add(inv.getArgument(0)); return inv.getArgument(0); });
+        when(advanceRepository.save(any())).thenAnswer(inv -> {
+            SalaryAdvance a = inv.getArgument(0);
+            if (advances.stream().noneMatch(x -> x == a)) advances.add(a); // saving a changed one keeps it once
+            return a;
+        });
     }
 
     private static SalaryAdvance given(String date, double amount, int terms, String start) {
@@ -206,5 +218,155 @@ class SalaryRuleServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
             service.addAdvance(7L, Map.of("type", "GIVEN", "date", "2026-11-10", "amount", 5000, "terms", 5, "startMonth", "2026-10")),
             "cuts cannot start before the advance was given");
+    }
+
+    private static Income income(String date, double amount, String category) {
+        Income i = new Income();
+        i.setDate(LocalDate.parse(date));
+        i.setAmount(amount);
+        i.setCategory(category);
+        return i;
+    }
+
+    private static Expense expenseOn(String date, double amount, String category, String segment) {
+        Expense e = expense(amount, category, segment);
+        e.setDate(LocalDate.parse(date));
+        return e;
+    }
+
+    private static BankTransaction bankLine(String date, double amount, String narration, String kind, String category) {
+        BankTransaction t = new BankTransaction();
+        t.setTxnDate(LocalDate.parse(date));
+        t.setAmount(amount);
+        t.setNarration(narration);
+        t.setDirection("DEBIT");
+        t.setStatus("MAPPED");
+        t.setKind(kind);
+        t.setCategory(category);
+        return t;
+    }
+
+    @Test
+    void breakdownWorksEachMonthOutFromTheFarmRecords() {
+        lokesh.setBankName("LOKESH G");
+        when(incomeRepository.findByDateBetween(any(), any())).thenReturn(List.of(
+            income("2026-09-03", 30000, "MILK_SALES"), income("2026-09-20", 16991, "MILK_SALES"),
+            income("2026-09-21", 5000, "MANURE"),               // not milk: left out
+            income("2026-10-05", 49133, "MILK_SALES"),
+            income("2026-11-02", 6398, "MILK_SALES")));
+        when(expenseRepository.findByDateBetween(any(), any())).thenReturn(List.of(
+            expenseOn("2026-09-10", 27805, "Feed", null),
+            expenseOn("2026-09-11", 3000, "Poultry", "POULTRY"),  // poultry: left out
+            expenseOn("2026-10-10", 9045, "Feed", "CATTLE"),
+            expenseOn("2026-11-01", 53934, "Feed", null)));
+        when(bankRepository.findByTxnDateBetweenOrderByTxnDateDescIdDesc(any(), any())).thenReturn(List.of(
+            bankLine("2026-10-06", 20000, "MB: Sent NEFT/ LOKESH G", "EXPENSE", "Salary"),             // September's salary
+            bankLine("2026-11-07", 9000, "MB: Sent NEFT/ LOKESH G", "EXPENSE", "Salary"),              // October's salary
+            bankLine("2026-11-19", 4000, "MB: Sent NEFT/ LOKESH G", "SETTLEMENT", "STAFF_REIMBURSEMENT"), // not salary
+            bankLine("2026-11-20", 2000, "MB: Sent NEFT/ RAVI", "EXPENSE", "Salary")));                  // someone else
+
+        Map<String, Object> out = service.breakdown(7L, "2026-09", "2026-11", YearMonth.of(2026, 11));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> months = (List<Map<String, Object>>) out.get("months");
+
+        assertEquals(List.of("2026-11", "2026-10", "2026-09"), months.stream().map(m -> m.get("month")).toList(), "newest first");
+        Map<String, Object> sep = months.get(2), oct = months.get(1), nov = months.get(0);
+        assertEquals(46991L, sep.get("milkSales"));
+        assertEquals(27805L, sep.get("expenses"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> sepLines = (List<Map<String, Object>>) sep.get("expenseLines");
+        assertEquals(1, sepLines.size(), "the poultry expense is not listed");
+        assertEquals(27805L, sepLines.get(0).get("amount"));
+        assertEquals("Feed", sepLines.get(0).get("category"));
+        assertEquals(9593L, sep.get("earned"));                 // (46,991 - 27,805) x 50%, rounded
+        assertEquals(0L, sep.get("advanceCut"), "no cut before the advance's first month");
+        assertEquals(20000L, sep.get("paidByBank"), "paid in October, for September");
+        assertEquals("2026-10", sep.get("payMonth"));
+        assertEquals(20044L, oct.get("earned"));                // (49,133 - 9,045) x 50%
+        assertEquals(3611L, oct.get("advanceCut"));
+        assertEquals(20044L - 3611L, oct.get("payable"));
+        assertEquals(9000L, oct.get("paidByBank"));
+        assertEquals(20044L - 3611L - 9000L, oct.get("balance"));
+        assertEquals(-47536L, nov.get("profit"));
+        assertEquals(0L, nov.get("earned"), "a loss gives no share");
+        assertEquals(-3611L, nov.get("payable"), "the cut still comes off");
+        assertEquals(true, nov.get("current"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> totals = (Map<String, Object>) out.get("totals");
+        assertEquals("2026-10", totals.get("upTo"), "the month still running is not in the totals");
+        assertEquals(9593L + 20044L, totals.get("earned"));
+        assertEquals(3611L, totals.get("advanceCut"));
+        assertEquals(29000L, totals.get("paidByBank"));
+        assertEquals(65000L - 3611L, totals.get("advanceLeft"));
+    }
+
+    @Test
+    void breakdownRejectsABackwardsRange() {
+        assertThrows(IllegalArgumentException.class, () -> service.breakdown(7L, "2026-11", "2026-09"));
+    }
+
+    private static Map<String, Object> cut(String month, long amount) {
+        return Map.of("month", month, "amount", amount);
+    }
+
+    @Test
+    void anAdvanceCanHaveADifferentCutEachMonth() {
+        advances.clear();
+        service.addAdvance(7L, Map.of("type", "GIVEN", "date", "2026-10-05", "amount", 10000, "mode", "CASH",
+            "plan", List.of(cut("2026-10", 3000), cut("2026-11", 0), cut("2026-12", 7000))));
+
+        List<AdvanceSchedule.Month> rows = AdvanceSchedule.build(advances, YearMonth.of(2026, 12));
+        assertEquals(3000, AdvanceSchedule.at(rows, YearMonth.of(2026, 10)).cut());
+        assertEquals(0, AdvanceSchedule.at(rows, YearMonth.of(2026, 11)).cut(), "0 skips the month");
+        assertEquals(7000, AdvanceSchedule.at(rows, YearMonth.of(2026, 12)).cut());
+        assertEquals(0, AdvanceSchedule.at(rows, YearMonth.of(2026, 12)).left());
+        SalaryAdvance saved = advances.get(0);
+        assertEquals("2026-10", saved.getStartMonth());
+        assertEquals(3, saved.getTerms());
+    }
+
+    @Test
+    void thePlanMustAddUpToTheAdvance() {
+        advances.clear();
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+            service.addAdvance(7L, Map.of("type", "GIVEN", "date", "2026-10-05", "amount", 10000,
+                "plan", List.of(cut("2026-10", 3000), cut("2026-11", 5000)))));
+        assertTrue(ex.getMessage().contains("2000 more to plan"), ex.getMessage());
+        assertThrows(IllegalArgumentException.class, () ->
+            service.addAdvance(7L, Map.of("type", "GIVEN", "date", "2026-10-05", "amount", 10000,
+                "plan", List.of(cut("2026-09", 10000)))), "no cut before the advance was given");
+    }
+
+    @Test
+    void anAdvanceCanBeChangedLater() {
+        SalaryAdvance first = advances.get(0); // 65,000 over 18 months from Oct 2026, no saved plan
+        first.setId(1L);
+        when(advanceRepository.findById(1L)).thenReturn(Optional.of(first));
+        Map<String, Object> plan = new LinkedHashMap<>();
+
+        // start a month earlier, take 10,000 in Sep and the rest evenly in the 17 months after
+        List<Map<String, Object>> cuts = new ArrayList<>();
+        cuts.add(cut("2026-09", 10000));
+        for (int i = 1; i <= 17; i++) cuts.add(cut(YearMonth.of(2026, 9).plusMonths(i).toString(), i == 17 ? 55000 - 3235L * 16 : 3235));
+        plan.put("date", "2026-09-01");
+        plan.put("amount", 65000);
+        plan.put("mode", "CASH");
+        plan.put("plan", cuts);
+        service.updateAdvance(7L, 1L, plan);
+
+        assertEquals("2026-09", first.getStartMonth());
+        assertEquals(LocalDate.parse("2026-09-01"), first.getDate());
+        List<AdvanceSchedule.Month> rows = AdvanceSchedule.build(advances, YearMonth.of(2026, 10));
+        assertEquals(10000, AdvanceSchedule.at(rows, YearMonth.of(2026, 9)).cut());
+        assertEquals(3235, AdvanceSchedule.at(rows, YearMonth.of(2026, 10)).cut());
+        assertEquals(65000, rows.stream().mapToLong(AdvanceSchedule.Month::cut).sum());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> entries = (List<Map<String, Object>>) service.advances(7L, "2026-10").get("entries");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> shown = (List<Map<String, Object>>) entries.get(0).get("plan");
+        assertEquals(18, shown.size());
+        assertNull(entries.get(0).get("monthlyCut"), "cuts differ, so no single monthly figure");
     }
 }

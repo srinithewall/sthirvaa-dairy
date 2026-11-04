@@ -10,7 +10,7 @@ import api from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
 import { RefreshCw, Upload, Landmark, X, Check, FileSpreadsheet, FileDown, Trash2, Undo2, Layers, ChevronDown } from 'lucide-react';
 import {
-  BankTxn, BankRule, BankKind, BankStatementDoc, ruleLabel, rupees, typeFromBooking, TYPE_LABEL, FIXED_CATEGORY, categoryLabel, partyOf, buildReport, downloadExcel, downloadPdf,
+  BankTxn, BankRule, BankKind, BankStatementDoc, ruleLabel, rupees, categoryLabel, partyOf, buildReport, downloadExcel, downloadPdf,
 } from '@/lib/bank';
 
 interface Category { id: number; name: string; type: 'EXPENSE' | 'INCOME' }
@@ -217,74 +217,67 @@ export default function BankPage() {
     <AppLayout>
       <div className="max-w-5xl mx-auto pb-10 px-1">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-black text-text tracking-tight uppercase flex items-center gap-3">
-              <Landmark size={24} className="text-brand" /> Bank Account
+            <h1 className="text-xl sm:text-2xl font-black text-text tracking-tight uppercase flex items-center gap-2 sm:gap-3">
+              <Landmark size={22} className="text-brand" /> Bank Account
             </h1>
             <p className="text-[13px] text-text3 mt-1 font-medium">
               Kotak current account{status?.accountLast4 ? ` ••${status.accountLast4}` : ''}
               {lastFetched && ` · last updated ${lastFetched}`}
             </p>
           </div>
-          <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+          <div className={`grid ${status?.configured ? 'grid-cols-2' : 'grid-cols-1'} sm:flex gap-2 w-full sm:w-auto`}>
             <input ref={fileRef} type="file" multiple accept=".csv,text/csv,.pdf,application/pdf" className="hidden" onChange={handleImport} />
             <button onClick={() => fileRef.current?.click()} disabled={!!busy}
               title="Import the CSV (transactions) and PDF (official copy) downloaded from Kotak net banking"
               className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg border border-border-custom bg-white text-text2 font-black text-[12px] tracking-wide whitespace-nowrap disabled:opacity-40">
               <Upload size={16} className={busy === 'import' ? 'animate-pulse' : ''} /> {busy === 'import' ? 'IMPORTING...' : 'IMPORT'}
             </button>
-            <button onClick={handleFetch} disabled={!!busy || !status?.configured}
-              title={status?.configured ? 'Fetch new transactions from Kotak' : 'Kotak API access is not set up yet'}
+            {status?.configured && <button onClick={handleFetch} disabled={!!busy} title="Fetch new transactions from Kotak"
               className="inline-flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 rounded-lg bg-brand text-white font-black text-[12px] tracking-wide whitespace-nowrap shadow disabled:opacity-40">
               <RefreshCw size={16} className={busy === 'fetch' ? 'animate-spin' : ''} />
               {busy === 'fetch' ? 'FETCHING...' : <>FETCH<span className="hidden sm:inline">&nbsp;TRANSACTIONS</span></>}
-            </button>
+            </button>}
           </div>
         </div>
 
-        {status && !status.configured && (
-          <div className="bg-amber-400/10 border border-amber-400/30 p-4 rounded-radius-custom-lg mb-5 text-[13px] text-amber-800">
-            <b>Kotak API not connected yet.</b> Fetch turns on once Kotak issues the API Banking credentials
-            (set as KOTAK_* settings on the server). Until then, download the statement from Kotak net banking
-            as CSV and use <b>Import</b>: it is mapped the same way. Import the PDF statement too, to attach it to the PDF report.
-          </div>
-        )}
-
         {/* Period and side */}
-        <div className="bg-white p-4 rounded-radius-custom-lg border border-border-custom shadow-sm mb-4 flex flex-col lg:flex-row lg:items-end gap-3">
+        <div className="bg-white p-3 sm:p-4 rounded-radius-custom-lg border border-border-custom shadow-sm mb-3 sm:mb-4 flex flex-col lg:flex-row lg:items-end gap-2.5 sm:gap-3">
           <div className="grid grid-cols-2 gap-2 items-end">
             <label className="block min-w-0">
-              <span className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">From</span>
+              <span className="block text-[10px] sm:text-[11px] font-black text-text3 uppercase tracking-widest mb-1">From</span>
               <input type="date" value={from} max={to} onChange={e => setRange(e.target.value, to)}
                 className="w-full min-w-0 bg-surface2 border border-border-custom text-text text-sm rounded-lg px-2 sm:px-3 py-2" />
             </label>
             <label className="block min-w-0">
-              <span className="block text-[11px] font-black text-text3 uppercase tracking-widest mb-1.5">To</span>
+              <span className="block text-[10px] sm:text-[11px] font-black text-text3 uppercase tracking-widest mb-1">To</span>
               <input type="date" value={to} min={from} onChange={e => setRange(from, e.target.value)}
                 className="w-full min-w-0 bg-surface2 border border-border-custom text-text text-sm rounded-lg px-2 sm:px-3 py-2" />
             </label>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex items-center gap-1.5 lg:contents">
+          <div className="flex gap-1.5 min-w-0">
             {([['This month', monthStart(), today()], ['Last month', monthStart(-1), monthEnd(-1)], ['This FY', fyStart(), today()]] as const).map(([label, f, t]) => (
               <button key={label} onClick={() => setRange(f, t)}
-                className={`px-3 py-2 rounded-lg text-[12px] font-bold border ${from === f && to === t ? 'bg-[#1b4332] text-white border-[#1b4332]' : 'bg-white text-text2 border-border-custom'}`}>
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-[12px] font-bold border whitespace-nowrap ${from === f && to === t ? 'bg-[#1b4332] text-white border-[#1b4332]' : 'bg-white text-text2 border-border-custom'}`}>
                 {label}
               </button>
             ))}
           </div>
-          <div className="lg:ml-auto self-start bg-white p-1 rounded-xl border border-border-custom flex" role="group" aria-label="Cattle, all or poultry">
+          <div className="ml-auto bg-white p-0.5 sm:p-1 rounded-xl border border-border-custom flex flex-shrink-0" role="group" aria-label="Cattle, all or poultry">
             {([['CATTLE', 'C', 'Cattle'], ['ALL', 'All', 'Cattle and poultry'], ['POULTRY', 'P', 'Poultry and fish']] as const).map(([v, label, title]) => (
               <button key={v} type="button" title={title} aria-label={title} onClick={() => setSegment(v)}
-                className={`min-w-[44px] px-3 py-2 inline-flex items-center justify-center rounded-lg text-[12px] font-black tracking-widest ${segment === v ? 'bg-[#1b4332] text-white' : 'text-text3'}`}>
-                {v === 'ALL' ? <Layers size={16} /> : label}
+                className={`min-w-[30px] sm:min-w-[44px] px-1.5 sm:px-3 py-1.5 sm:py-2 inline-flex items-center justify-center rounded-lg text-[11px] sm:text-[12px] font-black tracking-widest ${segment === v ? 'bg-[#1b4332] text-white' : 'text-text3'}`}>
+                {v === 'ALL' ? <Layers size={14} /> : label}
               </button>
             ))}
+          </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-4 border-b border-border-custom overflow-x-auto">
+        <div className="grid grid-cols-4 sm:flex sm:gap-1 mb-3 sm:mb-4 border-b border-border-custom">
           {([
             ['REVIEW', 'Transactions', openCount ? ` (${openCount})` : ''],
             ['REPORT', 'Report', ''],
@@ -292,8 +285,10 @@ export default function BankPage() {
             ['RULES', 'Rules', ''],
           ] as const).map(([v, label, count]) => (
             <button key={v} onClick={() => setTab(v)}
-              className={`px-3 sm:px-4 py-2.5 text-[12px] font-black uppercase tracking-wider whitespace-nowrap border-b-2 -mb-px ${tab === v ? 'border-brand text-brand' : 'border-transparent text-text3 hover:text-text'}`}>
-              {v === 'REPORT' ? <><span className="hidden sm:inline">Sales &amp; Purchase </span>{label}</> : label}{count}
+              className={`px-1 sm:px-4 py-2.5 text-[10px] sm:text-[12px] font-black uppercase tracking-normal sm:tracking-wider whitespace-nowrap border-b-2 -mb-px ${tab === v ? 'border-brand text-brand' : 'border-transparent text-text3 hover:text-text'}`}>
+              {v === 'REPORT' ? <><span className="hidden sm:inline">Sales &amp; Purchase </span>{label}</> : label}
+              {count && <span className="hidden sm:inline">{count}</span>}
+              {count && <span className="sm:hidden ml-0.5 inline-block w-1.5 h-1.5 rounded-full bg-amber-500 align-top" aria-label="lines to review" />}
             </button>
           ))}
         </div>
@@ -310,7 +305,7 @@ export default function BankPage() {
           <ReportView report={report} statements={statements} busy={busy} onDownload={download}
             onShowPending={() => setTab('REVIEW')} />
         ) : tab === 'AUDIT' ? (
-          <AuditPackage />
+          <AuditPackage month={from.slice(0, 7)} />
         ) : (
           <RulesView rules={rules} builtIn={builtInRules} categories={categories} onDelete={deleteRule}
             onAdded={msg => { showToast(msg); load(); }} onError={msg => showToast(msg, 'error')} />
@@ -326,45 +321,48 @@ export default function BankPage() {
   );
 }
 
-/** The report's entries as a plain table. Lines are changed on the Transactions tab, not here. */
-function ReportEntries({ lines }: { lines: BankTxn[] }) {
-  if (lines.length === 0) {
-    return <div className="bg-white rounded-radius-custom-lg border border-border-custom p-10 text-center text-text3 font-bold">No confirmed entries in this period.</div>;
-  }
-  const rows = [...lines].sort((a, b) => a.txnDate.localeCompare(b.txnDate) || a.id - b.id);
+/**
+ * One of the report's totals tables: sales, purchases or staff settlements, all laid out the same
+ * way - a solid coloured header with the total, which folds the table away when tapped.
+ */
+function GroupTable({ title, groups, total, color }: {
+  title: string; groups: { category: string; count: number; total: number }[]; total: number; color: 'green' | 'red' | 'grey';
+}) {
+  const [open, setOpen] = useState(true);
+  const look = {
+    green: { head: 'bg-brand text-white', border: 'border-brand/30', amount: 'text-brand', foot: 'bg-brand/10 text-brand' },
+    red: { head: 'bg-danger text-white', border: 'border-danger/40', amount: 'text-danger', foot: 'bg-danger/10 text-danger' },
+    grey: { head: 'bg-text2 text-white', border: 'border-border-custom', amount: 'text-text', foot: 'bg-surface2 text-text' },
+  }[color];
   return (
-    <div className="bg-white rounded-radius-custom-lg border border-border-custom card-shadow overflow-x-auto">
-      <table className="w-full text-[12px] min-w-[720px] table-fixed">
-        <colgroup><col className="w-[62px]" /><col /><col className="w-[120px]" /><col className="w-[150px]" /><col className="w-[92px]" /><col className="w-[92px]" /></colgroup>
-        <thead>
-          <tr className="text-[10px] font-black text-text3 uppercase tracking-wider border-b border-border-custom bg-surface2/50">
-            <th className="text-left px-2 py-2">Date</th>
-            <th className="text-left px-2 py-2">Description</th>
-            <th className="text-left px-2 py-2">Type</th>
-            <th className="text-left px-2 py-2">Category</th>
-            <th className="text-right px-2 py-2">Out</th>
-            <th className="text-right px-2 py-2">In</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border-custom">
-          {rows.map(t => {
-            const type = typeFromBooking(t.direction, t.kind, t.category);
-            return (
-              <tr key={t.id}>
-                <td className="px-2 py-2 font-bold text-text2">{shortDate(t.txnDate)}</td>
-                <td className="px-2 py-2">
-                  <div className="font-bold text-text truncate">{partyOf(t)}</div>
-                  <div className="text-[11px] text-text3 truncate" title={t.narration || ''}>{t.narration}{t.note ? ` · ${t.note}` : ''}</div>
-                </td>
-                <td className="px-2 py-2 text-text2">{type ? TYPE_LABEL[type] : ''}</td>
-                <td className="px-2 py-2 text-text2 truncate">{FIXED_CATEGORY[type as keyof typeof FIXED_CATEGORY] ? (type === 'ADVANCE' ? 'Staff advance' : 'Staff paid cash') : categoryLabel(t.category)}</td>
-                <td className="px-2 py-2 text-right tabular-nums font-bold text-danger">{t.direction === 'DEBIT' ? rupees(t.amount) : ''}</td>
-                <td className="px-2 py-2 text-right tabular-nums font-bold text-brand">{t.direction === 'CREDIT' ? rupees(t.amount) : ''}</td>
+    <div className={`bg-white rounded-radius-custom-lg border overflow-hidden card-shadow ${look.border}`}>
+      <button onClick={() => setOpen(v => !v)} aria-expanded={open}
+        className={`w-full px-3 sm:px-4 py-3 flex items-center gap-2 text-left ${look.head}`}>
+        <ChevronDown size={16} className={`flex-shrink-0 transition-transform ${open ? '' : '-rotate-90'}`} />
+        <span className="flex-1 min-w-0 text-[12px] font-black uppercase tracking-widest truncate">{title}</span>
+        <span className="text-[14px] font-black tabular-nums">{rupees(total)}</span>
+      </button>
+      {open && (
+        <table className="w-full text-[13px]">
+          <tbody className="divide-y divide-border-custom">
+            {groups.length === 0 && <tr><td className="px-4 py-3 text-text3">None in this period.</td></tr>}
+            {groups.map(g => (
+              <tr key={g.category}>
+                <td className="px-3 sm:px-4 py-2.5 font-bold text-text">{g.category}</td>
+                <td className="px-2 py-2.5 text-text3 text-right w-10">{g.count}</td>
+                <td className={`px-3 sm:px-4 py-2.5 font-black text-right tabular-nums ${look.amount}`}>{rupees(g.total)}</td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className={look.foot}>
+              <td className="px-3 sm:px-4 py-2.5 font-black">Total</td>
+              <td className="px-2 py-2.5 text-right w-10 font-bold">{groups.reduce((a, g) => a + g.count, 0)}</td>
+              <td className="px-3 sm:px-4 py-2.5 font-black text-right tabular-nums">{rupees(total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      )}
     </div>
   );
 }
@@ -374,31 +372,6 @@ function ReportView({ report, statements, busy, onDownload, onShowPending }: {
   onShowPending: () => void;
 }) {
   const net = report.totalIn - report.totalOut;
-  const Table = ({ title, groups, total, tone }: { title: string; groups: typeof report.sales; total: number; tone: string }) => (
-    <div className="bg-white rounded-radius-custom-lg border border-border-custom overflow-hidden card-shadow">
-      <div className={`px-4 py-3 text-[12px] font-black uppercase tracking-widest ${tone}`}>{title}</div>
-      <table className="w-full text-[13px]">
-        <tbody className="divide-y divide-border-custom">
-          {groups.length === 0 && <tr><td className="px-4 py-4 text-text3">None in this period.</td></tr>}
-          {groups.map(g => (
-            <tr key={g.category}>
-              <td className="px-4 py-2.5 font-bold text-text">{g.category}</td>
-              <td className="px-2 py-2.5 text-text3 text-right">{g.count}</td>
-              <td className="px-4 py-2.5 font-black text-right">{rupees(g.total)}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="bg-surface2/60">
-            <td className="px-4 py-2.5 font-black">Total</td>
-            <td />
-            <td className="px-4 py-2.5 font-black text-right">{rupees(total)}</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -417,18 +390,6 @@ function ReportView({ report, statements, busy, onDownload, onShowPending }: {
         </div>
       </div>
 
-      <div className="bg-white border border-border-custom px-4 py-3 rounded-radius-custom-lg mb-4 text-[13px] text-text2 flex items-start gap-2">
-        <FileDown size={16} className="text-danger mt-0.5 flex-shrink-0" />
-        {statements.length > 0 ? (
-          <span>
-            The PDF download attaches Kotak&apos;s statement{statements.length > 1 ? 's' : ''} for{' '}
-            <b>{statements.map(d => periodLabel(d.periodFrom, d.periodTo)).join(', ')}</b> after the report.
-          </span>
-        ) : (
-          <span>No Kotak PDF statement on file for this period. Use <b>Import</b> with the PDF from net banking to attach it to the PDF download.</span>
-        )}
-      </div>
-
       {report.pending.count > 0 && (
         <button onClick={onShowPending}
           className="w-full text-left bg-amber-400/10 border border-amber-400/30 px-4 py-3 rounded-radius-custom-lg mb-4 text-[13px] text-amber-800">
@@ -436,17 +397,15 @@ function ReportView({ report, statements, busy, onDownload, onShowPending }: {
         </button>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Table title="Sales (money in)" groups={report.sales} total={report.totalIn} tone="bg-brand/5 text-brand" />
-        <Table title="Purchases & expenses (money out)" groups={report.purchases} total={report.totalOut} tone="bg-danger/5 text-danger" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-start">
+        <GroupTable title="Sales (money in)" groups={report.sales} total={report.totalIn} color="green" />
+        <GroupTable title="Purchases & expenses (money out)" groups={report.purchases} total={report.totalOut} color="red" />
         {report.staffSettlements.length > 0 && (
-          <Table title="Staff settlements & advances (not expenses)" groups={report.staffSettlements}
-            total={report.totalStaffSettlements} tone="bg-surface2 text-text2" />
+          <GroupTable title="Staff settlements & advances" groups={report.staffSettlements}
+            total={report.totalStaffSettlements} color="grey" />
         )}
       </div>
 
-      <div className="text-[12px] font-black text-text2 uppercase tracking-widest mb-2 px-1">Entries</div>
-      <ReportEntries lines={report.lines} />
     </>
   );
 }

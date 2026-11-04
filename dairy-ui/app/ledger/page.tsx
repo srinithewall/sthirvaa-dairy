@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
-import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown, Layers, Bell } from 'lucide-react';
+import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown, Layers, Bell, BarChart3 } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import LedgerCostTracker from '@/components/LedgerCostTracker';
 
@@ -56,6 +56,12 @@ function LedgerPage() {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [milkReceived, setMilkReceived] = useState<MilkReceived[]>([]);
   const [showTracker, setShowTracker] = useState(false);
+  useEffect(() => {
+    if (!showTracker) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowTracker(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showTracker]);
   
   // Selection & Form State
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -440,6 +446,10 @@ function LedgerPage() {
             <p className="text-[13px] text-text3 mt-1 font-medium">Sthirvaa Farms · Financial Entries</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button type="button" onClick={() => setShowTracker(true)} title="Cost tracker report"
+            className="bg-white px-4 py-2.5 rounded-xl border border-border-custom shadow-sm inline-flex items-center justify-center gap-2 whitespace-nowrap text-[12px] font-black text-text2 tracking-widest hover:text-text hover:bg-surface2">
+            <BarChart3 size={16} className="text-brand" /> COST TRACKER
+          </button>
           <div className="bg-white p-1 rounded-xl border border-border-custom flex shadow-sm" role="group" aria-label="Cattle, all or poultry">
             {([['CATTLE', 'C', 'Cattle'], ['ALL', 'All', 'Cattle and poultry'], ['POULTRY', 'P', 'Poultry and fish']] as const).map(([v, label, title]) => (
               <button key={v} type="button" title={title} aria-label={title} onClick={() => setSegmentFilter(v)}
@@ -611,20 +621,6 @@ function LedgerPage() {
               )}
             </button>
           </div>
-        )}
-
-        {/* Cost Tracker: follows the month and cattle/poultry filters (All Time shows this month) */}
-        <div className="mb-4 flex items-center justify-between px-1">
-          <button onClick={() => setShowTracker(v => !v)} aria-expanded={showTracker}
-            className="flex items-center gap-1.5 text-[12px] font-black text-text2 uppercase tracking-widest hover:text-text">
-            Cost Tracker
-            <ChevronDown size={16} className={`transition-transform ${showTracker ? '' : '-rotate-90'}`} />
-          </button>
-        </div>
-        {showTracker && (
-          <LedgerCostTracker entries={history.filter(inSegment)}
-            milkReceived={segmentFilter === 'POULTRY' ? [] : milkReceived}
-            month={filterMonth === 'ALL' ? currentMonth : filterMonth} />
         )}
 
         {/* Category Selection Section */}
@@ -874,6 +870,34 @@ function LedgerPage() {
               >
                 {saving ? 'SAVING...' : 'SAVE RECORD'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cost Tracker Modal: follows the month and cattle/poultry filters (All Time shows this month) */}
+      {showTracker && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowTracker(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="cost-tracker-title"
+            className="bg-surface w-full max-w-3xl max-h-[92vh] rounded-[24px] overflow-hidden shadow-2xl flex flex-col"
+            onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 bg-white border-b border-border-custom flex items-center justify-between gap-3">
+              <div>
+                <div id="cost-tracker-title" className="text-[15px] font-black text-text uppercase tracking-widest flex items-center gap-2">
+                  <BarChart3 size={18} className="text-brand" /> Cost Tracker
+                </div>
+                <div className="text-[12px] text-text3 mt-0.5">
+                  {monthName(filterMonth === 'ALL' ? currentMonth : filterMonth)} · {segmentFilter === 'ALL' ? 'Cattle and poultry' : segmentFilter === 'POULTRY' ? 'Poultry and fish' : 'Cattle'}
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowTracker(false)} aria-label="Close"
+                className="p-2 rounded-lg text-text3 hover:text-text hover:bg-surface2"><X size={22} /></button>
+            </div>
+            <div className="p-3 sm:p-5 overflow-y-auto">
+              <LedgerCostTracker entries={history.filter(inSegment)}
+                milkReceived={segmentFilter === 'POULTRY' ? [] : milkReceived}
+                month={filterMonth === 'ALL' ? currentMonth : filterMonth} />
             </div>
           </div>
         </div>

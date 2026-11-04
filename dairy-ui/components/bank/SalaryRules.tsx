@@ -4,19 +4,20 @@ import React, { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { rupees } from '@/lib/bank';
 import { ChevronDown, Edit2, Plus, Trash2, X } from 'lucide-react';
+import AdvanceModal, { AdvanceEntry } from '@/components/bank/AdvanceModal';
 
 interface StaffOption { id: number; name: string; salary?: number | null }
 interface SalaryRule {
   staffId: number; staffName: string; type: 'FIXED' | 'DYNAMIC';
   fixedAmount?: number | null; sharePercent?: number | null;
+  /** Salary the audit report shows every month, and the words that find their bank lines. */
+  auditAmount?: number | null; bankName?: string | null;
 }
 /** The advance account up to a month: given and recovered (cuts + repayments) so far, and what is left. */
 interface AdvanceTotals { upTo: string; given: number; repaid: number; cut: number; recovered: number; left: number; monthsLeft: number }
 interface CalcRow extends SalaryRule { earned: number; advanceCut: number; advanceLeft: number; advance: AdvanceTotals; payable: number }
-interface AdvanceEntry {
-  id: number; date: string; type: 'GIVEN' | 'REPAID'; amount: number; terms?: number | null; startMonth?: string | null;
-  mode?: 'CASH' | 'BANK' | null; note?: string | null; monthlyCut?: number;
-}
+/** What the advance pop-up is open for: a new advance (any employee, or one), a repayment, or a change. */
+interface AdvanceForm { staffId?: number; entry?: AdvanceEntry; type?: 'GIVEN' | 'REPAID'; owed?: number }
 interface ScheduleRow { month: string; given: number; repaid: number; planned: number; cut: number; left: number }
 interface Calc { month: string; milkReceived: number; expenses: number; profit: number; rows: CalcRow[] }
 
@@ -28,7 +29,8 @@ const label = 'block text-[11px] font-black text-text3 uppercase tracking-widest
 
 /**
  * Salary per employee: a fixed amount, or (dynamic) a share of the dairy's profit for the month,
- * milk payments received in the bank minus cattle expenses. An advance comes off in equal monthly cuts.
+ * milk payments received in the bank minus cattle expenses. An advance comes off in monthly cuts,
+ * equal to start with and each month changeable (AdvanceModal).
  */
 export default function SalaryRules({ onSaved, onError }: { onSaved: (message: string) => void; onError: (message: string) => void }) {
   const [rules, setRules] = useState<SalaryRule[]>([]);
@@ -38,6 +40,9 @@ export default function SalaryRules({ onSaved, onError }: { onSaved: (message: s
   const [editing, setEditing] = useState<Partial<SalaryRule> | null>(null);
   /** Whose advance account is open. */
   const [openAdvance, setOpenAdvance] = useState<number | null>(null);
+  const [advanceForm, setAdvanceForm] = useState<AdvanceForm | null>(null);
+  /** Bumped after an advance is saved, so the open account reloads. */
+  const [advanceVersion, setAdvanceVersion] = useState(0);
 
   const load = async () => {
     try {
@@ -73,9 +78,13 @@ export default function SalaryRules({ onSaved, onError }: { onSaved: (message: s
         <div className="flex items-center gap-2">
           <input type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)}
             className="h-9 bg-white border border-border-custom rounded-lg px-2 text-[12px] font-bold text-text2" aria-label="Month" />
+          <button onClick={() => setAdvanceForm({})} disabled={rules.length === 0} title="Give an employee an advance"
+            className="inline-flex items-center gap-1 h-9 px-3 rounded-lg bg-white border border-border-custom text-text2 text-[12px] font-black disabled:opacity-40">
+            <Plus size={14} /> ADVANCE
+          </button>
           <button onClick={() => setEditing({ type: 'DYNAMIC', sharePercent: 50 })}
             className="inline-flex items-center gap-1 h-9 px-3 rounded-lg bg-brand text-white text-[12px] font-black">
-            <Plus size={14} /> ADD
+            <Plus size={14} /> RULE
           </button>
         </div>
       </div>
@@ -107,6 +116,7 @@ export default function SalaryRules({ onSaved, onError }: { onSaved: (message: s
                 </div>
                 <div className="text-[12px] text-text3">
                   {r.type === 'FIXED' ? `${rupees(r.fixedAmount || 0)} a month` : `(Milk received − Expenses) × ${r.sharePercent}%`}
+                  {r.auditAmount ? ` · audit report shows ${rupees(r.auditAmount)} a month` : ''}
                 </div>
                 <div className="text-[12px] text-text2 mt-1">
                   {monthLabel(month)}: {r.type === 'FIXED' ? 'Salary' : 'Share'} <b>{rupees(r.earned)}</b>
@@ -142,12 +152,26 @@ export default function SalaryRules({ onSaved, onError }: { onSaved: (message: s
               )}
             </div>
             {openAdvance === r.staffId && (
-              <AdvancePanel staffId={r.staffId} name={r.staffName} month={month} onError={onError}
+              <AdvancePanel staffId={r.staffId} month={month} version={advanceVersion} onError={onError}
+                onOpen={f => setAdvanceForm({ ...f, staffId: r.staffId })}
                 onChanged={msg => { onSaved(msg); load(); }} />
             )}
             </React.Fragment>
           ))}
         </div>
+      )}
+
+      {advanceForm && (
+        <AdvanceModal employees={rules.map(r => ({ id: r.staffId, name: r.staffName }))}
+          staffId={advanceForm.staffId} entry={advanceForm.entry} type={advanceForm.type} owed={advanceForm.owed}
+          onClose={() => setAdvanceForm(null)} onError={onError}
+          onSaved={(msg, staffId) => {
+            setAdvanceForm(null);
+            setOpenAdvance(staffId);
+            setAdvanceVersion(v => v + 1);
+            onSaved(msg);
+            load();
+          }} />
       )}
 
       {editing && (
@@ -167,6 +191,8 @@ function SalaryRuleModal({ rule, staff, onClose, onSaved, onError }: {
   const [type, setType] = useState<'FIXED' | 'DYNAMIC'>(rule.type || 'DYNAMIC');
   const [fixed, setFixed] = useState(String(rule.fixedAmount ?? staff.find(s => s.id === rule.staffId)?.salary ?? ''));
   const [share, setShare] = useState(String(rule.sharePercent ?? 50));
+  const [auditAmount, setAuditAmount] = useState(rule.auditAmount ? String(rule.auditAmount) : '');
+  const [bankName, setBankName] = useState(rule.bankName || '');
   const [saving, setSaving] = useState(false);
 
   const name = staff.find(s => s.id === staffId)?.name || rule.staffName;
@@ -177,6 +203,7 @@ function SalaryRuleModal({ rule, staff, onClose, onSaved, onError }: {
     try {
       await api.put(`/bank/salary-rules/${staffId}`, {
         type, fixedAmount: type === 'FIXED' ? fixed : null, sharePercent: type === 'DYNAMIC' ? share : null,
+        auditAmount: auditAmount || null, bankName: bankName || null,
       });
       onSaved(`Salary rule for ${name} saved.`);
     } catch (err: any) {
@@ -237,11 +264,26 @@ function SalaryRuleModal({ rule, staff, onClose, onSaved, onError }: {
             </div>
           )}
 
+          <div className="border-t border-border-custom pt-4 space-y-3">
+            <div>
+              <label className={label}>Salary in the audit report (₹ a month, optional)</label>
+              <input type="number" min="0" value={auditAmount} onChange={e => setAuditAmount(e.target.value)} className={input} placeholder="20000" />
+              <p className="text-[11px] text-text3 mt-1">The audit package shows this as their salary every month, whatever the rule above works out to.</p>
+            </div>
+            {auditAmount && (
+              <div>
+                <label className={label}>Name in the bank narration</label>
+                <input value={bankName} onChange={e => setBankName(e.target.value)} className={`${input} uppercase`} placeholder="LOKESH G" />
+                <p className="text-[11px] text-text3 mt-1">Their bank transfers typed <b>Salary</b> then count as paying this salary, not as a second salary.</p>
+              </div>
+            )}
+          </div>
+
           <p className="text-[11px] text-text3 border-t border-border-custom pt-3">
             Advances and repayments are kept in the employee&apos;s <b>Advance account</b>, under their name in the list.
           </p>
 
-          <button onClick={save} disabled={saving || staffId === ''}
+          <button onClick={save} disabled={saving || staffId === '' || (!!auditAmount && !bankName.trim())}
             className="w-full h-12 rounded-lg bg-brand text-white font-black disabled:opacity-40">
             {saving ? 'SAVING...' : 'SAVE RULE'}
           </button>
@@ -255,18 +297,11 @@ function SalaryRuleModal({ rule, staff, onClose, onSaved, onError }: {
  * One employee's advance account: what was given and recovered, what is left, every advance and
  * repayment, and the month-by-month cuts. Months up to the selected one count as recovered.
  */
-function AdvancePanel({ staffId, name, month, onChanged, onError }: {
-  staffId: number; name: string; month: string; onChanged: (msg: string) => void; onError: (msg: string) => void;
+function AdvancePanel({ staffId, month, version, onOpen, onChanged, onError }: {
+  staffId: number; month: string; version: number;
+  onOpen: (form: AdvanceForm) => void; onChanged: (msg: string) => void; onError: (msg: string) => void;
 }) {
   const [data, setData] = useState<{ entries: AdvanceEntry[]; schedule: ScheduleRow[]; totals: AdvanceTotals } | null>(null);
-  const [form, setForm] = useState<'GIVEN' | 'REPAID' | null>(null);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [amount, setAmount] = useState('');
-  const [terms, setTerms] = useState('');
-  const [start, setStart] = useState(thisMonth());
-  const [mode, setMode] = useState<'CASH' | 'BANK'>('CASH');
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     try {
@@ -275,31 +310,7 @@ function AdvancePanel({ staffId, name, month, onChanged, onError }: {
       onError(err.response?.data?.message || 'Could not load the advance account.');
     }
   };
-  useEffect(() => { load(); }, [staffId, month]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const openForm = (t: 'GIVEN' | 'REPAID') => {
-    setForm(t);
-    setAmount(t === 'REPAID' && data ? String(data.totals.left) : '');
-    setTerms('');
-    setStart(thisMonth());
-    setNote('');
-  };
-
-  const add = async () => {
-    setSaving(true);
-    try {
-      await api.post(`/bank/salary-rules/${staffId}/advances`, form === 'GIVEN'
-        ? { type: 'GIVEN', date, amount, terms, startMonth: start, mode, note }
-        : { type: 'REPAID', date, amount, mode, note });
-      setForm(null);
-      await load();
-      onChanged(form === 'GIVEN' ? `Advance of ${rupees(Number(amount))} added for ${name}.` : `Repayment of ${rupees(Number(amount))} recorded for ${name}.`);
-    } catch (err: any) {
-      onError(err.response?.data?.message || 'Could not save.');
-    } finally {
-      setSaving(false);
-    }
-  };
+  useEffect(() => { load(); }, [staffId, month, version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const remove = async (e: AdvanceEntry) => {
     if (!window.confirm(`Delete this ${e.type === 'GIVEN' ? 'advance' : 'repayment'} of ${rupees(e.amount)}?`)) return;
@@ -315,7 +326,6 @@ function AdvancePanel({ staffId, name, month, onChanged, onError }: {
   if (!data) return <div className="px-4 py-6 text-center text-text3 text-[12px] bg-surface2/40">Loading…</div>;
   const t = data.totals;
   const cell = 'px-2 py-1.5 text-right tabular-nums';
-  const inputSm = 'h-9 bg-white border border-border-custom rounded-lg px-2 text-[12px] text-text w-full';
 
   return (
     <div className="bg-surface2/40 px-3 sm:px-4 py-4 space-y-4 border-t border-border-custom">
@@ -339,40 +349,10 @@ function AdvancePanel({ staffId, name, month, onChanged, onError }: {
       <div>
         <div className="flex items-center gap-2 mb-1.5">
           <div className="text-[11px] font-black text-text2 uppercase tracking-widest mr-auto">Advances and repayments</div>
-          <button onClick={() => openForm('GIVEN')} className="h-8 px-3 rounded-lg bg-white border border-border-custom text-[11px] font-black text-text2">+ NEW ADVANCE</button>
-          <button onClick={() => openForm('REPAID')} disabled={t.left <= 0}
+          <button onClick={() => onOpen({ type: 'GIVEN' })} className="h-8 px-3 rounded-lg bg-white border border-border-custom text-[11px] font-black text-text2">+ ADVANCE</button>
+          <button onClick={() => onOpen({ type: 'REPAID', owed: t.left })} disabled={t.left <= 0}
             className="h-8 px-3 rounded-lg bg-white border border-border-custom text-[11px] font-black text-text2 disabled:opacity-40">+ REPAYMENT</button>
         </div>
-        {form && (
-          <div className="bg-white border border-border-custom rounded-lg p-3 mb-2 space-y-2">
-            <div className="text-[12px] font-black text-text">{form === 'GIVEN' ? 'New advance' : `Repayment (owed now ${rupees(t.left)})`}</div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <label className="text-[10px] text-text3">Date<input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputSm} /></label>
-              <label className="text-[10px] text-text3">Amount (₹)<input type="number" min="1" value={amount} onChange={e => setAmount(e.target.value)} className={inputSm} /></label>
-              {form === 'GIVEN' && <>
-                <label className="text-[10px] text-text3">Cut over (months)<input type="number" min="1" value={terms} onChange={e => setTerms(e.target.value)} className={inputSm} /></label>
-                <label className="text-[10px] text-text3">First cut<input type="month" value={start} onChange={e => setStart(e.target.value)} className={inputSm} /></label>
-              </>}
-              <label className="text-[10px] text-text3">Paid in
-                <select value={mode} onChange={e => setMode(e.target.value as 'CASH' | 'BANK')} className={inputSm}>
-                  <option value="CASH">Cash</option><option value="BANK">Bank</option>
-                </select>
-              </label>
-              <label className="text-[10px] text-text3 col-span-2 sm:col-span-3">Note<input value={note} onChange={e => setNote(e.target.value)} className={inputSm} /></label>
-            </div>
-            {form === 'GIVEN' && Number(amount) > 0 && Number(terms) > 0 && (
-              <p className="text-[12px] text-text2">Cut <b>{rupees(Number(amount) / Number(terms))}</b> a month for {terms} months from {monthLabel(start)}, on top of any other advance.</p>
-            )}
-            {form === 'REPAID' && Number(amount) >= t.left && t.left > 0 && (
-              <p className="text-[12px] text-brand">This clears the advance; no more cuts after it.</p>
-            )}
-            <div className="flex gap-2">
-              <button onClick={add} disabled={saving || !(Number(amount) > 0) || (form === 'GIVEN' && !(Number(terms) > 0))}
-                className="h-9 px-4 rounded-lg bg-brand text-white text-[12px] font-black disabled:opacity-40">{saving ? 'SAVING...' : 'SAVE'}</button>
-              <button onClick={() => setForm(null)} className="h-9 px-4 rounded-lg border border-border-custom text-text2 text-[12px] font-black">CANCEL</button>
-            </div>
-          </div>
-        )}
         <div className="bg-white border border-border-custom rounded-lg divide-y divide-border-custom">
           {data.entries.length === 0 && <div className="px-3 py-4 text-center text-text3 text-[12px]">No advances yet.</div>}
           {data.entries.map(e => (
@@ -382,11 +362,14 @@ function AdvancePanel({ staffId, name, month, onChanged, onError }: {
                 {e.type === 'GIVEN' ? 'ADVANCE' : 'REPAID'}
               </span>
               <span className="flex-1 min-w-0 text-text3 truncate">
-                {e.type === 'GIVEN' ? `${e.terms} months from ${monthLabel(e.startMonth!)}, ${rupees(e.monthlyCut || 0)}/month` : 'paid back'}
+                {e.type === 'GIVEN'
+                  ? `${e.plan?.length ?? e.terms} months from ${monthLabel(e.startMonth!)}, ${e.monthlyCut != null ? `${rupees(e.monthlyCut)}/month` : 'cuts vary'}`
+                  : 'paid back'}
                 {e.mode ? ` · ${e.mode === 'CASH' ? 'cash' : 'bank'}` : ''}{e.note ? ` · ${e.note}` : ''}
               </span>
               <span className={`font-black ${e.type === 'GIVEN' ? 'text-danger' : 'text-brand'}`}>{e.type === 'GIVEN' ? '' : '−'}{rupees(e.amount)}</span>
-              <button title="Delete" onClick={() => remove(e)} className="p-1 rounded text-text3 hover:text-danger"><Trash2 size={14} /></button>
+              <button title="Change" aria-label="Change" onClick={() => onOpen({ entry: e, owed: t.left })} className="p-1 rounded text-text3 hover:text-brand"><Edit2 size={14} /></button>
+              <button title="Delete" aria-label="Delete" onClick={() => remove(e)} className="p-1 rounded text-text3 hover:text-danger"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>

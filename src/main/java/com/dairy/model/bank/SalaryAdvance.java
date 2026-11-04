@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 /**
  * One movement on an employee's advance account (Bank screen, Rules, Salary calculation).
  *
- *   GIVEN  - money advanced to them, cut back from their pay over `terms` months from `startMonth`.
+ *   GIVEN  - money advanced to them, cut back from their pay month by month as `cutPlan` says
+ *            (`startMonth` is its first month and `terms` the months it spans).
  *   REPAID - money they paid back themselves, e.g. clearing the balance early. It lowers what is
  *            owed, so the monthly cuts stop sooner.
  */
@@ -42,6 +43,14 @@ public class SalaryAdvance {
     /** GIVEN only: YYYY-MM of the first cut. */
     @Column(name = "start_month", length = 7)
     private String startMonth;
+
+    /**
+     * GIVEN only: the cut planned for each month, as JSON {"2026-10": 3556, "2026-11": 5000}. The
+     * cuts add up to the amount and any month can differ (0 skips it). Empty on advances from
+     * before plans: those cut amount / terms each month from startMonth.
+     */
+    @Column(name = "cut_plan", columnDefinition = "TEXT")
+    private String cutPlan;
 
     /** CASH or BANK. */
     @Column(length = 4)

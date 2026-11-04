@@ -1,19 +1,22 @@
 package com.dairy.service.audit;
 
 import com.dairy.model.Expense;
-import com.dairy.model.Sale;
 import com.dairy.model.audit.AuditPackage;
 import com.dairy.model.audit.AuditPackageAttachment;
 import com.dairy.model.audit.AuditPackageExpense;
 import com.dairy.model.bank.BankStatementFile;
 import com.dairy.model.bank.BankTransaction;
 import com.dairy.repo.ExpenseRepository;
-import com.dairy.repo.SaleRepository;
 import com.dairy.repo.audit.AuditPackageAttachmentRepository;
 import com.dairy.repo.audit.AuditPackageExpenseRepository;
 import com.dairy.repo.audit.AuditPackageRepository;
 import com.dairy.repo.bank.BankStatementFileRepository;
 import com.dairy.repo.bank.BankTransactionRepository;
+import com.dairy.repo.bank.SalaryRuleRepository;
+import com.dairy.repo.StaffRepository;
+import com.dairy.model.Staff;
+import com.dairy.model.bank.SalaryRule;
+import com.dairy.service.bank.BankFeedService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -44,9 +47,10 @@ public class AuditPackageService {
     @Autowired private AuditPackageExpenseRepository expenseLineRepository;
     @Autowired private AuditPackageAttachmentRepository attachmentRepository;
     @Autowired private ExpenseRepository expenseRepository;
-    @Autowired private SaleRepository saleRepository;
     @Autowired private BankTransactionRepository bankRepository;
     @Autowired private BankStatementFileRepository statementRepository;
+    @Autowired private SalaryRuleRepository salaryRuleRepository;
+    @Autowired private StaffRepository staffRepository;
 
     public List<Map<String, Object>> list() {
         List<Map<String, Object>> out = new ArrayList<>();
@@ -350,10 +354,10 @@ public class AuditPackageService {
                 return m;
             }).toList());
 
-        out.put("bank", bankSection(from, to));
+        List<Map<String, Object>> salaries = auditSalaries();
+        out.put("salaries", salaries);
+        out.put("bank", bankSection(from, to, salaries));
         out.put("sales", salesSection(from, to));
-        out.put("receivables", receivables(to));
-        out.put("payables", payables(to));
 
         out.put("statements", statementRepository
             .findByPeriodToGreaterThanEqualAndPeriodFromLessThanEqualOrderByPeriodFromAsc(from, to).stream()
@@ -381,7 +385,39 @@ public class AuditPackageService {
     }
 
     /** The month's bank lines: balances for the reconciliation, and how each line was booked. */
-    private Map<String, Object> bankSection(LocalDate from, LocalDate to) {
+    /**
+     * Employees whose salary rule sets a salary for the audit report: name, amount, and the words
+     * that pick out their bank lines.
+     */
+    private List<Map<String, Object>> auditSalaries() {
+        Map<Long, String> names = new HashMap<>();
+        for (Staff s : staffRepository.findAll()) names.put(s.getId(), s.getName());
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (SalaryRule r : salaryRuleRepository.findAll()) {
+            if (r.getAuditAmount() == null || r.getAuditAmount() <= 0) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("staffId", r.getStaffId());
+            m.put("name", names.getOrDefault(r.getStaffId(), "Employee " + r.getStaffId()));
+            m.put("amount", r.getAuditAmount());
+            m.put("bankName", r.getBankName());
+            out.add(m);
+        }
+        out.sort(Comparator.comparing(m -> m.get("name").toString()));
+        return out;
+    }
+
+    /** A bank line typed Salary that pays one of the audit salaries: in the register as that fixed salary instead. */
+    private static String salaryPaymentFor(BankTransaction t, List<Map<String, Object>> salaries) {
+        if (!"MAPPED".equals(t.getStatus()) || !"DEBIT".equals(t.getDirection()) || !"EXPENSE".equals(t.getKind())) return null;
+        if (t.getCategory() == null || !t.getCategory().toLowerCase(Locale.ROOT).matches(".*(salar|wage).*")) return null;
+        for (Map<String, Object> s : salaries) {
+            Object words = s.get("bankName");
+            if (words != null && BankFeedService.matches(t.getNarration(), words.toString())) return s.get("name").toString();
+        }
+        return null;
+    }
+
+    private Map<String, Object> bankSection(LocalDate from, LocalDate to, List<Map<String, Object>> salaries) {
         List<BankTransaction> txns = new ArrayList<>(bankRepository.findByTxnDateBetweenOrderByTxnDateDescIdDesc(from, to));
         txns.sort(Comparator.comparing(BankTransaction::getTxnDate).thenComparing(BankTransaction::getId));
         Map<String, Object> out = new LinkedHashMap<>();
@@ -414,6 +450,7 @@ public class AuditPackageService {
             m.put("kind", t.getKind());
             m.put("category", t.getCategory());
             m.put("note", t.getNote());
+            m.put("salaryOf", salaryPaymentFor(t, salaries));
             return m;
         }).toList());
         return out;
@@ -459,36 +496,6 @@ public class AuditPackageService {
         out.put("unreviewedCount", pendingCount);
         out.put("unreviewedAmount", pending);
         return out;
-    }
-
-    /** Customer sales still not paid, dated on or before the month end (status as it stands today). */
-    private List<Map<String, Object>> receivables(LocalDate asOf) {
-        Map<String, Object[]> byCustomer = new TreeMap<>();
-        for (Sale s : saleRepository.findByPaymentStatus("PENDING")) {
-            if (s.getDate() == null || s.getDate().isAfter(asOf)) continue;
-            String name = s.getCustomer() != null ? s.getCustomer().getName() : "Walk-in";
-            Object[] a = byCustomer.computeIfAbsent(name, k -> new Object[]{0, 0.0, s.getDate()});
-            a[0] = (int) a[0] + 1;
-            a[1] = (double) a[1] + (s.getTotalAmount() == null ? 0 : s.getTotalAmount());
-            if (s.getDate().isBefore((LocalDate) a[2])) a[2] = s.getDate();
-        }
-        return byCustomer.entrySet().stream().map(e -> Map.<String, Object>of(
-            "customer", e.getKey(), "count", e.getValue()[0], "amount", e.getValue()[1], "oldest", e.getValue()[2])).toList();
-    }
-
-    /** Expenses staff paid from their own pocket and are still owed, dated on or before the month end. */
-    private List<Map<String, Object>> payables(LocalDate asOf) {
-        Map<String, Object[]> byPerson = new TreeMap<>();
-        for (Expense e : expenseRepository.findByDateBetween(LocalDate.of(2000, 1, 1), asOf)) {
-            if (e.getPaidBy() == null || e.getPaidBy().isBlank() || e.isSettled()) continue;
-            Object[] a = byPerson.computeIfAbsent(e.getPaidBy(), k -> new Object[]{0, 0.0, e.getDate()});
-            a[0] = (int) a[0] + 1;
-            a[1] = (double) a[1] + (e.getAmount() == null ? 0 : e.getAmount());
-            if (e.getDate().isBefore((LocalDate) a[2])) a[2] = e.getDate();
-        }
-        return byPerson.entrySet().stream().map(e -> Map.<String, Object>of(
-            "party", e.getKey(), "type", "Staff paid, to reimburse", "count", e.getValue()[0],
-            "amount", e.getValue()[1], "oldest", e.getValue()[2])).toList();
     }
 
     private void touch(AuditPackage p) {

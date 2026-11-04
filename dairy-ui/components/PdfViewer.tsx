@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
  * Shows a PDF by drawing its pages with pdf.js, so it works where a browser cannot show a PDF
  * inside the page (the Android app's WebView, some embedded browsers).
  */
-export default function PdfViewer({ blob }: { blob: Blob }) {
+export default function PdfViewer({ blob, className = 'max-h-[80vh]' }: { blob: Blob; className?: string }) {
   const holder = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState(0);
   const [error, setError] = useState('');
@@ -47,7 +47,7 @@ export default function PdfViewer({ blob }: { blob: Blob }) {
   }, [blob]);
 
   return (
-    <div className="bg-surface2 p-3 max-h-[80vh] overflow-y-auto">
+    <div className={`bg-surface2 p-2 sm:p-3 overflow-y-auto ${className}`}>
       {error ? <div className="p-8 text-center text-[13px] text-text3">{error}</div>
         : pages === 0 && <div className="p-8 text-center text-[13px] text-text3">Drawing pages…</div>}
       <div ref={holder} className="max-w-[820px] mx-auto" />

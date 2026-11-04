@@ -255,6 +255,7 @@ export async function downloadPdf(r: BankReport, statements: BankStatementDoc[] 
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const green: [number, number, number] = [27, 67, 50];
+  const red: [number, number, number] = [224, 82, 82];
   const attach = fetchStatement ? statements : [];
 
   doc.setFontSize(16);
@@ -267,21 +268,22 @@ export async function downloadPdf(r: BankReport, statements: BankStatementDoc[] 
   }
   doc.setTextColor(0);
 
-  const groupTable = (title: string, groups: ReportGroup[], total: number, startY: number) => {
+  const groupTable = (title: string, groups: ReportGroup[], total: number, startY: number, isRed = false) => {
     autoTable(doc, {
       startY,
       head: [[title, 'Entries', 'Amount']],
       body: groups.map(g => [g.category, String(g.count), rs(g.total)]),
       foot: [['Total', String(groups.reduce((a, g) => a + g.count, 0)), rs(total)]],
-      headStyles: { fillColor: green },
-      footStyles: { fillColor: [232, 245, 238], textColor: 0 },
+      headStyles: { fillColor: isRed ? red : green },
+      footStyles: isRed ? { fillColor: [252, 232, 232], textColor: red } : { fillColor: [232, 245, 238], textColor: 0 },
+      ...(isRed ? { bodyStyles: { textColor: [150, 30, 30] } } : {}),
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
       margin: { left: 40, right: 40 },
     });
     return (doc as any).lastAutoTable.finalY as number;
   };
   let y = groupTable('Sales (money in)', r.sales, r.totalIn, attach.length ? 94 : 84);
-  y = groupTable('Purchases & expenses (money out)', r.purchases, r.totalOut, y + 18);
+  y = groupTable('Purchases & expenses (money out)', r.purchases, r.totalOut, y + 18, true);
   if (r.staffSettlements.length) {
     y = groupTable('Staff settlements & advances (not expenses)', r.staffSettlements, r.totalStaffSettlements, y + 18);
   }

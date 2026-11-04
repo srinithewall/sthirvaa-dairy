@@ -1,6 +1,22 @@
 [
   {
     "version": "v0.1.1",
+    "date": "2026-11-04",
+    "commit": "1e2bd45",
+    "changes": [
+      "feat: bank feed, salary rules, ledger milk received and cost tracker"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-03",
+    "commit": "400bfc7",
+    "changes": [
+      "feat(herds): new animal onboarding with quarantine checklist and emergency contacts"
+    ]
+  },
+  {
+    "version": "v0.1.0",
     "date": "2026-10-27",
     "commit": "4a78e4a",
     "changes": [
@@ -101,22 +117,6 @@
     "commit": "53690da",
     "changes": [
       "feat(production): show Sales apart from calf/own use/waste; green only when all milk is accounted"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-24",
-    "commit": "4ecd0cb",
-    "changes": [
-      "feat(production): AMCS collection report with PDF; take quality off the history table"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-24",
-    "commit": "86109b3",
-    "changes": [
-      "feat(amcs): sync society milk collections twice daily; show FAT/SNF/CLR with A/M badge"
     ]
   }
 ]

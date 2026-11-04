@@ -65,7 +65,7 @@ export default function LedgerCostTracker({ entries, milkReceived, month }: {
   const tileLabel = 'text-[10px] font-black text-text3 uppercase tracking-[0.2em]';
 
   return (
-    <div className="space-y-3 mb-6">
+    <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className={tile} title="Expense as a share of income received this month">
           <div className={tileLabel}>Expense %</div>

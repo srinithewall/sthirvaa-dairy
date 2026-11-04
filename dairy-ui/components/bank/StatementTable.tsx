@@ -114,9 +114,63 @@ export default function StatementTable({ txns, categories, onUpdated, onReload, 
 
   const select = 'w-full h-8 text-[12px] bg-white border border-border-custom rounded-md px-1.5 disabled:bg-surface2/60 disabled:text-text3';
 
+  /** A line's type and category pickers, status mark and buttons. */
+  const parts = (t: BankTxn) => {
+    const credit = t.direction === 'CREDIT';
+    const type = draft[t.id] || typeOf(t);
+    const fixed = type && FIXED[type as LineType];
+    const options = optionsFor(type, t.category);
+    const needsCategory = !!draft[t.id];
+    const userSet = t.status === 'MAPPED' && !t.ruleId && !t.matchReason?.startsWith('Matches') && !t.employee;
+    const typeSelect = (
+      <select aria-label={`Type for ${partyOf(t)} on ${dayMonth(t.txnDate)}`} disabled={saving[t.id]}
+        value={type} onChange={e => pickType(t, e.target.value as LineType)} className={select}>
+        {!type && <option value="">Choose…</option>}
+        {(credit ? TYPES_IN : TYPES_OUT).map(k => <option key={k} value={k}>{TYPE_LABEL[k]}</option>)}
+      </select>
+    );
+    const categorySelect = type === 'IGNORE' || !type ? (
+      <select disabled className={select}><option>—</option></select>
+    ) : fixed ? (
+      <select disabled className={select}><option>{type === 'ADVANCE' ? 'Staff advance' : 'Staff paid cash'}</option></select>
+    ) : (
+      <select aria-label={`Category for ${partyOf(t)} on ${dayMonth(t.txnDate)}`} disabled={saving[t.id]}
+        value={needsCategory ? '' : t.category || ''} onChange={e => e.target.value && save(t, type as LineType, e.target.value)}
+        className={`${select} ${needsCategory ? 'border-amber-500 ring-1 ring-amber-400' : ''}`}>
+        {(needsCategory || !t.category) && <option value="">Choose…</option>}
+        {options.map(n => <option key={n} value={n}>{categoryLabel(n)}</option>)}
+      </select>
+    );
+    const mark = saving[t.id]
+      ? <span className="inline-block w-3.5 h-3.5 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
+      : status(t);
+    const repeat = userSet && t.counterparty && type && type !== 'IGNORE' ? (
+      <button title={`Always do this for ${t.counterparty}`} onClick={() => save(t, type as LineType, fixed ? FIXED[type as LineType]! : t.category || null, true)}
+        className="p-1 rounded-md text-text3 hover:text-brand hover:bg-surface2"><Repeat size={13} /></button>
+    ) : null;
+    const more = (
+      <button title="Note, cattle or poultry, unmap" onClick={() => onMore(t)}
+        className="p-1 rounded-md text-text3 hover:text-text hover:bg-surface2"><MoreHorizontal size={14} /></button>
+    );
+    const highlight = open(t) || needsCategory ? 'bg-amber-50/70' : t.status === 'IGNORED' ? 'text-text3' : '';
+    return { credit, typeSelect, categorySelect, mark, repeat, more, highlight };
+  };
+
+  const party = (t: BankTxn) => (
+    <>
+      <div className="font-bold text-text truncate" title={partyOf(t)}>
+        {partyOf(t)}
+        {t.employee && <span className="ml-1.5 align-middle text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface2 text-text2" title="Employee rule: always asked">employee</span>}
+      </div>
+      <div className="text-[11px] text-text3 truncate" title={t.narration || ''}>
+        {[t.mode, t.narration].filter(Boolean).join(' · ')}{t.note ? ` · ${t.note}` : ''}
+      </div>
+    </>
+  );
+
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 mb-2 text-[12px] text-text3">
+      <div className="flex flex-wrap items-center gap-2 mb-2 text-[11px] sm:text-[12px] text-text3">
         <span>{rows.length} line{rows.length === 1 ? '' : 's'}{openCount ? ` · ${openCount} need a type` : ''}</span>
         {suggested.length > 0 && (
           <button onClick={() => approve(suggested.map(t => t.id))}
@@ -135,7 +189,48 @@ export default function StatementTable({ txns, categories, onUpdated, onReload, 
         </label>
       </div>
 
-      <div className="bg-white rounded-radius-custom-lg border border-border-custom card-shadow overflow-x-auto">
+      {/* Phones: one card per line, statement order, same pickers */}
+      <div className="md:hidden bg-white rounded-radius-custom-lg border border-border-custom card-shadow divide-y divide-border-custom">
+        {filter === 'ALL' && opening != null && (
+          <div className="px-3 py-2 flex justify-between text-[12px] text-text3"><span>Opening balance</span><span className="tabular-nums">{rupees(opening)}</span></div>
+        )}
+        {shown.length === 0 && (
+          <div className="px-3 py-10 text-center text-text3 font-bold text-[12px]">
+            {rows.length === 0 ? 'No bank lines in this period. Import a statement.' : 'Nothing to show.'}
+          </div>
+        )}
+        {shown.map(t => {
+          const x = parts(t);
+          return (
+            <div key={t.id} className={`px-3 py-2.5 text-[12px] ${x.highlight}`}>
+              <div className="flex items-start gap-2">
+                <div className="w-12 flex-shrink-0 font-bold text-text2">{dayMonth(t.txnDate)}</div>
+                <div className="min-w-0 flex-1">{party(t)}</div>
+                <div className="text-right flex-shrink-0">
+                  <div className={`font-black tabular-nums ${x.credit ? 'text-brand' : 'text-danger'}`}>{x.credit ? '+' : '−'}{rupees(t.amount)}</div>
+                  {t.balance != null && <div className="text-[10px] text-text3 tabular-nums">bal {rupees(t.balance)}</div>}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 mt-2">
+                <div className="flex-1 min-w-0">{x.typeSelect}</div>
+                <div className="flex-1 min-w-0">{x.categorySelect}</div>
+                <div className="w-6 flex justify-center">{x.mark}</div>
+                {x.repeat}{x.more}
+              </div>
+            </div>
+          );
+        })}
+        {filter === 'ALL' && rows.length > 0 && (
+          <div className="px-3 py-2.5 bg-surface2/50 text-[12px] font-black">
+            <div className="flex justify-between"><span>Withdrawals</span><span className="text-danger tabular-nums">{rupees(totalOut)}</span></div>
+            <div className="flex justify-between"><span>Deposits</span><span className="text-brand tabular-nums">{rupees(totalIn)}</span></div>
+            {closing != null && <div className="flex justify-between"><span>Closing balance</span><span className="tabular-nums">{rupees(closing)}</span></div>}
+            {openCount > 0 && <div className="text-[11px] font-bold text-amber-700 mt-1">{openCount} line(s) need a type</div>}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden md:block bg-white rounded-radius-custom-lg border border-border-custom card-shadow overflow-x-auto">
         <table className="w-full text-[12px] min-w-[860px] table-fixed">
           <colgroup>
             <col className="w-[62px]" /><col /><col className="w-[92px]" /><col className="w-[92px]" /><col className="w-[96px]" />
@@ -167,63 +262,19 @@ export default function StatementTable({ txns, categories, onUpdated, onReload, 
               </td></tr>
             )}
             {shown.map(t => {
-              const credit = t.direction === 'CREDIT';
-              const type = draft[t.id] || typeOf(t);
-              const fixed = type && FIXED[type as LineType];
-              const options = optionsFor(type, t.category);
-              const needsCategory = !!draft[t.id];
-              const userSet = t.status === 'MAPPED' && !t.ruleId && !t.matchReason?.startsWith('Matches') && !t.employee;
+              const x = parts(t);
               return (
-                <tr key={t.id} className={open(t) || needsCategory ? 'bg-amber-50/70' : t.status === 'IGNORED' ? 'text-text3' : ''}>
+                <tr key={t.id} className={x.highlight}>
                   <td className="px-2 py-2 font-bold text-text2 whitespace-nowrap">{dayMonth(t.txnDate)}</td>
-                  <td className="px-2 py-2 min-w-0">
-                    <div className="font-bold text-text truncate" title={partyOf(t)}>
-                      {partyOf(t)}
-                      {t.employee && <span className="ml-1.5 align-middle text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface2 text-text2" title="Employee rule: always asked">employee</span>}
-                    </div>
-                    <div className="text-[11px] text-text3 truncate" title={t.narration || ''}>
-                      {[t.mode, t.narration].filter(Boolean).join(' · ')}{t.note ? ` · ${t.note}` : ''}
-                    </div>
-                  </td>
-                  <td className="px-2 py-2 text-right tabular-nums text-danger font-bold">{credit ? '' : rupees(t.amount)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums text-brand font-bold">{credit ? rupees(t.amount) : ''}</td>
+                  <td className="px-2 py-2 min-w-0">{party(t)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums text-danger font-bold">{x.credit ? '' : rupees(t.amount)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums text-brand font-bold">{x.credit ? rupees(t.amount) : ''}</td>
                   <td className="px-2 py-2 text-right tabular-nums text-text2">{t.balance != null ? rupees(t.balance) : ''}</td>
-                  <td className="px-2 py-1.5">
-                    <select aria-label={`Type for ${partyOf(t)} on ${dayMonth(t.txnDate)}`} disabled={saving[t.id]}
-                      value={type} onChange={e => pickType(t, e.target.value as LineType)} className={select}>
-                      {!type && <option value="">Choose…</option>}
-                      {(credit ? TYPES_IN : TYPES_OUT).map(k => <option key={k} value={k}>{TYPE_LABEL[k]}</option>)}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    {type === 'IGNORE' || !type ? (
-                      <select disabled className={select}><option>—</option></select>
-                    ) : fixed ? (
-                      <select disabled className={select}><option>{type === 'ADVANCE' ? 'Staff advance' : 'Staff paid cash'}</option></select>
-                    ) : (
-                      <select aria-label={`Category for ${partyOf(t)} on ${dayMonth(t.txnDate)}`} disabled={saving[t.id]}
-                        value={needsCategory ? '' : t.category || ''} onChange={e => e.target.value && save(t, type as LineType, e.target.value)}
-                        className={`${select} ${needsCategory ? 'border-amber-500 ring-1 ring-amber-400' : ''}`}>
-                        {(needsCategory || !t.category) && <option value="">Choose…</option>}
-                        {options.map(n => <option key={n} value={n}>{categoryLabel(n)}</option>)}
-                      </select>
-                    )}
-                  </td>
+                  <td className="px-2 py-1.5">{x.typeSelect}</td>
+                  <td className="px-2 py-1.5">{x.categorySelect}</td>
+                  <td className="px-1 py-2 text-center">{x.mark}</td>
                   <td className="px-1 py-2 text-center">
-                    {saving[t.id] ? <span className="inline-block w-3.5 h-3.5 border-2 border-brand/30 border-t-brand rounded-full animate-spin" /> : status(t)}
-                  </td>
-                  <td className="px-1 py-2 text-center">
-                    {userSet && t.counterparty && type && type !== 'IGNORE' ? (
-                      <div className="flex flex-col items-center gap-1">
-                        <button title={`Always do this for ${t.counterparty}`} onClick={() => save(t, type as LineType, fixed ? FIXED[type as LineType]! : t.category || null, true)}
-                          className="p-1 rounded-md text-text3 hover:text-brand hover:bg-surface2"><Repeat size={13} /></button>
-                        <button title="Note, cattle or poultry, unmap" onClick={() => onMore(t)}
-                          className="p-1 rounded-md text-text3 hover:text-text hover:bg-surface2"><MoreHorizontal size={14} /></button>
-                      </div>
-                    ) : (
-                      <button title="Note, cattle or poultry, unmap" onClick={() => onMore(t)}
-                        className="p-1 rounded-md text-text3 hover:text-text hover:bg-surface2"><MoreHorizontal size={14} /></button>
-                    )}
+                    <div className="flex flex-col items-center gap-1">{x.repeat}{x.more}</div>
                   </td>
                 </tr>
               );
@@ -243,7 +294,7 @@ export default function StatementTable({ txns, categories, onUpdated, onReload, 
         </table>
       </div>
 
-      <div className="flex flex-wrap gap-4 mt-2 text-[11px] text-text3">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] sm:text-[11px] text-text3">
         <span className="inline-flex items-center gap-1"><CheckCheck size={13} className="text-brand" /> set by a rule</span>
         <span className="inline-flex items-center gap-1"><Link2 size={13} className="text-brand" /> matches a ledger entry</span>
         <span className="inline-flex items-center gap-1"><Pencil size={12} /> set by you</span>

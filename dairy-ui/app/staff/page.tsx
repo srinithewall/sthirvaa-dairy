@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { UserPlus, MessageCircle, Search, User, ArrowLeft } from 'lucide-react';
+import { UserPlus, MessageCircle, Search, User, ArrowLeft, IndianRupee } from 'lucide-react';
+import SalaryBreakdown from '@/components/SalaryBreakdown';
 import RolePermissions from '@/components/RolePermissions';
 
 interface Staff {
@@ -30,10 +31,16 @@ export default function StaffPage() {
   const [tab, setTab] = useState<'TEAM' | 'ROLES'>('TEAM');
   // Roles is for admins; the server decides, so a stale role saved at login does not matter.
   const [canManageRoles, setCanManageRoles] = useState(false);
+  /** Staff with a salary rule (Bank → Rules); only those get the Salary button. Empty if not allowed to see salaries. */
+  const [salaryStaff, setSalaryStaff] = useState<Set<number>>(new Set());
+  const [salaryOf, setSalaryOf] = useState<number | null>(null);
 
   useEffect(() => {
     fetchStaff();
     api.get('/permissions').then(() => setCanManageRoles(true)).catch(() => setCanManageRoles(false));
+    api.get('/bank/salary-rules')
+      .then(res => setSalaryStaff(new Set((res.data?.rules ?? []).map((r: { staffId: number }) => r.staffId))))
+      .catch(() => setSalaryStaff(new Set()));
   }, []);
 
   const fetchStaff = async () => {
@@ -187,11 +194,20 @@ export default function StaffPage() {
                       {getEmpId(selectedStaff)}
                     </div>
                     
-                    {/* Message Action */}
+                    {/* Actions */}
+                    <div className="flex flex-wrap justify-center sm:justify-start gap-2">
                     <button className="inline-flex items-center gap-1.5 bg-brand/10 text-brand px-3 py-1 rounded-radius-custom text-[11px] font-black uppercase tracking-wider hover:bg-brand hover:text-white transition-all">
                       <MessageCircle size={12} />
                       <span>Send Message</span>
                     </button>
+                    {salaryStaff.has(selectedStaff.id) && (
+                      <button onClick={() => setSalaryOf(selectedStaff.id)}
+                        className="inline-flex items-center gap-1.5 bg-brand text-white px-3 py-1 rounded-radius-custom text-[11px] font-black uppercase tracking-wider hover:bg-brand-dark transition-all">
+                        <IndianRupee size={12} />
+                        <span>Salary</span>
+                      </button>
+                    )}
+                    </div>
                   </div>
                 </div>
 
@@ -247,6 +263,7 @@ export default function StaffPage() {
         </div>
         )}
       </div>
+      {salaryOf != null && <SalaryBreakdown staffId={salaryOf} onClose={() => setSalaryOf(null)} />}
     </AppLayout>
   );
 }

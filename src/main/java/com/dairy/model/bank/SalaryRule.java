@@ -38,6 +38,18 @@ public class SalaryRule {
     @Column(name = "share_percent")
     private Double sharePercent;
 
+    /**
+     * The salary the audit report shows every month, whatever the rule works out to (e.g. a fixed
+     * 20,000 for a profit-sharing partner). Blank keeps the employee out of the audit's salaries.
+     */
+    @Column(name = "audit_amount")
+    private Double auditAmount;
+
+    /** Words of their name in bank narrations (e.g. LOKESH G): their bank lines typed Salary pay the audit salary. */
+    @Column(name = "bank_name", length = 120)
+    private String bankName;
+
+    /** No longer used: advances are kept in SalaryAdvance. Read once to move old rules across. */
     @Column(name = "advance_amount")
     private Double advanceAmount;
 

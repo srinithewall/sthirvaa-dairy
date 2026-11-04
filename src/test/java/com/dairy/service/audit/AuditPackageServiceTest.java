@@ -5,12 +5,15 @@ import com.dairy.model.audit.AuditPackage;
 import com.dairy.model.audit.AuditPackageExpense;
 import com.dairy.model.bank.BankTransaction;
 import com.dairy.repo.ExpenseRepository;
-import com.dairy.repo.SaleRepository;
 import com.dairy.repo.audit.AuditPackageAttachmentRepository;
 import com.dairy.repo.audit.AuditPackageExpenseRepository;
 import com.dairy.repo.audit.AuditPackageRepository;
 import com.dairy.repo.bank.BankStatementFileRepository;
 import com.dairy.repo.bank.BankTransactionRepository;
+import com.dairy.repo.bank.SalaryRuleRepository;
+import com.dairy.repo.StaffRepository;
+import com.dairy.model.Staff;
+import com.dairy.model.bank.SalaryRule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,9 +45,10 @@ class AuditPackageServiceTest {
     @Mock private AuditPackageExpenseRepository lineRepository;
     @Mock private AuditPackageAttachmentRepository attachmentRepository;
     @Mock private ExpenseRepository expenseRepository;
-    @Mock private SaleRepository saleRepository;
     @Mock private BankTransactionRepository bankRepository;
     @Mock private BankStatementFileRepository statementRepository;
+    @Mock private SalaryRuleRepository salaryRuleRepository;
+    @Mock private StaffRepository staffRepository;
 
     private AuditPackageService service;
     private final List<AuditPackageExpense> lines = new ArrayList<>();
@@ -56,14 +60,15 @@ class AuditPackageServiceTest {
     void setUp() {
         service = new AuditPackageService();
         for (String f : List.of("packageRepository", "expenseLineRepository", "attachmentRepository", "expenseRepository",
-            "saleRepository", "bankRepository", "statementRepository")) {
+            "bankRepository", "statementRepository", "salaryRuleRepository", "staffRepository")) {
             Object mock = switch (f) {
                 case "packageRepository" -> packageRepository;
                 case "expenseLineRepository" -> lineRepository;
                 case "attachmentRepository" -> attachmentRepository;
                 case "expenseRepository" -> expenseRepository;
-                case "saleRepository" -> saleRepository;
                 case "bankRepository" -> bankRepository;
+                case "salaryRuleRepository" -> salaryRuleRepository;
+                case "staffRepository" -> staffRepository;
                 default -> statementRepository;
             };
             ReflectionTestUtils.setField(service, f, mock);
@@ -83,7 +88,6 @@ class AuditPackageServiceTest {
         when(expenseRepository.findByDateBetween(any(), any())).thenReturn(ledger);
         when(bankRepository.findLedgerIdsByKind("EXPENSE")).thenReturn(bankPaid);
         when(bankRepository.findByTxnDateBetweenOrderByTxnDateDescIdDesc(any(), any())).thenReturn(bank);
-        when(saleRepository.findByPaymentStatus(anyString())).thenReturn(List.of());
         when(attachmentRepository.listMeta(any())).thenReturn(List.of());
     }
 
@@ -211,7 +215,42 @@ class AuditPackageServiceTest {
         assertEquals(1, ((List<?>) sales.get("receipts")).size());
         assertEquals(1, sales.get("unreviewedCount"));
         assertEquals(5000.0, (double) sales.get("unreviewedAmount"), 0.001);
-        // the app's own sale records are not read for sales (receivables still read the unpaid ones)
-        verify(saleRepository, never()).findByDateBetween(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theAuditShowsTheFixedSalaryAndTheSalaryTransferPaysIt() {
+        Staff lokesh = new Staff();
+        lokesh.setId(1L);
+        lokesh.setName("Lokesh HG");
+        when(staffRepository.findAll()).thenReturn(List.of(lokesh));
+        SalaryRule rule = new SalaryRule();
+        rule.setStaffId(1L);
+        rule.setType("DYNAMIC");
+        rule.setSharePercent(50.0);
+        rule.setAuditAmount(20000.0);
+        rule.setBankName("LOKESH G");
+        when(salaryRuleRepository.findAll()).thenReturn(List.of(rule));
+        BankTransaction salary = txn(9, "2026-10-06", "DEBIT", 20000, 175137.12);
+        salary.setStatus("MAPPED");
+        salary.setKind("EXPENSE");
+        salary.setCategory("Salary");
+        salary.setNarration("MB: Sent NEFT/ LOKESH G/ CANARA / 059812700075");
+        BankTransaction supplies = txn(13, "2026-10-19", "DEBIT", 40000, 135137.12);
+        supplies.setStatus("MAPPED");
+        supplies.setKind("EXPENSE");
+        supplies.setCategory("Supplies");
+        supplies.setNarration("SentIMPS629208547469LOKESH G/CNRBX0758/KKBKTrans");
+        bank.add(salary);
+        bank.add(supplies);
+
+        Map<String, Object> view = service.open(OCT);
+
+        List<Map<String, Object>> salaries = (List<Map<String, Object>>) view.get("salaries");
+        assertEquals(1, salaries.size());
+        assertEquals(20000.0, salaries.get(0).get("amount"));
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) ((Map<String, Object>) view.get("bank")).get("lines");
+        assertEquals("Lokesh HG", lines.get(0).get("salaryOf"), "the salary transfer pays the audit salary");
+        assertNull(lines.get(1).get("salaryOf"), "a purchase through him is still a purchase");
     }
 }

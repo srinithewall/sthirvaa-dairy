@@ -190,11 +190,31 @@ public class BankController {
         return salaryRuleService.addAdvance(staffId, body);
     }
 
+    /** Change an advance or repayment. Body as for adding; an advance takes plan [{month, amount}]. */
+    @PreAuthorize(EDIT)
+    @PutMapping("/salary-rules/{staffId}/advances/{id}")
+    public Map<String, Object> updateAdvance(@PathVariable Long staffId, @PathVariable Long id, @RequestBody Map<String, Object> body) {
+        return salaryRuleService.updateAdvance(staffId, id, body);
+    }
+
     @PreAuthorize(DELETE)
     @DeleteMapping("/salary-rules/{staffId}/advances/{id}")
     public ResponseEntity<Void> deleteAdvance(@PathVariable Long staffId, @PathVariable Long id) {
         salaryRuleService.deleteAdvance(staffId, id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * One employee's salary month by month, from `from` (YYYY-MM) to `to` (default this month), on
+     * the farm's records: milk sales minus cattle expenses, their share, the advance cut, and what
+     * the bank shows was paid.
+     */
+    @PreAuthorize(VIEW)
+    @GetMapping("/salary-rules/{staffId}/breakdown")
+    public Map<String, Object> salaryBreakdown(@PathVariable Long staffId, @RequestParam String from,
+                                               @RequestParam(required = false) String to) {
+        String end = to == null || to.isBlank() ? java.time.YearMonth.now().toString() : to;
+        return salaryRuleService.breakdown(staffId, from, end);
     }
 
     /** Each rule worked out for the month (YYYY-MM): profit share or fixed salary, less the advance cut. */

@@ -26,30 +26,30 @@ const shiftYm = (ym: string, by: number) => {
 const monthLabel = (ym: string) => new Date(`${ym}-01`).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 
 /**
- * The ledger's cost tracker: the last six months of expense against income (one line chart), where the
- * month's money went (pie of the top 5 categories) and how heavy the expense is against what came in.
+ * The ledger's cost tracker: the last six months of expense against income (one line chart), and where the
+ * month's money went (pie of the top 5 categories).
  * Income received = milk payments that reached the bank + other income; the estimate uses the AMCS rate.
+ * Months before the first milk payment in the bank feed have no bank record, so received = the estimate there.
  */
 export default function LedgerCostTracker({ entries, milkReceived, month }: {
   entries: TrackerEntry[]; milkReceived: TrackerMilkReceived[]; month: string;
 }) {
   const months = useMemo(() => Array.from({ length: 6 }, (_, i) => shiftYm(month, i - 5)), [month]);
 
+  // First month the bank feed has a milk payment for; earlier months fall back to the estimate.
+  const bankFrom = useMemo(() => milkReceived.map(r => r.month).sort()[0] ?? null, [milkReceived]);
+
   const byMonth = useMemo(() => months.map(m => {
     const inMonth = entries.filter(e => e.date.startsWith(m));
     const expense = inMonth.filter(e => e.type === 'EXPENSE').reduce((t, e) => t + e.amount, 0);
     const other = inMonth.filter(e => e.type === 'INCOME' && e.category !== MILK).reduce((t, e) => t + e.amount, 0);
     const milkEst = inMonth.filter(e => e.type === 'INCOME' && e.category === MILK).reduce((t, e) => t + e.amount, 0);
-    const received = other + milkReceived.filter(r => r.month === m).reduce((t, r) => t + r.received, 0);
+    const received = bankFrom == null || m < bankFrom ? other + milkEst
+      : other + milkReceived.filter(r => r.month === m).reduce((t, r) => t + r.received, 0);
     return { month: m, expense, estimated: other + milkEst, received };
-  }), [entries, milkReceived, months]);
+  }), [entries, milkReceived, months, bankFrom]);
 
   const now = byMonth[5];
-  const prev = byMonth[4];
-  const pct = (b: { expense: number; received: number }) => b.received > 0 ? (b.expense / b.received) * 100 : null;
-  const expensePct = pct(now);
-  const prevPct = pct(prev);
-  const change = prev.expense > 0 ? ((now.expense - prev.expense) / prev.expense) * 100 : null;
 
   const top = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -61,39 +61,10 @@ export default function LedgerCostTracker({ entries, milkReceived, month }: {
     return rest > 0 ? [...five, { name: `Other (${sorted.length - 5})`, value: rest, color: OTHER }] : five;
   }, [entries, month]);
 
-  const tile = 'bg-white border border-border-custom rounded-xl px-4 py-3 text-center';
-  const tileLabel = 'text-[10px] font-black text-text3 uppercase tracking-[0.2em]';
-
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className={tile} title="Expense as a share of income received this month">
-          <div className={tileLabel}>Expense %</div>
-          <div className={`text-2xl font-black ${expensePct == null ? 'text-text3' : expensePct > 100 ? 'text-danger' : 'text-brand'}`}>
-            {expensePct == null ? '—' : `${Math.round(expensePct)}%`}
-          </div>
-          <div className="text-[11px] text-text3">
-            {expensePct == null ? 'no income received yet' : 'of income received'}
-            {prevPct != null && ` · ${Math.round(prevPct)}% in ${monthLabel(prev.month)}`}
-          </div>
-        </div>
-        <div className={tile}>
-          <div className={tileLabel}>Expense vs last month</div>
-          <div className={`text-2xl font-black ${change == null ? 'text-text3' : change > 0 ? 'text-danger' : 'text-brand'}`}>
-            {change == null ? '—' : `${change > 0 ? '▲' : '▼'} ${Math.abs(Math.round(change))}%`}
-          </div>
-          <div className="text-[11px] text-text3">{rupees(now.expense)} vs {rupees(prev.expense)}</div>
-        </div>
-        <div className={tile}>
-          <div className={tileLabel}>Avg monthly expense</div>
-          <div className="text-2xl font-black text-text2">{rupees(byMonth.reduce((t, b) => t + b.expense, 0) / 6)}</div>
-          <div className="text-[11px] text-text3">{monthLabel(months[0])} – {monthLabel(month)}</div>
-        </div>
-      </div>
-
       <div className="bg-white border border-border-custom rounded-radius-custom-lg p-4">
-        <div className="text-[13px] font-black text-text">Expense and income, last 6 months</div>
-        <div className="text-[11px] text-text3 mb-2">Income received is what reached the bank; the dashed line is the estimate at the milk rate.</div>
+        <div className="text-[13px] font-black text-text mb-2">Expense and income, last 6 months</div>
         <div className="h-[260px]">
           <Line
             data={{

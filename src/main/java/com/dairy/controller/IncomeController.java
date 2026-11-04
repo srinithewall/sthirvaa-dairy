@@ -29,6 +29,26 @@ public class IncomeController {
         return incomeService.getMilkReceivedByMonth();
     }
 
+    /** Money in on the bank statement, per month (poultry and own transfers left out). */
+    @GetMapping("/bank-received")
+    public List<Map<String, Object>> getBankReceived() {
+        return incomeService.getBankReceivedByMonth();
+    }
+
+    /** Notes on months' money in from the bank (e.g. which month a payment was for). */
+    @GetMapping("/bank-received/notes")
+    public List<Map<String, Object>> getBankMonthNotes() {
+        return incomeService.getBankMonthNotes();
+    }
+
+    /** Body: {note}. A blank note removes it. */
+    @PreAuthorize("@ss.can('LEDGER', 'EDIT')")
+    @PutMapping("/bank-received/{month}/note")
+    public Map<String, Object> saveBankMonthNote(@PathVariable String month, @RequestBody Map<String, Object> body) {
+        Object note = body.get("note");
+        return incomeService.saveBankMonthNote(month, note == null ? null : note.toString());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Income> getIncomeById(@PathVariable Long id) {
         return incomeService.getIncomeById(id)

@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
-import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown, Layers, Bell, BarChart3 } from 'lucide-react';
+import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown, Layers, Bell, BarChart3, StickyNote } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import LedgerCostTracker from '@/components/LedgerCostTracker';
 
@@ -34,6 +34,16 @@ interface Transaction {
 }
 
 interface MilkReceived { month: string; received: number; pending: number; payments: number; }
+/** Money in on the bank statement for a month: booked, and not reviewed yet. */
+interface BankReceived { month: string; received: number; unreviewed: number; credits: number }
+/** A note on a month's money in from the bank, e.g. which month a payment was for. */
+interface BankNote { month: string; note: string; updatedBy?: string | null; updatedAt?: string | null }
+
+/**
+ * Poultry and fish are left out of the ledger for now: only cattle entries are shown and counted,
+ * new entries are cattle, and the Cattle / All / Poultry switch is hidden. Set true to bring it back.
+ */
+const SHOW_POULTRY = false;
 
 const MILK = 'MILK_SALES';
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
@@ -55,6 +65,12 @@ function LedgerPage() {
   const [herds, setHerds] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [milkReceived, setMilkReceived] = useState<MilkReceived[]>([]);
+  const [bankReceived, setBankReceived] = useState<BankReceived[]>([]);
+  const [bankNotes, setBankNotes] = useState<BankNote[]>([]);
+  /** The month whose bank note is open, and the text being written. */
+  const [noteOpen, setNoteOpen] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
   const [showTracker, setShowTracker] = useState(false);
   useEffect(() => {
     if (!showTracker) return;
@@ -86,6 +102,9 @@ function LedgerPage() {
   // Month filter opens on the current month for both expenses and income.
   const currentMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
   const [filterMonth, setFilterMonth] = useState<string>(currentMonth);
+  // The cost tracker always opens on last month (a full month), whatever the page's month filter is.
+  const lastMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+  const [trackerMonth, setTrackerMonth] = useState<string>(lastMonth);
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterPaidBy, setFilterPaidBy] = useState<string>('ALL');
   const [settling, setSettling] = useState(false);
@@ -124,7 +143,9 @@ function LedgerPage() {
         api.get('/income'),
         api.get('/herds'),
         api.get('/staff'),
-        api.get('/income/milk-received')
+        api.get('/income/milk-received'),
+        api.get('/income/bank-received'),
+        api.get('/income/bank-received/notes')
       ]);
       
       const catRes = responses[0].status === 'fulfilled' ? responses[0].value.data : [];
@@ -137,6 +158,8 @@ function LedgerPage() {
       setHerds(Array.isArray(herdRes) ? herdRes : []);
       setStaffList(Array.isArray(staffRes) ? staffRes : []);
       setMilkReceived(responses[5].status === 'fulfilled' && Array.isArray(responses[5].value.data) ? responses[5].value.data : []);
+      setBankReceived(responses[6].status === 'fulfilled' && Array.isArray(responses[6].value.data) ? responses[6].value.data : []);
+      setBankNotes(responses[7].status === 'fulfilled' && Array.isArray(responses[7].value.data) ? responses[7].value.data : []);
       
       const combined: Transaction[] = [
         ...expRes.map((e: any) => ({ ...e, type: 'EXPENSE' })),
@@ -184,12 +207,37 @@ function LedgerPage() {
   const milkInView = segmentFilter !== 'POULTRY' && (filterCategory === 'ALL' || filterCategory === MILK);
   const receivedInView = milkInView ? milkReceived.filter(r => filterMonth === 'ALL' || r.month === filterMonth) : [];
   const milkEstimated = filteredHistory.filter(isMilk).reduce((a, b) => a + b.amount, 0);
-  const milkReceivedTotal = receivedInView.reduce((a, r) => a + r.received, 0);
-  const milkPendingTotal = receivedInView.reduce((a, r) => a + r.pending, 0);
 
+  // The tiles: income as entered in the app (daily milk sales at the AMCS rate and other income),
+  // expenses, and their difference. Beside them, what the bank statement shows came in.
   const totalExpense = filteredHistory.filter(h => h.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
-  const totalIncome = filteredHistory.filter(h => h.type === 'INCOME' && !isMilk(h)).reduce((a, b) => a + b.amount, 0) + milkReceivedTotal;
-  const balance = totalIncome - totalExpense;
+  const estIncome = filteredHistory.filter(h => h.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
+  const balance = estIncome - totalExpense;
+  const bankInView = bankReceived.filter(r => filterMonth === 'ALL' || r.month === filterMonth);
+  const bankReceivedTotal = bankInView.reduce((a, r) => a + r.received, 0);
+  const bankUnreviewed = bankInView.reduce((a, r) => a + r.unreviewed, 0);
+  const bankNote = filterMonth === 'ALL' ? undefined : bankNotes.find(n => n.month === filterMonth);
+
+  const openNote = () => {
+    if (filterMonth === 'ALL') return;
+    setNoteText(bankNote?.note ?? '');
+    setNoteOpen(filterMonth);
+  };
+  const saveNote = async () => {
+    if (!noteOpen) return;
+    setNoteSaving(true);
+    try {
+      const res = await api.put(`/income/bank-received/${noteOpen}/note`, { note: noteText });
+      const saved: BankNote = res.data;
+      setBankNotes(list => [...list.filter(n => n.month !== noteOpen), ...(saved.note ? [saved] : [])]);
+      showToast(saved.note ? 'Note saved' : 'Note removed', 'success');
+      setNoteOpen(null);
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Could not save the note', 'error');
+    } finally {
+      setNoteSaving(false);
+    }
+  };
 
   // The list shows one milk row per month in place of a row for every day.
   const listed: Transaction[] = (() => {
@@ -399,13 +447,14 @@ function LedgerPage() {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const uniqueMonths = Array.from(new Set([currentMonth, ...history.map(h => h.date.substring(0, 7))])).sort().reverse();
+  const trackerMonths = Array.from(new Set([lastMonth, ...uniqueMonths])).sort().reverse();
   const currentTabCategories = categories.filter(c => c.type === activeTab).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto pb-10 px-1">
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div className="relative">
             <h1 className="text-2xl font-black text-text tracking-tight uppercase flex items-center gap-3">
               Digital Ledger
@@ -431,7 +480,7 @@ function LedgerPage() {
                     {overdueReminders.map(r => (
                       <li key={`${r.person}-${r.month}`}>
                         <button type="button" className="w-full text-left px-4 py-3 hover:bg-surface2"
-                          onClick={() => { setActiveTab('EXPENSE'); setSegmentFilter('ALL'); setFilterPaidBy(r.person); setFilterMonth(r.month); setShowReminders(false);
+                          onClick={() => { setActiveTab('EXPENSE'); setSegmentFilter(SHOW_POULTRY ? 'ALL' : 'CATTLE'); setFilterPaidBy(r.person); setFilterMonth(r.month); setShowReminders(false);
                             setTimeout(() => document.getElementById('settle-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>
                           <p className="text-sm font-bold text-text normal-case tracking-normal">
                             ₹{Math.round(r.total).toLocaleString('en-IN')} unsettled for {r.person} for {shortMonth(r.month)}
@@ -446,18 +495,14 @@ function LedgerPage() {
             <p className="text-[13px] text-text3 mt-1 font-medium">Sthirvaa Farms · Financial Entries</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <button type="button" onClick={() => setShowTracker(true)} title="Cost tracker report"
-            className="bg-white px-4 py-2.5 rounded-xl border border-border-custom shadow-sm inline-flex items-center justify-center gap-2 whitespace-nowrap text-[12px] font-black text-text2 tracking-widest hover:text-text hover:bg-surface2">
-            <BarChart3 size={16} className="text-brand" /> COST TRACKER
-          </button>
-          <div className="bg-white p-1 rounded-xl border border-border-custom flex shadow-sm" role="group" aria-label="Cattle, all or poultry">
+          {SHOW_POULTRY && <div className="bg-white p-1 rounded-xl border border-border-custom flex shadow-sm" role="group" aria-label="Cattle, all or poultry">
             {([['CATTLE', 'C', 'Cattle'], ['ALL', 'All', 'Cattle and poultry'], ['POULTRY', 'P', 'Poultry and fish']] as const).map(([v, label, title]) => (
               <button key={v} type="button" title={title} aria-label={title} onClick={() => setSegmentFilter(v)}
                 className={`flex-1 sm:flex-none min-w-[44px] px-3 py-2.5 inline-flex items-center justify-center rounded-lg transition-all text-[12px] font-black tracking-widest ${segmentFilter === v ? 'bg-[#1b4332] text-white' : 'text-text3'}`}>
                 {v === 'ALL' ? <Layers size={16} /> : label}
               </button>
             ))}
-          </div>
+          </div>}
           <div className="bg-white p-1 rounded-xl border border-border-custom flex shadow-sm w-full sm:w-auto">
             <button 
               onClick={() => setActiveTab('EXPENSE')}
@@ -472,31 +517,51 @@ function LedgerPage() {
               INCOME
             </button>
           </div>
+          {/* Cost tracker report: top right of the header (pinned to the corner on phones) */}
+          <button type="button" onClick={() => { setTrackerMonth(lastMonth); setShowTracker(true); }} title="Cost tracker" aria-label="Cost tracker"
+            className="absolute top-0 right-0 sm:static w-11 h-11 bg-white rounded-xl border border-border-custom shadow-sm inline-flex items-center justify-center text-brand hover:bg-surface2">
+            <BarChart3 size={18} />
+          </button>
           </div>
         </div>
 
-        {/* Stats Cards: income at the milk estimate, and what was actually received (what the balance uses) */}
+        {/* Stats Cards: income as entered in the app, expenses, the difference, and money in on the bank statement */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-          <div className="bg-white px-4 py-3 rounded-radius-custom-lg border border-border-custom shadow-sm flex flex-col items-center justify-center gap-1 text-center">
+          <div className="bg-white px-3 py-2 rounded-radius-custom-lg border border-border-custom shadow-sm flex flex-col items-center justify-center gap-0.5 text-center"
+            title="Est. income − total expense">
              <span className="text-[10px] font-black text-text3 uppercase tracking-[0.2em]">Net Balance</span>
-             <span className={`text-2xl font-black ${balance >= 0 ? 'text-brand' : 'text-danger'}`}>
+             <span className={`text-xl font-black ${balance >= 0 ? 'text-brand' : 'text-danger'}`}>
                {balance < 0 ? "−" : ""}{rupees(Math.abs(balance))}
              </span>
           </div>
-          <div className="bg-danger/5 border border-danger/10 px-4 py-3 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center">
+          <div className="bg-danger/5 border border-danger/10 px-3 py-2 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-0.5 text-center">
              <span className="text-[10px] font-black text-danger uppercase tracking-[0.2em]">Total Expense</span>
-             <span className="text-2xl font-black text-danger">{rupees(totalExpense)}</span>
+             <span className="text-xl font-black text-danger">{rupees(totalExpense)}</span>
           </div>
-          <div className="bg-white border border-border-custom px-4 py-3 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center"
-            title="Milk sales at the AMCS rate, plus other income">
+          <div className="bg-white border border-border-custom px-3 py-2 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-0.5 text-center"
+            title="Income entered in the app: daily milk sales at the AMCS rate, plus other income">
              <span className="text-[10px] font-black text-text3 uppercase tracking-[0.2em]">Est. Income</span>
-             <span className="text-2xl font-black text-text2">{rupees(totalIncome - milkReceivedTotal + milkEstimated)}</span>
+             <span className="text-xl font-black text-text2">{rupees(estIncome)}</span>
           </div>
-          <div className="bg-brand/5 border border-brand/10 px-4 py-3 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-1 text-center"
-            title="The society's milk payments credited to the bank, plus other income. The net balance uses this.">
-             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em]">Amount Received</span>
-             <span className="text-2xl font-black text-brand">{rupees(totalIncome)}</span>
-             {milkPendingTotal > 0 && <span className="text-[10px] text-text3">+{rupees(milkPendingTotal)} awaiting approval</span>}
+          <div className="bg-brand/5 border border-brand/10 px-3 py-2 rounded-radius-custom-lg shadow-sm flex flex-col items-center justify-center gap-0.5 text-center"
+            title="Money in on the bank statement uploaded for the month (own transfers left out)">
+             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em]">Received in Bank</span>
+             <span className="inline-flex items-center gap-1.5">
+               <span className="text-xl font-black text-brand">{rupees(bankReceivedTotal + bankUnreviewed)}</span>
+               {filterMonth !== 'ALL' && (
+                 <button type="button" onClick={openNote} aria-label={bankNote ? 'View or edit the note' : 'Add a note'}
+                   title={bankNote ? bankNote.note : 'Add a note'}
+                   className={`p-1 rounded-md transition-colors ${bankNote ? 'text-amber-600 bg-amber-100 hover:bg-amber-200' : 'text-brand/50 hover:text-brand hover:bg-brand/10'}`}>
+                   <StickyNote size={14} />
+                 </button>
+               )}
+             </span>
+             {bankUnreviewed > 0 && <span className="text-[10px] text-text3 leading-none">{rupees(bankUnreviewed)} not reviewed yet</span>}
+             {bankNote && (
+               <button type="button" onClick={openNote} className="text-[10px] text-amber-800 leading-tight line-clamp-2 max-w-full hover:underline">
+                 {bankNote.note}
+               </button>
+             )}
           </div>
         </div>
 
@@ -784,7 +849,7 @@ function LedgerPage() {
             </div>
             
             <div className="p-8">
-              <div className="mb-6">
+              {SHOW_POULTRY && <div className="mb-6">
                 <label className="block text-[11px] font-bold text-text3 uppercase mb-2">For</label>
                 <div className="grid grid-cols-2 gap-2">
                   {([['CATTLE', 'Cattle'], ['POULTRY', 'Poultry / fish']] as const).map(([v, label]) => (
@@ -794,7 +859,7 @@ function LedgerPage() {
                     </button>
                   ))}
                 </div>
-              </div>
+              </div>}
               <div className="mb-6">
                 <label className="block text-[11px] font-bold text-text3 uppercase mb-2">Transaction Date</label>
                 <input 
@@ -875,7 +940,45 @@ function LedgerPage() {
         </div>
       )}
 
-      {/* Cost Tracker Modal: follows the month and cattle/poultry filters (All Time shows this month) */}
+      {/* Cost Tracker Modal: has its own month (opens on last month) and follows the cattle/poultry filter */}
+      {noteOpen && (
+        <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setNoteOpen(null)} role="dialog" aria-modal="true" aria-label="Received in Bank note">
+          <div className="bg-white w-full sm:max-w-md rounded-t-[20px] sm:rounded-[20px] overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-border-custom flex items-center gap-2">
+              <StickyNote size={16} className="text-amber-600" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[12px] font-black uppercase tracking-widest text-text2">Received in Bank · note</div>
+                <div className="text-[11px] text-text3">{monthName(noteOpen)} · {rupees(bankReceivedTotal + bankUnreviewed)}</div>
+              </div>
+              <button onClick={() => setNoteOpen(null)} aria-label="Close" className="p-1.5 rounded-lg text-text3 hover:text-text hover:bg-surface2"><X size={20} /></button>
+            </div>
+            <div className="p-4 space-y-2">
+              <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={4} maxLength={1000} autoFocus
+                placeholder="e.g. ₹22,900 on 5 Oct is the society's payment for September."
+                className="w-full text-[14px] border border-border-custom rounded-lg p-3 bg-surface2 focus:outline-none focus:ring-2 focus:ring-brand/30" />
+              {bankNote?.updatedBy && (
+                <div className="text-[11px] text-text3">
+                  Last saved by {bankNote.updatedBy}{bankNote.updatedAt ? `, ${new Date(bankNote.updatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                {bankNote && (
+                  <button onClick={() => setNoteText('')} className="h-11 px-3 rounded-lg border border-border-custom text-text3 text-[12px] font-black hover:text-danger" title="Clear, then save to remove the note">
+                    CLEAR
+                  </button>
+                )}
+                <button onClick={() => setNoteOpen(null)} className="h-11 px-4 rounded-lg border border-border-custom text-text2 text-[12px] font-black">CANCEL</button>
+                <button onClick={saveNote} disabled={noteSaving || (noteText.trim() === (bankNote?.note ?? ''))}
+                  className="flex-1 h-11 rounded-lg bg-brand text-white text-[13px] font-black disabled:opacity-40">
+                  {noteSaving ? 'SAVING…' : 'SAVE'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showTracker && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm"
           onClick={() => setShowTracker(false)}>
@@ -887,17 +990,20 @@ function LedgerPage() {
                 <div id="cost-tracker-title" className="text-[15px] font-black text-text uppercase tracking-widest flex items-center gap-2">
                   <BarChart3 size={18} className="text-brand" /> Cost Tracker
                 </div>
-                <div className="text-[12px] text-text3 mt-0.5">
-                  {monthName(filterMonth === 'ALL' ? currentMonth : filterMonth)} · {segmentFilter === 'ALL' ? 'Cattle and poultry' : segmentFilter === 'POULTRY' ? 'Poultry and fish' : 'Cattle'}
-                </div>
               </div>
-              <button type="button" onClick={() => setShowTracker(false)} aria-label="Close"
-                className="p-2 rounded-lg text-text3 hover:text-text hover:bg-surface2"><X size={22} /></button>
+              <div className="flex items-center gap-2">
+                <select value={trackerMonth} onChange={e => setTrackerMonth(e.target.value)} aria-label="Cost tracker month"
+                  className="bg-surface2 border border-border-custom text-text text-sm font-bold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/30">
+                  {trackerMonths.map(m => <option key={m} value={m}>{monthName(m)}</option>)}
+                </select>
+                <button type="button" onClick={() => setShowTracker(false)} aria-label="Close"
+                  className="p-2 rounded-lg text-text3 hover:text-text hover:bg-surface2"><X size={22} /></button>
+              </div>
             </div>
             <div className="p-3 sm:p-5 overflow-y-auto">
               <LedgerCostTracker entries={history.filter(inSegment)}
                 milkReceived={segmentFilter === 'POULTRY' ? [] : milkReceived}
-                month={filterMonth === 'ALL' ? currentMonth : filterMonth} />
+                month={trackerMonth} />
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Check, ClipboardList, AlertCircle, RefreshCw, X } from "lucide-react";
 import api from "@/lib/api";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface FarmActivityLog {
   id: number;
@@ -13,6 +14,8 @@ interface FarmActivityLog {
     title: string;
     description: string;
     category: string;
+    /** The screen where this chore is carried out, e.g. /activities/weight-round. */
+    actionRoute?: string;
   };
 }
 
@@ -30,6 +33,7 @@ const overdueLabel = (dueDate: string) => {
 };
 
 export default function TodayFarmActions() {
+  const router = useRouter();
   const [logs, setLogs] = useState<FarmActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   /** The chore open in the pop-up. */
@@ -117,25 +121,32 @@ export default function TodayFarmActions() {
         </Link>
       </div>
       {/* Pending chores are red buttons; the ones done today stay beside them in green. */}
-      <div className="flex flex-wrap gap-2">
+      {/* Phones: one full-width row per chore (uneven wrapped pills look ragged there). */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {[...pendingLogs, ...completedLogs].map((log) => {
           const done = log.status === "COMPLETED";
           return (
             <button
               key={log.id}
               type="button"
-              onClick={() => setOpenLog(log)}
+              onClick={() => {
+                // A pending chore goes straight to the screen where it is done (same as the
+                // banner); finished ones, or ones with no screen, open the details pop-up.
+                const route = log.activityDetails.actionRoute;
+                if (!done && route) router.push(`${route}?logId=${log.id}`);
+                else setOpenLog(log);
+              }}
               title={done ? "Done - see the details" : "Pending - open to complete"}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-semibold border transition-colors ${
+              className={`flex w-full sm:w-auto items-center gap-2 px-3.5 py-2.5 sm:py-2 rounded-xl sm:rounded-full text-[13px] font-semibold text-left border transition-colors ${
                 done
                   ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                   : "bg-red-600 border-red-600 text-white hover:bg-red-700 shadow-sm"
               }`}
             >
-              {done ? <Check size={14} /> : <AlertCircle size={14} />}
-              {log.activityDetails.title}
+              {done ? <Check size={14} className="shrink-0" /> : <AlertCircle size={14} className="shrink-0" />}
+              <span className="flex-1 min-w-0 truncate">{log.activityDetails.title}</span>
               {log.status === "OVERDUE" && (
-                <span className="text-[10px] font-black uppercase tracking-wide bg-white/20 rounded px-1.5 py-0.5">Overdue</span>
+                <span className="shrink-0 text-[10px] font-black uppercase tracking-wide bg-white/20 rounded px-1.5 py-0.5">Overdue</span>
               )}
             </button>
           );

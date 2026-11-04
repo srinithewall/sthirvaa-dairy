@@ -490,30 +490,30 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-5 sm:mb-6 gap-3 sm:gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text tracking-tight">Dashboard Overview</h1>
           <p className="text-[13px] text-text3 mt-1">{todayStr} · Sthirvaa Farms</p>
         </div>
-        <div className="flex gap-2.5">
-          <Link href="/reports" className="bg-white border border-border-custom text-text2 flex items-center gap-2 py-2 px-4 rounded-radius-custom font-semibold text-[13px] hover:border-brand hover:text-brand transition-all shadow-sm">
+        {/* Phones: three equal buttons across the full width, no wrapped labels. */}
+        <div className="grid grid-cols-3 gap-2 w-full sm:flex sm:w-auto sm:gap-2.5">
+          <Link href="/reports" className="bg-white border border-border-custom text-text2 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-2 px-2 sm:px-4 rounded-radius-custom font-semibold text-[13px] whitespace-nowrap hover:border-brand hover:text-brand transition-all shadow-sm">
             <BarChart3 size={15} />
-            <span>Reports &amp; Analytics</span>
+            <span className="sm:hidden">Reports</span>
+            <span className="hidden sm:inline">Reports &amp; Analytics</span>
           </Link>
-          <Link href="/production" className="bg-accent text-brand-dark flex items-center gap-2 py-2 px-4 rounded-radius-custom font-semibold text-[13px] hover:bg-accent-dark transition-all shadow-sm">
+          <Link href="/production" className="bg-accent text-brand-dark flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-2 px-2 sm:px-4 rounded-radius-custom font-semibold text-[13px] whitespace-nowrap hover:bg-accent-dark transition-all shadow-sm">
             <PlusIcon />
             <span>Milk Entry</span>
           </Link>
-          <Link href="/sales" className="bg-brand text-white flex items-center gap-2 py-2 px-4 rounded-radius-custom font-medium text-[13px] hover:bg-brand-dark transition-all shadow-sm">
+          <Link href="/sales" className="bg-brand text-white flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-2 px-2 sm:px-4 rounded-radius-custom font-semibold text-[13px] whitespace-nowrap hover:bg-brand-dark transition-all shadow-sm">
             <PlusIcon />
             <span>Sale</span>
           </Link>
         </div>
       </div>
 
-      <TodayFarmActions />
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 mb-5 sm:mb-6">
         <StatCard 
           label={displayMilkLabel} 
           value={`${Math.round(displayMilk * 10) / 10} L`} 
@@ -554,6 +554,8 @@ export default function DashboardPage() {
           onPeriodChange={setProfitPeriod}
         />
       </div>
+
+      <TodayFarmActions />
 
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm" onClick={() => { setShowExpenseModal(false); setSelectedPieCategory(null); }}>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AlertTriangle, ChevronRight, X } from "lucide-react";
 import api from "@/lib/api";
 
@@ -15,6 +15,7 @@ import api from "@/lib/api";
  */
 export default function ChoreBanner() {
   const router = useRouter();
+  const pathname = usePathname();
   const [logs, setLogs] = useState<any[]>([]);
   const [dismissedKey, setDismissedKey] = useState<string>("");
 
@@ -52,7 +53,8 @@ export default function ChoreBanner() {
     }
   }, []);
 
-  if (logs.length === 0) return null;
+  // The Dashboard lists the same chores in its own card - showing both reads as duplicates.
+  if (logs.length === 0 || pathname === "/dashboard") return null;
 
   // Dismissal only holds while the same chores are outstanding - a new one brings the bar back.
   const currentKey = logs.map(l => l.id).sort().join(",");

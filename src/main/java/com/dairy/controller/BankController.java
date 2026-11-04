@@ -207,9 +207,9 @@ public class BankController {
     /**
      * One employee's salary month by month, from `from` (YYYY-MM) to `to` (default this month), on
      * the farm's records: milk sales minus cattle expenses, their share, the advance cut, and what
-     * the bank shows was paid.
+     * the bank shows was paid. An employee may always see their own, without Bank access.
      */
-    @PreAuthorize(VIEW)
+    @PreAuthorize(VIEW + " or @ss.isOwnStaff(#staffId)")
     @GetMapping("/salary-rules/{staffId}/breakdown")
     public Map<String, Object> salaryBreakdown(@PathVariable Long staffId, @RequestParam String from,
                                                @RequestParam(required = false) String to) {

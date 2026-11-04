@@ -1,7 +1,9 @@
 package com.dairy.service;
 
 import com.dairy.model.RolePermission;
+import com.dairy.model.User;
 import com.dairy.repo.RolePermissionRepository;
+import com.dairy.repo.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,9 @@ public class SecurityService {
 
     @Autowired
     private RolePermissionRepository rolePermissionRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     /**
      * Checks if the current authenticated user has access to a module with a specific action.
@@ -70,6 +75,17 @@ public class SecurityService {
                 "edit", rp.isCanEdit(), "delete", rp.isCanDelete()));
         }
         return out;
+    }
+
+    /**
+     * Whether the signed-in user is this staff member, for what everyone may see of their own
+     * (their salary breakdown), whatever their role allows of others'.
+     * Use in @PreAuthorize("@ss.isOwnStaff(#staffId)").
+     */
+    public boolean isOwnStaff(Long staffId) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (staffId == null || auth == null) return false;
+        return userRepository.findByEmail(auth.getName()).map(User::getStaffId).map(staffId::equals).orElse(false);
     }
 
     private String currentRole() {

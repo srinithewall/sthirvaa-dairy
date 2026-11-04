@@ -49,6 +49,7 @@ public class ModulePermissionInterceptor implements HandlerInterceptor {
             if (securityService.can(module, action)) return true;
         }
         if (isOwnStaffRecord(request.getMethod(), path, auth.getName())) return true;
+        if (isOwnSalaryBreakdown(request.getMethod(), path)) return true;
 
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json");
@@ -61,5 +62,12 @@ public class ModulePermissionInterceptor implements HandlerInterceptor {
         if (!"GET".equalsIgnoreCase(method) || !path.matches("/api/staff/\\d+")) return false;
         Long id = Long.valueOf(path.substring("/api/staff/".length()));
         return userRepository.findByEmail(email).map(User::getStaffId).map(id::equals).orElse(false);
+    }
+
+    /** Everyone may read their own salary breakdown (Staff Management → Salary), whatever Bank allows. */
+    private boolean isOwnSalaryBreakdown(String method, String path) {
+        if (!"GET".equalsIgnoreCase(method) || !path.matches("/api/bank/salary-rules/\\d+/breakdown")) return false;
+        String id = path.substring("/api/bank/salary-rules/".length(), path.length() - "/breakdown".length());
+        return securityService.isOwnStaff(Long.valueOf(id));
     }
 }

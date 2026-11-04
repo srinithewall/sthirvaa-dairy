@@ -40,7 +40,17 @@ export default function StaffPage() {
     api.get('/permissions').then(() => setCanManageRoles(true)).catch(() => setCanManageRoles(false));
     api.get('/bank/salary-rules')
       .then(res => setSalaryStaff(new Set((res.data?.rules ?? []).map((r: { staffId: number }) => r.staffId))))
-      .catch(() => setSalaryStaff(new Set()));
+      .catch(() => {
+        // No Bank access: everyone may still see their own salary, if they have a rule.
+        setSalaryStaff(new Set());
+        let own: number | null = null;
+        try { own = JSON.parse(localStorage.getItem('user') || '{}').staffId ?? null; } catch {}
+        if (own == null) return;
+        const d = new Date(), month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        api.get(`/bank/salary-rules/${own}/breakdown`, { params: { from: month } })
+          .then(() => setSalaryStaff(new Set([own as number])))
+          .catch(() => {});
+      });
   }, []);
 
   const fetchStaff = async () => {

@@ -110,6 +110,18 @@ class ModulePermissionInterceptorTest {
     }
 
     @Test
+    void staffReadTheirOwnSalaryButNotTheBank() throws Exception {
+        signIn("STAFF", "STAFF|VIEW");
+        when(securityService.isOwnStaff(1L)).thenReturn(true);
+
+        assertEquals(200, call("GET", "/api/bank/salary-rules/1/breakdown"), "their own salary");
+        assertEquals(403, call("GET", "/api/bank/salary-rules/2/breakdown"), "someone else's");
+        assertEquals(403, call("GET", "/api/bank/salary-rules"), "every rule is still Bank's");
+        assertEquals(403, call("GET", "/api/bank/salary-rules/calculate"));
+        assertEquals(403, call("PUT", "/api/bank/salary-rules/1/breakdown"), "reading only");
+    }
+
+    @Test
     void adminsAndCustomersAreNotModuleChecked() throws Exception {
         signIn("ADMIN");
         assertEquals(200, call("DELETE", "/api/bank/rules/1"));

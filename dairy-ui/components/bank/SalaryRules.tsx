@@ -19,7 +19,7 @@ interface CalcRow extends SalaryRule { earned: number; advanceCut: number; advan
 /** What the advance pop-up is open for: a new advance (any employee, or one), a repayment, or a change. */
 interface AdvanceForm { staffId?: number; entry?: AdvanceEntry; type?: 'GIVEN' | 'REPAID'; owed?: number }
 interface ScheduleRow { month: string; given: number; repaid: number; planned: number; cut: number; left: number }
-interface Calc { month: string; milkReceived: number; expenses: number; profit: number; rows: CalcRow[] }
+interface Calc { month: string; estIncome: number; expenses: number; profit: number; rows: CalcRow[] }
 
 const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 const monthLabel = (ym: string) => new Date(`${ym}-01`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
@@ -29,7 +29,7 @@ const label = 'block text-[11px] font-black text-text3 uppercase tracking-widest
 
 /**
  * Salary per employee: a fixed amount, or (dynamic) a share of the dairy's profit for the month,
- * milk payments received in the bank minus cattle expenses. An advance comes off in monthly cuts,
+ * Est. Income (cattle income booked in the app, as on the Digital Ledger) minus cattle expenses. An advance comes off in monthly cuts,
  * equal to start with and each month changeable (AdvanceModal).
  */
 export default function SalaryRules({ onSaved, onError }: { onSaved: (message: string) => void; onError: (message: string) => void }) {
@@ -89,17 +89,6 @@ export default function SalaryRules({ onSaved, onError }: { onSaved: (message: s
         </div>
       </div>
 
-      {calc && (
-        <div className="grid grid-cols-3 gap-2 mb-2 text-center">
-          {([['Milk received', calc.milkReceived], ['Cattle expenses', calc.expenses], ['Profit', calc.profit]] as const).map(([name, v]) => (
-            <div key={name} className="bg-white border border-border-custom rounded-lg px-2 py-2">
-              <div className="text-[10px] font-black text-text3 uppercase tracking-widest">{name}</div>
-              <div className={`text-[15px] font-black ${name === 'Profit' && v < 0 ? 'text-danger' : 'text-text'}`}>{signed(v)}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {rows.length === 0 ? (
         <div className="bg-white rounded-radius-custom-lg border border-border-custom p-8 text-center text-text3 text-[13px]">
           No salary rules yet. Use <b>Add</b> to set a fixed salary, or a share of the dairy&apos;s profit, for an employee.
@@ -115,13 +104,31 @@ export default function SalaryRules({ onSaved, onError }: { onSaved: (message: s
                   <span className="ml-2 text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface2 text-text2">{r.type === 'FIXED' ? 'Fixed' : 'Dynamic'}</span>
                 </div>
                 <div className="text-[12px] text-text3">
-                  {r.type === 'FIXED' ? `${rupees(r.fixedAmount || 0)} a month` : `(Milk received − Expenses) × ${r.sharePercent}%`}
+                  {r.type === 'FIXED' ? `${rupees(r.fixedAmount || 0)} a month` : `(Est. Income − Expenses) × ${r.sharePercent}%`}
                   {r.auditAmount ? ` · audit report shows ${rupees(r.auditAmount)} a month` : ''}
                 </div>
-                <div className="text-[12px] text-text2 mt-1">
-                  {monthLabel(month)}: {r.type === 'FIXED' ? 'Salary' : 'Share'} <b>{rupees(r.earned)}</b>
-                  {r.advanceCut > 0 && <> − advance cut <b>{rupees(r.advanceCut)}</b></>}
-                </div>
+                {r.type === 'DYNAMIC' && calc ? (
+                  <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-w-xl">
+                    {([
+                      ['Est. Income', signed(calc.estIncome), 'text-text'],
+                      ['Expenses', signed(calc.expenses), 'text-text'],
+                      ['Profit', signed(calc.profit), calc.profit < 0 ? 'text-danger' : 'text-text'],
+                      [`Salary (profit × ${r.sharePercent}%)`, rupees(r.earned), 'text-brand'],
+                    ] as const).map(([name, v, tone]) => (
+                      <div key={name} className="bg-surface2/70 border border-border-custom rounded-lg px-2 py-1.5">
+                        <div className="text-[9px] font-black text-text3 uppercase tracking-widest truncate" title={name}>{name}</div>
+                        <div className={`text-[14px] font-black tabular-nums ${tone}`}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-text2 mt-1">
+                    {monthLabel(month)}: Salary <b>{rupees(r.earned)}</b>
+                  </div>
+                )}
+                {r.advanceCut > 0 && (
+                  <div className="text-[12px] text-text2 mt-1">{monthLabel(month)}: − advance cut <b>{rupees(r.advanceCut)}</b></div>
+                )}
                 {r.advance.given > 0 && (
                   <button onClick={() => setOpenAdvance(v => v === r.staffId ? null : r.staffId)}
                     className="mt-1.5 inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-text2 hover:text-text">
@@ -258,8 +265,9 @@ function SalaryRuleModal({ rule, staff, onClose, onSaved, onError }: {
               <label className={label}>Share of profit (%)</label>
               <input type="number" min="1" max="100" value={share} onChange={e => setShare(e.target.value)} className={input} />
               <p className="text-[11px] text-text3 mt-1">
-                (Milk received − Expenses) × {share || 0}%. Milk received is the society&apos;s payments credited to the bank in
-                the month; expenses are the month&apos;s cattle expenses in the Digital Ledger. A loss month gives no share.
+                (Est. Income − Expenses) × {share || 0}%. Est. Income is the month&apos;s cattle income booked in the app (milk
+                sales at the AMCS rate and other income), as on the Digital Ledger; expenses are its cattle expenses there,
+                unaccounted ones left out. A loss month gives no share.
               </p>
             </div>
           )}

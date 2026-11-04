@@ -89,7 +89,7 @@ function LedgerPage() {
   const [selectedHerdId, setSelectedHerdId] = useState<string>('');
   const [paidBy, setPaidBy] = useState<string>('');
   const [unaccounted, setUnaccounted] = useState(false);
-  // Unaccounted expenses are left out of the list until switched on (they never count in totals).
+  // Off: the regular entries. On: only the unaccounted expenses (they never count in totals).
   const [showUnaccounted, setShowUnaccounted] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -185,8 +185,9 @@ function LedgerPage() {
       : (h.category === 'Poultry' || (h.herdId != null && poultryHerdIds.has(h.herdId)) ? 'POULTRY' : 'CATTLE');
   const inSegment = (h: Transaction) => segmentFilter === 'ALL' || segmentOf(h) === segmentFilter;
 
-  // Unaccounted expenses never count in any total here; the toggle only lists them.
-  const visible = (h: Transaction) => showUnaccounted || !h.unaccounted;
+  // Unaccounted expenses never count in any total here. The toggle switches the list between
+  // the regular entries (off) and only the unaccounted expenses (on).
+  const visible = (h: Transaction) => showUnaccounted ? !!h.unaccounted : !h.unaccounted;
   const unaccountedCount = history.filter(h => h.unaccounted && inSegment(h)
     && (filterMonth === 'ALL' || h.date.substring(0, 7) === filterMonth)).length;
 
@@ -251,7 +252,7 @@ function LedgerPage() {
   // The list shows one milk row per month in place of a row for every day.
   const listed: Transaction[] = (() => {
     const rows = filteredHistory.filter(h => h.type === activeTab && !isMilk(h));
-    if (activeTab !== 'INCOME' || !milkInView) return rows;
+    if (activeTab !== 'INCOME' || !milkInView || showUnaccounted) return rows;
     const months: Record<string, NonNullable<Transaction['milkMonth']> & { last: string }> = {};
     const monthOf = (m: string) => (months[m] = months[m] || { month: m, estimated: 0, days: 0, received: 0, pending: 0, last: `${m}-01` });
     filteredHistory.filter(isMilk).forEach(h => {
@@ -754,7 +755,7 @@ function LedgerPage() {
               <History size={16} className="text-brand" /> Recent Transactions
             </h3>
             <button type="button" role="switch" aria-checked={showUnaccounted} onClick={() => setShowUnaccounted(v => !v)}
-              title={showUnaccounted ? 'Hide unaccounted expenses' : 'Show unaccounted expenses'}
+              title={showUnaccounted ? 'Back to the regular entries' : 'Show only unaccounted expenses'}
               className="flex items-center gap-2 text-[11px] font-black text-text2 uppercase tracking-widest">
               Unaccounted{unaccountedCount > 0 && ` (${unaccountedCount})`}
               <span className={`relative w-9 h-5 rounded-full transition-colors ${showUnaccounted ? 'bg-amber-500' : 'bg-slate-300'}`}>

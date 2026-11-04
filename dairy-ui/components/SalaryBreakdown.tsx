@@ -20,7 +20,8 @@ interface ExpenseLine {
 
 interface SalaryMonth {
   month: string;
-  milkSales: number;
+  /** Cattle income booked in the app for the month, as the Digital Ledger's Est. Income card. */
+  estIncome: number;
   expenses: number;
   expenseLines: ExpenseLine[];
   profit: number;
@@ -59,19 +60,27 @@ const monthName = (ym: string) => new Date(`${ym}-01T00:00:00`).toLocaleDateStri
 
 /**
  * Pop-up: how an employee's salary comes out each month from September, on the farm's records -
- * milk sales minus cattle expenses, their share, the advance cut - and what the bank shows was paid.
+ * Est. Income minus cattle expenses, their share, the advance cut - and what the bank shows was paid.
+ * The cards at the top are for one month, picked above them (last finished month to start with).
  */
 export default function SalaryBreakdown({ staffId, onClose }: { staffId: number; onClose: () => void }) {
   const [data, setData] = useState<Breakdown | null>(null);
   const [error, setError] = useState('');
   /** The month whose expenses are open in the second pop-up. */
   const [expensesOf, setExpensesOf] = useState<SalaryMonth | null>(null);
+  /** The month the cards at the top are for. */
+  const [cardMonth, setCardMonth] = useState<string | null>(null);
   const expensesOpen = useRef(false);
   expensesOpen.current = expensesOf != null;
 
   useEffect(() => {
     api.get(`/bank/salary-rules/${staffId}/breakdown`, { params: { from: FIRST_SALARY_MONTH } })
-      .then(res => setData(res.data))
+      .then(res => {
+        const d: Breakdown = res.data;
+        setData(d);
+        // Newest first: the last finished month, or the running one if none has finished yet.
+        setCardMonth((d.months.find(m => !m.current) ?? d.months[0])?.month ?? null);
+      })
       .catch(err => setError(err?.response?.data?.message || 'Could not work out the salary.'));
   }, [staffId]);
 
@@ -89,7 +98,7 @@ export default function SalaryBreakdown({ staffId, onClose }: { staffId: number;
 
   const rule = !data ? '' : data.type === 'FIXED'
     ? `Fixed ${rupees(data.fixedAmount ?? 0)} a month`
-    : `${data.sharePercent}% of (milk sales − expenses)`;
+    : `${data.sharePercent}% of (Est. Income − expenses)`;
 
   return createPortal(
     <div className="fixed inset-0 z-[3000] flex items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm"
@@ -112,10 +121,11 @@ export default function SalaryBreakdown({ staffId, onClose }: { staffId: number;
           {error && <div className="p-6 text-center text-[13px] text-danger">{error}</div>}
           {!data && !error && <div className="p-6 text-center text-[13px] text-text3">Working it out…</div>}
           {data && <>
-            <Totals data={data} />
+            <MonthCards data={data} month={cardMonth} onMonth={setCardMonth} />
             {data.months.map(m => <MonthCard key={m.month} m={m} data={data} onShowExpenses={() => setExpensesOf(m)} />)}
             <p className="text-[11px] text-text3 px-1 pb-1 leading-relaxed">
-              From the farm&apos;s records: milk sales booked in the app and expenses in the Digital Ledger (poultry left out).
+              From the farm&apos;s records: Est. Income (cattle income booked in the app, as on the Digital Ledger) and the
+                cattle expenses there (poultry and unaccounted ones left out).
                 {' '}A month&apos;s salary is paid early the next month; the advance cut comes off that payment.
               {data.bankName ? ` Paid by bank: transfers booked as salary to ${data.bankName}.` : ' Set their bank name on the salary rule (Bank → Rules) to see bank payments.'}
             </p>
@@ -195,31 +205,31 @@ function ExpenseList({ m, onClose }: { m: SalaryMonth; onClose: () => void }) {
   );
 }
 
-function Totals({ data }: { data: Breakdown }) {
-  const t = data.totals;
+/** The cards at the top: one month's salary, cut, payable, bank payment, balance and advance left. */
+function MonthCards({ data, month, onMonth }: { data: Breakdown; month: string | null; onMonth: (m: string) => void }) {
+  const m = data.months.find(x => x.month === month);
+  if (!m) return null;
   const cell = (label: string, value: string, tone = 'text-text') => (
     <div className="bg-white rounded-lg border border-border-custom px-2.5 py-2 min-w-0">
       <div className="text-[9px] font-black uppercase tracking-widest text-text3 truncate">{label}</div>
       <div className={`text-[14px] font-black tabular-nums truncate ${tone}`}>{value}</div>
     </div>
   );
-  const finished = data.months.filter(m => !m.current);
-  const running = data.months.find(m => m.current);
-  if (!t.upTo) return null;
-  const span = finished.length > 1
-    ? `${monthShort(finished[finished.length - 1].month)} – ${monthName(t.upTo)}` : monthName(t.upTo);
   return (
     <div>
-      <div className="text-[11px] text-text3 px-1 pb-1.5">
-        Total for <b className="text-text2">{span}</b>{running ? ` · ${monthName(running.month)} not finished yet` : ''}
+      <div className="flex justify-end pb-1.5">
+        <select value={m.month} onChange={e => onMonth(e.target.value)} aria-label="Month for the cards"
+          className="h-8 bg-white border border-border-custom rounded-lg px-2 text-[12px] font-bold text-text2">
+          {data.months.map(x => <option key={x.month} value={x.month}>{monthName(x.month)}{x.current ? ' (estimate)' : ''}</option>)}
+        </select>
       </div>
       <div className="grid grid-cols-3 gap-1.5">
-        {cell('Salary', rupees(t.earned), 'text-brand')}
-        {cell('Advance cut', rupees(t.advanceCut))}
-        {cell('Payable', signed(t.payable))}
-        {cell('Paid by bank', rupees(t.paidByBank))}
-        {cell(t.balance > 0 ? 'Still to pay' : t.balance < 0 ? 'Paid extra' : 'Settled', rupees(Math.abs(t.balance)), t.balance > 0 ? 'text-amber-700' : 'text-text')}
-        {cell('Advance left', rupees(t.advanceLeft), t.advanceLeft > 0 ? 'text-danger' : 'text-text')}
+        {cell('Salary', rupees(m.earned), 'text-brand')}
+        {cell('Advance cut', rupees(m.advanceCut))}
+        {cell('Payable', signed(m.payable))}
+        {cell('Paid by bank', rupees(m.paidByBank))}
+        {cell(m.balance > 0 ? 'Still to pay' : m.balance < 0 ? 'Paid extra' : 'Settled', rupees(Math.abs(m.balance)), m.balance > 0 ? 'text-amber-700' : 'text-text')}
+        {cell('Advance left', rupees(m.advanceLeft), m.advanceLeft > 0 ? 'text-danger' : 'text-text')}
       </div>
     </div>
   );
@@ -252,7 +262,7 @@ function MonthCard({ m, data, onShowExpenses }: { m: SalaryMonth; data: Breakdow
       {open && (
         <div className="px-3 pb-3 text-[12px] border-t border-border-custom/60 pt-1.5">
           {dynamic ? <>
-            {line('Milk sales', rupees(m.milkSales))}
+            {line('Est. Income', rupees(m.estIncome))}
             {line(
               <span className="inline-flex items-center gap-1">− Expenses
                 <button onClick={onShowExpenses} title="See the expenses" aria-label={`See the expenses for ${monthName(m.month)}`}
@@ -261,7 +271,7 @@ function MonthCard({ m, data, onShowExpenses }: { m: SalaryMonth; data: Breakdow
             {line(m.profit < 0 ? '= Loss' : '= Profit', signed(m.profit), `border-t border-dashed border-border-custom ${m.profit < 0 ? 'text-danger' : ''}`)}
             {line(m.profit < 0 ? 'Share (no share on a loss)' : `× ${data.sharePercent}% share`, rupees(m.earned), 'text-brand')}
           </> : line('Fixed salary', rupees(m.earned), 'text-brand')}
-          {m.advanceGiven > 0 && line('Advance given this month', rupees(m.advanceGiven), 'text-text3')}
+          {m.advanceGiven > 0 && line('Debt', rupees(m.advanceGiven), 'text-text3')}
           {m.advanceRepaid > 0 && line('Advance repaid this month', rupees(m.advanceRepaid), 'text-text3')}
           {(m.advanceCut > 0 || m.advanceLeft > 0) && line(
             <>− Advance cut <span className="text-text3">(from {monthShort(m.payMonth)} pay · left {rupees(m.advanceLeft)})</span></>, rupees(m.advanceCut))}

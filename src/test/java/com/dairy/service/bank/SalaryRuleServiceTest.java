@@ -12,7 +12,6 @@ import com.dairy.repo.bank.BankTransactionRepository;
 import com.dairy.repo.StaffRepository;
 import com.dairy.repo.bank.SalaryAdvanceRepository;
 import com.dairy.repo.bank.SalaryRuleRepository;
-import com.dairy.service.IncomeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +40,6 @@ class SalaryRuleServiceTest {
     @Mock private SalaryRuleRepository ruleRepository;
     @Mock private StaffRepository staffRepository;
     @Mock private ExpenseRepository expenseRepository;
-    @Mock private IncomeService incomeService;
     @Mock private SalaryAdvanceRepository advanceRepository;
     @Mock private IncomeRepository incomeRepository;
     @Mock private BankTransactionRepository bankRepository;
@@ -56,7 +54,6 @@ class SalaryRuleServiceTest {
         ReflectionTestUtils.setField(service, "ruleRepository", ruleRepository);
         ReflectionTestUtils.setField(service, "staffRepository", staffRepository);
         ReflectionTestUtils.setField(service, "expenseRepository", expenseRepository);
-        ReflectionTestUtils.setField(service, "incomeService", incomeService);
         ReflectionTestUtils.setField(service, "advanceRepository", advanceRepository);
         ReflectionTestUtils.setField(service, "incomeRepository", incomeRepository);
         ReflectionTestUtils.setField(service, "bankRepository", bankRepository);
@@ -103,9 +100,10 @@ class SalaryRuleServiceTest {
         return a;
     }
 
-    private void month(double milkReceived, Expense... expenses) {
-        when(incomeService.getMilkReceivedByMonth())
-            .thenReturn(List.of(Map.of("month", "2026-10", "received", milkReceived, "pending", 0.0, "payments", 1)));
+    /** October with this much Est. Income (cattle income booked in the app) and these expenses. */
+    private void month(double estIncome, Expense... expenses) {
+        when(incomeRepository.findByDateBetween(any(), any()))
+            .thenReturn(estIncome > 0 ? List.of(income("2026-10-15", estIncome, "MILK_SALES")) : List.of());
         when(expenseRepository.findByDateBetween(any(), any())).thenReturn(List.of(expenses));
     }
 
@@ -258,6 +256,12 @@ class SalaryRuleServiceTest {
         return i;
     }
 
+    private static Income poultryIncome(String date, double amount) {
+        Income i = income(date, amount, "EGGS");
+        i.setSegment("POULTRY");
+        return i;
+    }
+
     private static Expense expenseOn(String date, double amount, String category, String segment) {
         Expense e = expense(amount, category, segment);
         e.setDate(LocalDate.parse(date));
@@ -281,7 +285,8 @@ class SalaryRuleServiceTest {
         lokesh.setBankName("LOKESH G");
         when(incomeRepository.findByDateBetween(any(), any())).thenReturn(List.of(
             income("2026-09-03", 30000, "MILK_SALES"), income("2026-09-20", 16991, "MILK_SALES"),
-            income("2026-09-21", 5000, "MANURE"),               // not milk: left out
+            income("2026-09-21", 5000, "MANURE"),               // other income counts, as on the ledger card
+            poultryIncome("2026-09-22", 7000),                  // poultry: left out
             income("2026-10-05", 49133, "MILK_SALES"),
             income("2026-11-02", 6398, "MILK_SALES")));
         when(expenseRepository.findByDateBetween(any(), any())).thenReturn(List.of(
@@ -301,14 +306,14 @@ class SalaryRuleServiceTest {
 
         assertEquals(List.of("2026-11", "2026-10", "2026-09"), months.stream().map(m -> m.get("month")).toList(), "newest first");
         Map<String, Object> sep = months.get(2), oct = months.get(1), nov = months.get(0);
-        assertEquals(46991L, sep.get("milkSales"));
+        assertEquals(51991L, sep.get("estIncome"));
         assertEquals(27805L, sep.get("expenses"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> sepLines = (List<Map<String, Object>>) sep.get("expenseLines");
         assertEquals(1, sepLines.size(), "the poultry expense is not listed");
         assertEquals(27805L, sepLines.get(0).get("amount"));
         assertEquals("Feed", sepLines.get(0).get("category"));
-        assertEquals(9593L, sep.get("earned"));                 // (46,991 - 27,805) x 50%, rounded
+        assertEquals(12093L, sep.get("earned"));                // (51,991 - 27,805) x 50%
         assertEquals(0L, sep.get("advanceCut"), "no cut before the advance's first month");
         assertEquals(20000L, sep.get("paidByBank"), "paid in October, for September");
         assertEquals("2026-10", sep.get("payMonth"));
@@ -325,7 +330,7 @@ class SalaryRuleServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> totals = (Map<String, Object>) out.get("totals");
         assertEquals("2026-10", totals.get("upTo"), "the month still running is not in the totals");
-        assertEquals(9593L + 20044L, totals.get("earned"));
+        assertEquals(12093L + 20044L, totals.get("earned"));
         assertEquals(3611L, totals.get("advanceCut"));
         assertEquals(29000L, totals.get("paidByBank"));
         assertEquals(65000L - 3611L, totals.get("advanceLeft"));

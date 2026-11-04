@@ -12,7 +12,6 @@ import com.dairy.repo.StaffRepository;
 import com.dairy.repo.bank.BankTransactionRepository;
 import com.dairy.repo.bank.SalaryAdvanceRepository;
 import com.dairy.repo.bank.SalaryRuleRepository;
-import com.dairy.service.IncomeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,7 +40,6 @@ public class SalaryRuleService {
     @Autowired private SalaryRuleRepository ruleRepository;
     @Autowired private StaffRepository staffRepository;
     @Autowired private ExpenseRepository expenseRepository;
-    @Autowired private IncomeService incomeService;
     @Autowired private SalaryAdvanceRepository advanceRepository;
     @Autowired private IncomeRepository incomeRepository;
     @Autowired private BankTransactionRepository bankRepository;
@@ -342,18 +340,17 @@ public class SalaryRuleService {
 
     /**
      * Each rule worked out for the month (YYYY-MM). Dynamic rules share the dairy's profit: the
-     * society's milk payments received in the bank that month minus the month's cattle expenses
-     * in the ledger (unaccounted ones left out). A loss gives no share. The advance cut comes off either way.
+     * month's Est. Income (cattle income booked in the app, as on the Digital Ledger) minus its
+     * cattle expenses in the ledger (unaccounted ones left out). A loss gives no share. The advance
+     * cut comes off either way.
      */
     public Map<String, Object> calculate(String month) {
         YearMonth ym = YearMonth.parse(month);
-        double milkReceived = incomeService.getMilkReceivedByMonth().stream()
-            .filter(m -> month.equals(m.get("month")))
-            .mapToDouble(m -> ((Number) m.get("received")).doubleValue()).sum();
+        double estIncome = estIncomeByMonth(ym.atDay(1), ym.atEndOfMonth()).getOrDefault(ym, 0.0);
         double expenses = expenseRepository.findByDateBetween(ym.atDay(1), ym.atEndOfMonth()).stream()
             .filter(SalaryRuleService::countsForSalary)
             .mapToDouble(e -> e.getAmount() == null ? 0 : e.getAmount()).sum();
-        double profit = Math.round(milkReceived) - Math.round(expenses);
+        double profit = Math.round(estIncome) - Math.round(expenses);
 
         List<Map<String, Object>> rows = new ArrayList<>();
         for (Map<String, Object> rule : list()) {
@@ -375,7 +372,7 @@ public class SalaryRuleService {
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("month", month);
-        out.put("milkReceived", Math.round(milkReceived));
+        out.put("estIncome", Math.round(estIncome));
         out.put("expenses", Math.round(expenses));
         out.put("profit", Math.round(profit));
         out.put("rows", rows);
@@ -384,7 +381,7 @@ public class SalaryRuleService {
 
     /**
      * How one employee's salary comes out, month by month from `from` (YYYY-MM) to `to`, on the
-     * farm's own records: milk sales booked in the app for the month minus the month's cattle
+     * farm's own records: the month's Est. Income (cattle income booked in the app) minus its cattle
      * expenses in the ledger (unaccounted ones left out), times their share (or their fixed amount), less the advance cut.
      * A month's salary is paid early the next month, so it is set against the salary transfers
      * the bank shows in the following month, and the advance cut comes off that payment. The
@@ -404,13 +401,9 @@ public class SalaryRuleService {
         if (first.plusMonths(36).isBefore(last)) throw new IllegalArgumentException("Show at most three years at a time");
 
         LocalDate start = first.atDay(1), end = last.atEndOfMonth();
-        Map<YearMonth, Double> milk = new LinkedHashMap<>(), expenses = new LinkedHashMap<>(), paid = new LinkedHashMap<>();
+        Map<YearMonth, Double> income = estIncomeByMonth(start, end);
+        Map<YearMonth, Double> expenses = new LinkedHashMap<>(), paid = new LinkedHashMap<>();
         Map<YearMonth, List<Map<String, Object>>> expenseLines = new LinkedHashMap<>();
-        for (Income i : incomeRepository.findByDateBetween(start, end)) {
-            if (i.getDate() != null && "MILK_SALES".equals(i.getCategory()) && i.getAmount() != null) {
-                milk.merge(YearMonth.from(i.getDate()), i.getAmount(), Double::sum);
-            }
-        }
         for (Expense e : expenseRepository.findByDateBetween(start, end)) {
             if (e.getDate() != null && countsForSalary(e) && e.getAmount() != null) {
                 expenses.merge(YearMonth.from(e.getDate()), e.getAmount(), Double::sum);
@@ -439,16 +432,16 @@ public class SalaryRuleService {
         long totalEarned = 0, totalCut = 0, totalPayable = 0, totalPaid = 0;
         YearMonth lastFinished = null;
         for (YearMonth m = last; !m.isBefore(first); m = m.minusMonths(1)) {
-            long milkSales = Math.round(milk.getOrDefault(m, 0.0));
+            long estIncome = Math.round(income.getOrDefault(m, 0.0));
             long cattle = Math.round(expenses.getOrDefault(m, 0.0));
-            long profit = milkSales - cattle;
+            long profit = estIncome - cattle;
             long earned = fixed ? Math.round(r.getFixedAmount()) : Math.round(Math.max(0, profit) * r.getSharePercent() / 100.0);
             AdvanceSchedule.Month adv = AdvanceSchedule.at(schedule, m);
             long payable = earned - adv.cut();
             long bank = Math.round(paid.getOrDefault(m, 0.0));
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("month", m.toString());
-            row.put("milkSales", milkSales);
+            row.put("estIncome", estIncome);
             row.put("expenses", cattle);
             List<Map<String, Object>> lines = new ArrayList<>(expenseLines.getOrDefault(m, List.of()));
             lines.sort(Comparator.comparing((Map<String, Object> x) -> x.get("date").toString())
@@ -489,6 +482,20 @@ public class SalaryRuleService {
         totals.put("upTo", lastFinished == null ? null : lastFinished.toString());
         totals.put("advanceLeft", AdvanceSchedule.at(schedule, lastFinished == null ? first.minusMonths(1) : lastFinished).left());
         out.put("totals", totals);
+        return out;
+    }
+
+    /**
+     * Est. Income by month, worked out as the Digital Ledger's card does: every income entry
+     * booked in the app (milk sales at the AMCS rate and other income), poultry left out.
+     */
+    private Map<YearMonth, Double> estIncomeByMonth(LocalDate start, LocalDate end) {
+        Map<YearMonth, Double> out = new LinkedHashMap<>();
+        for (Income i : incomeRepository.findByDateBetween(start, end)) {
+            if (i.getDate() == null || i.getAmount() == null) continue;
+            if ("POULTRY".equals(i.getSegment()) || "Poultry".equals(i.getCategory())) continue;
+            out.merge(YearMonth.from(i.getDate()), i.getAmount(), Double::sum);
+        }
         return out;
     }
 

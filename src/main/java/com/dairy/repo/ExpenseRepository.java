@@ -12,9 +12,10 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByPaidByAndSettledFalse(String paidBy);
     List<Expense> findByPaidByAndSettledFalseAndDateBetween(String paidBy, LocalDate startDate, LocalDate endDate);
     
-    @Query("SELECT SUM(e.amount) FROM Expense e")
+    // Unaccounted expenses (paid outside the farm's books) are left out of every total.
+    @Query("SELECT SUM(e.amount) FROM Expense e WHERE e.unaccounted = false")
     Double getTotalExpense();
 
-    @Query("SELECT e.category, SUM(e.amount) FROM Expense e GROUP BY e.category ORDER BY SUM(e.amount) DESC")
+    @Query("SELECT e.category, SUM(e.amount) FROM Expense e WHERE e.unaccounted = false GROUP BY e.category ORDER BY SUM(e.amount) DESC")
     List<Object[]> getExpensePieChartData();
 }

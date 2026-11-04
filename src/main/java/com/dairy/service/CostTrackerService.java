@@ -104,7 +104,7 @@ public class CostTrackerService {
     private List<Map<String, Object>> entries(LocalDate from, LocalDate to, String seg, Map<Long, Herd> batches) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Expense x : expenseRepository.findByDateBetween(from, to)) {
-            if (x.getAmount() == null) continue;
+            if (x.getAmount() == null || x.isUnaccounted()) continue; // paid outside the farm's books
             String category = x.getCategory() == null ? "" : x.getCategory().trim();
             boolean poultry = "POULTRY".equalsIgnoreCase(x.getSegment())
                     || "poultry".equalsIgnoreCase(category)

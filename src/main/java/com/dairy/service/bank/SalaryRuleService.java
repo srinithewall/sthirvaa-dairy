@@ -343,7 +343,7 @@ public class SalaryRuleService {
     /**
      * Each rule worked out for the month (YYYY-MM). Dynamic rules share the dairy's profit: the
      * society's milk payments received in the bank that month minus the month's cattle expenses
-     * in the ledger. A loss gives no share. The advance cut comes off either way.
+     * in the ledger (unaccounted ones left out). A loss gives no share. The advance cut comes off either way.
      */
     public Map<String, Object> calculate(String month) {
         YearMonth ym = YearMonth.parse(month);
@@ -351,7 +351,7 @@ public class SalaryRuleService {
             .filter(m -> month.equals(m.get("month")))
             .mapToDouble(m -> ((Number) m.get("received")).doubleValue()).sum();
         double expenses = expenseRepository.findByDateBetween(ym.atDay(1), ym.atEndOfMonth()).stream()
-            .filter(SalaryRuleService::isCattle)
+            .filter(SalaryRuleService::countsForSalary)
             .mapToDouble(e -> e.getAmount() == null ? 0 : e.getAmount()).sum();
         double profit = Math.round(milkReceived) - Math.round(expenses);
 
@@ -385,7 +385,7 @@ public class SalaryRuleService {
     /**
      * How one employee's salary comes out, month by month from `from` (YYYY-MM) to `to`, on the
      * farm's own records: milk sales booked in the app for the month minus the month's cattle
-     * expenses in the ledger, times their share (or their fixed amount), less the advance cut.
+     * expenses in the ledger (unaccounted ones left out), times their share (or their fixed amount), less the advance cut.
      * A month's salary is paid early the next month, so it is set against the salary transfers
      * the bank shows in the following month, and the advance cut comes off that payment. The
      * month still running is shown as an estimate and left out of the totals.
@@ -412,7 +412,7 @@ public class SalaryRuleService {
             }
         }
         for (Expense e : expenseRepository.findByDateBetween(start, end)) {
-            if (e.getDate() != null && isCattle(e) && e.getAmount() != null) {
+            if (e.getDate() != null && countsForSalary(e) && e.getAmount() != null) {
                 expenses.merge(YearMonth.from(e.getDate()), e.getAmount(), Double::sum);
                 Map<String, Object> line = new LinkedHashMap<>();
                 line.put("id", e.getId());
@@ -499,9 +499,12 @@ public class SalaryRuleService {
         return t.getTxnDate() != null && t.getAmount() != null && BankFeedService.matches(t.getNarration(), bankName);
     }
 
-    /** Same split the Digital Ledger uses: blank or CATTLE, and not the Poultry category. */
-    private static boolean isCattle(Expense e) {
-        return !"POULTRY".equals(e.getSegment()) && !"Poultry".equals(e.getCategory());
+    /**
+     * A cattle expense (same split the Digital Ledger uses: blank or CATTLE, and not the Poultry
+     * category) that is not marked unaccounted; unaccounted ones are paid outside the shared books.
+     */
+    static boolean countsForSalary(Expense e) {
+        return !e.isUnaccounted() && !"POULTRY".equals(e.getSegment()) && !"Poultry".equals(e.getCategory());
     }
 
     private Map<String, Object> view(SalaryRule r) {

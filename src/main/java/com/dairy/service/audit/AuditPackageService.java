@@ -279,7 +279,7 @@ public class AuditPackageService {
             .map(AuditPackageExpense::getLedgerExpenseId).filter(Objects::nonNull).collect(Collectors.toSet());
         Set<Long> bankPaid = bankRepository.findLedgerIdsByKind("EXPENSE");
         for (Expense e : expenseRepository.findByDateBetween(p.getPeriodFrom(), p.getPeriodTo())) {
-            if (inPackage.contains(e.getId()) || bankPaid.contains(e.getId())) continue;
+            if (e.isUnaccounted() || inPackage.contains(e.getId()) || bankPaid.contains(e.getId())) continue;
             expenseLineRepository.save(fromLedger(p.getId(), e));
         }
     }
@@ -340,7 +340,7 @@ public class AuditPackageService {
         Set<Long> inPackage = lines.stream().map(AuditPackageExpense::getLedgerExpenseId)
             .filter(Objects::nonNull).collect(Collectors.toSet());
         out.put("ledgerExpenses", expenseRepository.findByDateBetween(from, to).stream()
-            .filter(e -> !inPackage.contains(e.getId()))
+            .filter(e -> !e.isUnaccounted() && !inPackage.contains(e.getId())) // unaccounted: outside the books
             .sorted(Comparator.comparing(Expense::getDate))
             .map(e -> {
                 Map<String, Object> m = new LinkedHashMap<>();

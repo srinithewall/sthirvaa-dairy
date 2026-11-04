@@ -132,6 +132,36 @@ class SalaryRuleServiceTest {
     }
 
     @Test
+    void unaccountedExpensesAreNotTakenOffTheProfit() {
+        Expense calfFeed = expense(6000, "Calf feed", null);
+        calfFeed.setPaidBy("Srinivas");
+        calfFeed.setUnaccounted(true);
+        month(30000, expense(20000, "Feed", null), calfFeed);
+
+        Map<String, Object> out = service.calculate("2026-10");
+
+        assertEquals(20000L, out.get("expenses"), "the MD's own calf feed is left out");
+        assertEquals(10000L, out.get("profit"));
+    }
+
+    @Test
+    void breakdownLeavesUnaccountedExpensesOut() {
+        Expense calfFeed = expenseOn("2026-09-12", 6000, "Calf feed", null);
+        calfFeed.setUnaccounted(true);
+        when(incomeRepository.findByDateBetween(any(), any())).thenReturn(List.of(income("2026-09-03", 30000, "MILK_SALES")));
+        when(expenseRepository.findByDateBetween(any(), any())).thenReturn(List.of(
+            expenseOn("2026-09-10", 20000, "Feed", null), calfFeed));
+
+        Map<String, Object> out = service.breakdown(7L, "2026-09", "2026-09", YearMonth.of(2026, 11));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sep = ((List<Map<String, Object>>) out.get("months")).get(0);
+
+        assertEquals(20000L, sep.get("expenses"));
+        assertEquals(1, ((List<?>) sep.get("expenseLines")).size(), "the unaccounted line is not listed");
+        assertEquals(5000L, sep.get("earned"));
+    }
+
+    @Test
     void aLossMonthGivesNoShareButTheCutStillComesOff() {
         month(15000, expense(20000, "Feed", "CATTLE"));
 

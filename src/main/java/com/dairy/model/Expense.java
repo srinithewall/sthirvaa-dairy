@@ -31,6 +31,13 @@ public class Expense {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean settled = false;
 
+    /**
+     * Paid outside the farm's books (e.g. calf feed the MD pays himself): it stays in the ledger,
+     * but the salary calculation does not take it off the profit staff share in.
+     */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean unaccounted = false;
+
     @Column(name = "settled_at")
     private LocalDateTime settledAt;
 
@@ -94,6 +101,9 @@ public class Expense {
 
     public boolean isSettled() { return settled; }
     public void setSettled(boolean settled) { this.settled = settled; }
+
+    public boolean isUnaccounted() { return unaccounted; }
+    public void setUnaccounted(boolean unaccounted) { this.unaccounted = unaccounted; }
 
     public LocalDateTime getSettledAt() { return settledAt; }
     public void setSettledAt(LocalDateTime settledAt) { this.settledAt = settledAt; }

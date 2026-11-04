@@ -26,6 +26,8 @@ interface Transaction {
   herdId?: number;
   paidBy?: string;
   settled?: boolean;
+  // Paid outside the shared books (e.g. calf feed the MD pays himself): not taken off the profit staff salaries share in.
+  unaccounted?: boolean;
   settledAt?: string | null;
   settledBy?: string | null;
   segment?: string | null;
@@ -86,6 +88,9 @@ function LedgerPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedHerdId, setSelectedHerdId] = useState<string>('');
   const [paidBy, setPaidBy] = useState<string>('');
+  const [unaccounted, setUnaccounted] = useState(false);
+  // Unaccounted expenses are left out of the list until switched on (they never count in totals).
+  const [showUnaccounted, setShowUnaccounted] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // New Category State
@@ -180,17 +185,19 @@ function LedgerPage() {
       : (h.category === 'Poultry' || (h.herdId != null && poultryHerdIds.has(h.herdId)) ? 'POULTRY' : 'CATTLE');
   const inSegment = (h: Transaction) => segmentFilter === 'ALL' || segmentOf(h) === segmentFilter;
 
+  // Unaccounted expenses never count in any total here; the toggle only lists them.
+  const visible = (h: Transaction) => showUnaccounted || !h.unaccounted;
+  const unaccountedCount = history.filter(h => h.unaccounted && inSegment(h)
+    && (filterMonth === 'ALL' || h.date.substring(0, 7) === filterMonth)).length;
+
+  // Month, category and cattle/poultry: what the summary cards follow.
+  const inMonthAndCategory = (h: Transaction) => inSegment(h)
+    && (filterCategory === 'ALL' || h.category === filterCategory)
+    && (filterMonth === 'ALL' || h.date.substring(0, 7) === filterMonth);
+
+  // The list also follows Paid By, and shows unaccounted expenses when switched on.
   const filteredHistory = history.filter(h => {
-    let matches = inSegment(h);
-    if (filterCategory !== 'ALL' && h.category !== filterCategory) {
-      matches = false;
-    }
-    if (filterMonth !== 'ALL') {
-      const entryMonth = h.date.substring(0, 7); // YYYY-MM
-      if (entryMonth !== filterMonth) {
-        matches = false;
-      }
-    }
+    let matches = inMonthAndCategory(h) && visible(h);
     if (filterPaidBy === 'UNSETTLED') {
       if (h.type !== 'EXPENSE' || !h.paidBy || h.settled) matches = false;
     } else if (filterPaidBy === 'SETTLED') {
@@ -210,8 +217,10 @@ function LedgerPage() {
 
   // The tiles: income as entered in the app (daily milk sales at the AMCS rate and other income),
   // expenses, and their difference. Beside them, what the bank statement shows came in.
-  const totalExpense = filteredHistory.filter(h => h.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
-  const estIncome = filteredHistory.filter(h => h.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
+  // Paid By does not change them (it has its own panel), and unaccounted expenses never count.
+  const cardHistory = history.filter(h => inMonthAndCategory(h) && !h.unaccounted);
+  const totalExpense = cardHistory.filter(h => h.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
+  const estIncome = cardHistory.filter(h => h.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
   const balance = estIncome - totalExpense;
   const bankInView = bankReceived.filter(r => filterMonth === 'ALL' || r.month === filterMonth);
   const bankReceivedTotal = bankInView.reduce((a, r) => a + r.received, 0);
@@ -261,7 +270,7 @@ function LedgerPage() {
 
   // Paid-by summary (respects the month filter, independent of the category filter)
   const paidByEntries = history.filter(h =>
-    h.type === 'EXPENSE' && inSegment(h) &&
+    h.type === 'EXPENSE' && !h.unaccounted && inSegment(h) &&
     h.paidBy === filterPaidBy &&
     (filterMonth === 'ALL' || h.date.substring(0, 7) === filterMonth)
   );
@@ -271,13 +280,13 @@ function LedgerPage() {
 
   // Everyone still owed money (respects the month and cattle/poultry filters), most owed first.
   const unsettledByPerson = Object.entries(
-    history.filter(h => h.type === 'EXPENSE' && h.paidBy && !h.settled && inSegment(h)
+    history.filter(h => h.type === 'EXPENSE' && !h.unaccounted && h.paidBy && !h.settled && inSegment(h)
       && (filterMonth === 'ALL' || h.date.substring(0, 7) === filterMonth))
       .reduce((m: Record<string, number>, h) => { m[h.paidBy!] = (m[h.paidBy!] || 0) + h.amount; return m; }, {})
   ).sort((a, b) => b[1] - a[1]);
 
   const settledByPerson = Object.entries(
-    history.filter(h => h.type === 'EXPENSE' && h.paidBy && h.settled && inSegment(h)
+    history.filter(h => h.type === 'EXPENSE' && !h.unaccounted && h.paidBy && h.settled && inSegment(h)
       && (filterMonth === 'ALL' || h.date.substring(0, 7) === filterMonth))
       .reduce((m: Record<string, number>, h) => { m[h.paidBy!] = (m[h.paidBy!] || 0) + h.amount; return m; }, {})
   ).sort((a, b) => b[1] - a[1]);
@@ -288,7 +297,7 @@ function LedgerPage() {
     const today = new Date();
     const groups: Record<string, { person: string; month: string; total: number }> = {};
     history.forEach(h => {
-      if (h.type !== 'EXPENSE' || !h.paidBy || h.settled) return;
+      if (h.type !== 'EXPENSE' || h.unaccounted || !h.paidBy || h.settled) return;
       const month = h.date.substring(0, 7);
       const key = `${h.paidBy}|${month}`;
       groups[key] = groups[key] || { person: h.paidBy, month, total: 0 };
@@ -341,6 +350,7 @@ function LedgerPage() {
       if (type === 'EXPENSE' && paidBy) {
         payload.paidBy = paidBy;
       }
+      if (type === 'EXPENSE') payload.unaccounted = unaccounted;
       await api.post(endpoint, payload);
       
       showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} added successfully!`);
@@ -349,6 +359,7 @@ function LedgerPage() {
       setDescription('');
       setSelectedHerdId('');
       setPaidBy('');
+      setUnaccounted(false);
       setDate(new Date().toISOString().split('T')[0]);
       fetchData();
     } catch (err: any) {
@@ -379,6 +390,7 @@ function LedgerPage() {
       if (type === 'EXPENSE' && paidBy) {
         payload.paidBy = paidBy;
       }
+      if (type === 'EXPENSE') payload.unaccounted = unaccounted;
       await api.put(endpoint, payload);
       
       showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} updated successfully!`);
@@ -387,6 +399,7 @@ function LedgerPage() {
       setDescription('');
       setSelectedHerdId('');
       setPaidBy('');
+      setUnaccounted(false);
       setDate(new Date().toISOString().split('T')[0]);
       fetchData();
     } catch (err: any) {
@@ -740,6 +753,14 @@ function LedgerPage() {
             <h3 className="text-[13px] font-black flex items-center gap-2 text-text uppercase tracking-widest">
               <History size={16} className="text-brand" /> Recent Transactions
             </h3>
+            <button type="button" role="switch" aria-checked={showUnaccounted} onClick={() => setShowUnaccounted(v => !v)}
+              title={showUnaccounted ? 'Hide unaccounted expenses' : 'Show unaccounted expenses'}
+              className="flex items-center gap-2 text-[11px] font-black text-text2 uppercase tracking-widest">
+              Unaccounted{unaccountedCount > 0 && ` (${unaccountedCount})`}
+              <span className={`relative w-9 h-5 rounded-full transition-colors ${showUnaccounted ? 'bg-amber-500' : 'bg-slate-300'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showUnaccounted ? 'translate-x-4' : ''}`} />
+              </span>
+            </button>
           </div>
           
           <div className="divide-y divide-border-custom bg-white">
@@ -794,6 +815,12 @@ function LedgerPage() {
                             {item.settled && item.settledBy && ` by ${item.settledBy}`}
                           </span>
                         )}
+                        {item.unaccounted && (
+                          <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-amber-400/15 text-amber-700"
+                            title="Not taken off the profit when salaries are worked out">
+                            Unaccounted
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -801,7 +828,8 @@ function LedgerPage() {
                 
                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-1 sm:mt-0">
                   <div className="text-left sm:text-right">
-                    <div className={`font-black text-[16px] sm:text-[18px] ${item.type === 'EXPENSE' ? 'text-danger' : 'text-brand'}`}>
+                    <div className={`font-black text-[16px] sm:text-[18px] ${item.unaccounted ? 'text-text3' : item.type === 'EXPENSE' ? 'text-danger' : 'text-brand'}`}
+                      title={item.unaccounted ? 'Unaccounted: not counted in any total' : undefined}>
                       {item.type === 'EXPENSE' ? '-' : '+'} ₹{item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
                   </div>
@@ -814,6 +842,7 @@ function LedgerPage() {
                         setDate(item.date);
                         setSelectedHerdId(item.herdId ? item.herdId.toString() : 'ALL');
                         setPaidBy((item as any).paidBy || '');
+                        setUnaccounted(!!item.unaccounted);
                         setEntrySegment(segmentOf(item));
                       }}
                       className="p-2 bg-surface2 sm:bg-transparent hover:bg-white rounded-lg text-text3 hover:text-brand transition-colors"
@@ -841,7 +870,7 @@ function LedgerPage() {
           <div className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl">
             <div className={`p-6 text-center text-white flex flex-col items-center gap-2 ${ (selectedCategory?.type || editingTransaction?.type) === 'EXPENSE' ? 'bg-danger' : 'bg-brand'}`}>
               <div className="w-full flex justify-end mb-[-24px]">
-                <button onClick={() => { setSelectedCategory(null); setEditingTransaction(null); }} className="text-white/80 hover:text-white"><X size={24}/></button>
+                <button onClick={() => { setSelectedCategory(null); setEditingTransaction(null); setUnaccounted(false); }} className="text-white/80 hover:text-white"><X size={24}/></button>
               </div>
               <div className="text-xl font-extrabold uppercase tracking-widest">
                 {editingTransaction ? 'Edit Record' : selectedCategory?.name}
@@ -916,6 +945,17 @@ function LedgerPage() {
                     ))}
                   </select>
                 </div>
+              )}
+
+              {((selectedCategory?.type || editingTransaction?.type) === 'EXPENSE') && (
+                <label className="mb-6 flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={unaccounted} onChange={e => setUnaccounted(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[#1b4332]" />
+                  <span>
+                    <span className="block text-[11px] font-bold text-text2 uppercase">Unaccounted</span>
+                    <span className="block text-[11px] text-text3">Left out of the expenses used to work out staff salaries</span>
+                  </span>
+                </label>
               )}
 
               <div className="mb-8">
@@ -1001,7 +1041,7 @@ function LedgerPage() {
               </div>
             </div>
             <div className="p-3 sm:p-5 overflow-y-auto">
-              <LedgerCostTracker entries={history.filter(inSegment)}
+              <LedgerCostTracker entries={history.filter(h => inSegment(h) && !h.unaccounted)}
                 milkReceived={segmentFilter === 'POULTRY' ? [] : milkReceived}
                 month={trackerMonth} />
             </div>

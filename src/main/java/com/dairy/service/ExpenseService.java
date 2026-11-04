@@ -44,6 +44,7 @@ public class ExpenseService {
     public Double getTotalExpenseByDateRange(LocalDate start, LocalDate end) {
         return expenseRepository.findByDateBetween(start, end)
                 .stream()
+                .filter(e -> !e.isUnaccounted())
                 .mapToDouble(Expense::getAmount)
                 .sum();
     }

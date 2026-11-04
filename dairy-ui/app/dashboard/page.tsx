@@ -138,7 +138,8 @@ export default function DashboardPage() {
     if (showExpenseModal && modalExpenses.length === 0) {
       setModalLoading(true);
       api.get('/expenses').then(res => {
-        setModalExpenses(res.data);
+        // Unaccounted expenses (paid outside the farm's books) are not counted anywhere.
+        setModalExpenses((res.data || []).filter((e: any) => !e.unaccounted));
       }).catch(err => {
         console.error("Failed to load expenses for modal", err);
       }).finally(() => setModalLoading(false));

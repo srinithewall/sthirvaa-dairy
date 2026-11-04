@@ -67,8 +67,9 @@ public class DashboardService {
         dto.setTodayRevenue(todayRevenue);
         dto.setYesterdayRevenue(yesterdayRevenue);
         
-        List<Expense> todayExpenses = expenseRepository.findByDateBetween(today, today);
-        List<Expense> yesterdayExpenses = expenseRepository.findByDateBetween(yesterday, yesterday);
+        // Unaccounted expenses (paid outside the farm's books) are left out of every figure here.
+        List<Expense> todayExpenses = counted(expenseRepository.findByDateBetween(today, today));
+        List<Expense> yesterdayExpenses = counted(expenseRepository.findByDateBetween(yesterday, yesterday));
         
         double todayExpenseValue = todayExpenses.stream().mapToDouble(e -> e.getAmount() != null ? e.getAmount() : 0.0).sum();
         double yesterdayExpenseValue = yesterdayExpenses.stream().mapToDouble(e -> e.getAmount() != null ? e.getAmount() : 0.0).sum();
@@ -83,7 +84,7 @@ public class DashboardService {
         dto.setMonthMilkProduction(monthMilk);
         
         List<Income> monthIncomes = incomeRepository.findByDateBetween(startOfMonth, today);
-        List<Expense> monthExpenses = expenseRepository.findByDateBetween(startOfMonth, today);
+        List<Expense> monthExpenses = counted(expenseRepository.findByDateBetween(startOfMonth, today));
         
         double monthRevenue = monthIncomes.stream().mapToDouble(i -> i.getAmount() != null ? i.getAmount() : 0.0).sum();
         double monthExpense = monthExpenses.stream().mapToDouble(e -> e.getAmount() != null ? e.getAmount() : 0.0).sum();
@@ -150,7 +151,7 @@ public class DashboardService {
 
         Map<YearMonth, Double> expByMonth = new HashMap<>();
         for (Expense exp : expenseRepository.findByDateBetween(windowStart, windowEnd)) {
-            if (exp.getDate() == null) continue;
+            if (exp.getDate() == null || exp.isUnaccounted()) continue;
             expByMonth.merge(YearMonth.from(exp.getDate()), exp.getAmount() != null ? exp.getAmount() : 0.0, Double::sum);
         }
 
@@ -271,5 +272,10 @@ public class DashboardService {
         }
         result.sort((a, b) -> b.getPeakYield().compareTo(a.getPeakYield()));
         return result;
+    }
+
+    /** Expenses that count: unaccounted ones (paid outside the farm's books) are dropped. */
+    private static List<Expense> counted(List<Expense> expenses) {
+        return expenses.stream().filter(e -> !e.isUnaccounted()).collect(Collectors.toList());
     }
 }

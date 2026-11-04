@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class HerdWeightService {
@@ -88,10 +89,19 @@ public class HerdWeightService {
         LocalDate date = roundDate != null ? roundDate : LocalDate.now();
         List<WeightRoundRow> rows = new ArrayList<>();
         for (Herd herd : herdRepo.findByStatus("ACTIVE")) {
+            if (!isWeighed(herd)) continue;
             HerdWeightRecord last = weightRepo.findFirstByHerdIdOrderByRecordDateDesc(herd.getId());
             rows.add(WeightRoundRow.of(herd, last, date));
         }
         return rows;
+    }
+
+    /** Poultry and fish are kept as batches, not weighed by heart girth, so they are not in the round. */
+    private static final Set<String> NOT_WEIGHED = Set.of("CHICKEN", "DUCK", "QUAIL", "FISH", "POULTRY");
+
+    static boolean isWeighed(Herd herd) {
+        String type = herd.getAnimalType();
+        return type == null || !NOT_WEIGHED.contains(type.trim().toUpperCase());
     }
 
     /**

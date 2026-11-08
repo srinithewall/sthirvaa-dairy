@@ -230,10 +230,20 @@ public class Herd {
     public String getMilkPotentialConfidence() { return milkPotentialConfidence; }
     public void setMilkPotentialConfidence(String milkPotentialConfidence) { this.milkPotentialConfidence = milkPotentialConfidence; }
 
+    /** Parity: previousLactations + the calvings recorded in the app (see HerdService). */
     @Transient
     private Integer lactationNumber;
     public Integer getLactationNumber() { return lactationNumber; }
     public void setLactationNumber(Integer lactationNumber) { this.lactationNumber = lactationNumber; }
+
+    /**
+     * Calvings before her calving records start - e.g. a cow bought in her 3rd lactation. Entered
+     * once on the animal form; calvings recorded afterwards add to it on their own.
+     */
+    @Column(name = "previous_lactations")
+    private Integer previousLactations;
+    public Integer getPreviousLactations() { return previousLactations; }
+    public void setPreviousLactations(Integer previousLactations) { this.previousLactations = previousLactations; }
 
     // Days in milk - computed from the most recent LACTATION_STARTED HerdEvent,
     // only meaningful while animalStatus is LACTATING. See HerdService.enrichHerd.

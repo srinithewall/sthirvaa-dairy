@@ -13,9 +13,11 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class HerdService {
@@ -222,12 +224,18 @@ public class HerdService {
 
             herd.setAvgMilk30Days(averageOf(dailyTotalsByHerd.get(herd.getId())));
 
-            // Counted here rather than by the database. equalsIgnoreCase matches what the old
-            // countBy query did, since MySQL's default collation is case-insensitive.
-            int lactationCount = 0;
+            // Parity: calvings before her records (entered on the animal form) plus every calving
+            // recorded since, so it goes up by itself when a calving is recorded. A calving entered
+            // twice on the same day counts once.
+            Set<LocalDate> calvingDays = new HashSet<>();
             for (HerdEvent event : events) {
-                if ("CALF_DELIVERED".equalsIgnoreCase(event.getEventType())) lactationCount++;
+                if (event.getEventDate() != null && event.getEventType() != null
+                        && BreedingCycle.CALVING_TYPES.contains(event.getEventType().toUpperCase())) {
+                    calvingDays.add(event.getEventDate());
+                }
             }
+            int previous = herd.getPreviousLactations() != null ? herd.getPreviousLactations() : 0;
+            int lactationCount = previous + calvingDays.size();
             herd.setLactationNumber(lactationCount);
 
             Double latestWeight = latestWeightsByHerd.get(herd.getId());

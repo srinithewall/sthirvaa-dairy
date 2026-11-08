@@ -122,6 +122,7 @@ public class EfficiencyService {
         row.put("imageUrl", h.getImageUrl());
         row.put("lastCalving", calving);
         row.put("dim", dim);
+        row.put("lactationNumber", h.getLactationNumber() != null ? h.getLactationNumber() : 0);
         Map<String, Object> repro = reproduction(cycle, dim, recordedAvg > 0 ? recordedAvg : avg30, dry, events, current, today);
         Map<String, Object> lact = calving == null ? null
                 : lactation(calving, dim, dry, target, avg30, current, recordedDays, recordedLitres, recordedAvg);
@@ -131,7 +132,7 @@ public class EfficiencyService {
         row.put("cycleAverage", lact == null ? null
                 : cycleAverage(events, daily, today, ((Number) lact.get("projected")).doubleValue(),
                         repro.get("calvingInterval") != null ? (Integer) repro.get("calvingInterval") : CALVING_INTERVAL));
-        row.put("history", history(events, daily, today));
+        row.put("history", history(events, daily, today, h.getPreviousLactations() != null ? h.getPreviousLactations() : 0));
         row.put("flags", flags(events, cycle, daily, target, today));
         return row;
     }
@@ -296,11 +297,15 @@ public class EfficiencyService {
         return l;
     }
 
-    /** Every lactation from the recorded calvings, oldest first, with the milk recorded in each. */
-    private List<Map<String, Object>> history(List<HerdEvent> events, TreeMap<LocalDate, Double> daily, LocalDate today) {
+    /**
+     * Every lactation from the recorded calvings, oldest first, with the milk recorded in each;
+     * numbered after the ones before her records ({@code previous}).
+     */
+    private List<Map<String, Object>> history(List<HerdEvent> events, TreeMap<LocalDate, Double> daily, LocalDate today,
+                                              int previous) {
         TreeSet<LocalDate> calvings = calvingDates(events, today);
         List<Map<String, Object>> out = new ArrayList<>();
-        int n = 0;
+        int n = previous;
         for (LocalDate from : calvings) {
             LocalDate next = calvings.higher(from);
             SortedMap<LocalDate, Double> part = next != null ? daily.subMap(from, next) : daily.tailMap(from);

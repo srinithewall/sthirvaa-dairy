@@ -21,6 +21,8 @@ interface Herd {
   birthDate: string; procuredDate: string; animalStatus: string;
   status: string; age: string; calculatedAge?: string; imageUrl?: string;
   onboardingDay?: number | null; quarantineDays?: number | null;
+  /** Parity from the server: calvings before her records plus those recorded. */
+  lactationNumber?: number;
 }
 interface HerdEvent {
   id: number; herdId: number; eventDate: string; eventType: string;
@@ -274,6 +276,13 @@ function getRecommendations(herd: Herd): string[] {
   scored.sort((a, b) => b.score - a.score);
   return scored.map(s => s.id);
 }
+
+/** 1 → "1st", 2 → "2nd", 11 → "11th". */
+const ordinal = (n: number) => {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? 'th' : n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
+  return `${n}${suffix}`;
+};
 
 /* ─── Event Config ───────────────────────────── */
 const REMINDER_TYPES  = ['VACCINATION_DUE', 'DEWORMING_DUE', 'PREGNANCY_CHECK_DUE', 'AI_DUE'];
@@ -759,9 +768,8 @@ function AnimalInfoPanel({ herd, events, reproStats, onEdit }: {
   const milkYield = (herd as any).milkYield || (herd as any).avgMilkYield || null;
   const bodyWeight = (herd as any).bodyWeight || (herd as any).weight || null;
 
-  const parity = reproStats.calvingCount > 0
-    ? `${reproStats.calvingCount}${reproStats.calvingCount === 1 ? 'st' : reproStats.calvingCount === 2 ? 'nd' : reproStats.calvingCount === 3 ? 'rd' : 'th'} Lactation`
-    : 'Heifer';
+  const parityN = herd.lactationNumber ?? reproStats.calvingCount;
+  const parity = parityN > 0 ? `${ordinal(parityN)} Lactation` : 'Heifer';
 
   const stats = [
     { label: 'Breed', value: herd.breed || '—', icon: '🐄' },
@@ -1778,7 +1786,7 @@ export default function AnimalWorkspace({
                           { label: 'Total AI', value: events.filter(e => e.eventType==='SEMEN_GIVEN').length, color: 'text-violet-700', bg: 'bg-violet-50' },
                           { label: 'Confirmed PD', value: events.filter(e => e.eventType==='PREGNANCY_CONFIRMED').length, color: 'text-pink-700', bg: 'bg-pink-50' },
                           { label: 'Calvings', value: reproStats.calvingCount, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-                          { label: 'Parity', value: `${reproStats.calvingCount}${reproStats.calvingCount===1?'st':reproStats.calvingCount===2?'nd':reproStats.calvingCount===3?'rd':'th'}`, color: 'text-amber-700', bg: 'bg-amber-50' },
+                          { label: 'Parity', value: ordinal(herd.lactationNumber ?? reproStats.calvingCount), color: 'text-amber-700', bg: 'bg-amber-50' },
                         ].map(s => (
                           <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center border border-transparent`}>
                             <div className={`text-[20px] font-bold ${s.color}`}>{s.value}</div>

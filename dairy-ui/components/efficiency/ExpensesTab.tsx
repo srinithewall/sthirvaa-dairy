@@ -20,6 +20,7 @@ interface CostGroup { key: string; label: string }
 const GROUP_COLOR: Record<string, string> = {
   FEED: '#2a78d6', INFRA: '#008300', LABOUR: '#eda100', VET: '#eb6834',
   DEATHS: '#e34948', TRANSPORT: '#6250d6', ANIMALS: '#e87ba4', OTHER: '#c3c2b7',
+  UNACCOUNTED: '#5f5e5a',
 };
 
 type Preset = 'ALL' | 'MONTH' | '3M' | 'FY' | 'CUSTOM';
@@ -63,7 +64,8 @@ export default function ExpensesTab() {
     let live = true;
     setLoading(true);
     setError('');
-    api.get('/reports/costs', { params: { from, to, segment } })
+    // Unaccounted expenses come back as their own type, so they can be shown or clicked off like any other.
+    api.get('/reports/costs', { params: { from, to, segment, includeUnaccounted: true } })
       .then(res => { if (live) { setEntries(res.data.entries || []); setGroups(res.data.groups || []); } })
       .catch(() => { if (live) setError("Couldn't load expenses. Try again."); })
       .finally(() => { if (live) setLoading(false); });
@@ -86,6 +88,13 @@ export default function ExpensesTab() {
   const removed = slices.filter(s => hidden.has(s.key));
   const total = shown.reduce((t, s) => t + s.value, 0);
   const entryCount = shown.reduce((t, s) => t + s.count, 0);
+  const unaccountedShown = shown.find(s => s.key === 'UNACCOUNTED')?.value ?? 0;
+  // What the unaccounted slice is made of, by ledger category (e.g. cattle that died).
+  const unaccountedParts = useMemo(() => {
+    const by: Record<string, number> = {};
+    entries.filter(e => e.group === 'UNACCOUNTED').forEach(e => { by[e.category || 'Other'] = (by[e.category || 'Other'] || 0) + e.amount; });
+    return Object.entries(by).sort((a, b) => b[1] - a[1]);
+  }, [entries]);
 
   const revenue = useMemo(() => {
     if (!income) return null;
@@ -160,7 +169,10 @@ export default function ExpensesTab() {
           <div className="bg-[#FDEAEA] rounded-lg px-3 py-2.5 min-w-0">
             <div className="text-[11px] font-bold text-danger uppercase tracking-wider">Expenses</div>
             <div className="text-[18px] font-black text-danger">{rupees(total)}</div>
-            <div className="text-[11px] text-text2">{removed.length ? 'types shown only' : 'all types'}</div>
+            <div className="text-[11px] text-text2">
+              {removed.length ? 'types shown only' : 'all types'}
+              {unaccountedShown > 0 && ` · incl. ${rupees(unaccountedShown)} unaccounted`}
+            </div>
           </div>
           <div className="bg-surface2 rounded-lg px-3 py-2.5 min-w-0">
             <div className="text-[11px] font-bold text-text3 uppercase tracking-wider">Net (revenue − expenses)</div>
@@ -201,6 +213,11 @@ export default function ExpensesTab() {
                             style={off ? { border: `1.5px solid ${GROUP_COLOR[s.key] ?? '#c3c2b7'}` } : { background: GROUP_COLOR[s.key] ?? '#c3c2b7' }} />
                           {s.label}
                         </button>
+                        {s.key === 'UNACCOUNTED' && unaccountedParts.length > 0 && (
+                          <div className="text-[11px] text-text3 mt-0.5 pl-[18px]">
+                            {unaccountedParts.map(([c, v]) => `${c} ${rupees(v)}`).join(' · ')}
+                          </div>
+                        )}
                       </td>
                       <td className={`py-2 text-right font-black ${off ? 'text-text3 line-through' : 'text-text'}`}>{rupees(s.value)}</td>
                       <td className="py-2 pl-3 text-right text-text3 w-12">{off ? 'off' : total > 0 ? `${Math.round((s.value / total) * 100)}%` : '—'}</td>
@@ -218,6 +235,7 @@ export default function ExpensesTab() {
         )}
       <p className="text-[12px] text-text3 mt-3">
         Click a type to leave it out of the total and the pie; click again to add it back. Nothing is deleted from the ledger.
+        Unaccounted = ledger expenses marked unaccounted (paid outside the farm&apos;s books); the ledger and dashboard totals leave them out, so click it off to match them.
         Revenue is the ledger&apos;s income, as on the dashboard; milk sales are counted at the rate entered when the milk was distributed.
         From the Digital Ledger, sorted into cost groups by category name. Deaths include cattle written off in the ledger and poultry deaths at cost per bird.
       </p>

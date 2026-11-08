@@ -19,8 +19,9 @@ public class CostTrackerController {
     public Map<String, Object> getCosts(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(defaultValue = "ALL") String segment) {
+            @RequestParam(defaultValue = "ALL") String segment,
+            @RequestParam(defaultValue = "false") boolean includeUnaccounted) {
         if (to.isBefore(from)) { LocalDate t = from; from = to; to = t; }
-        return costTrackerService.summary(from, to, segment);
+        return costTrackerService.summary(from, to, segment, includeUnaccounted);
     }
 }

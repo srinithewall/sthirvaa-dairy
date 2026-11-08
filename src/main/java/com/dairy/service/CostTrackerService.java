@@ -43,6 +43,9 @@ public class CostTrackerService {
             {"OTHER", "Other", ""},
     };
 
+    /** Group for expenses marked unaccounted, when a report asks for them. */
+    static final String UNACCOUNTED = "UNACCOUNTED";
+
     private static final Set<String> BATCH_TYPES = Set.of("CHICKEN", "DUCK", "FISH", "QUAIL");
 
     @Autowired
@@ -55,13 +58,22 @@ public class CostTrackerService {
     private HerdRepository herdRepository;
 
     public Map<String, Object> summary(LocalDate from, LocalDate to, String segment) {
+        return summary(from, to, segment, false);
+    }
+
+    /**
+     * With {@code includeUnaccounted}, expenses marked unaccounted (paid outside the farm's books) are
+     * returned too, in their own UNACCOUNTED group, so a report can show them beside the rest. The
+     * previous-period comparison never includes them.
+     */
+    public Map<String, Object> summary(LocalDate from, LocalDate to, String segment, boolean includeUnaccounted) {
         String seg = segment == null ? "ALL" : segment.toUpperCase();
         Map<Long, Herd> batches = new HashMap<>();
         for (Herd h : herdRepository.findAll()) {
             if (h.getAnimalType() != null && BATCH_TYPES.contains(h.getAnimalType().toUpperCase())) batches.put(h.getId(), h);
         }
 
-        List<Map<String, Object>> entries = entries(from, to, seg, batches);
+        List<Map<String, Object>> entries = entries(from, to, seg, batches, includeUnaccounted);
         LocalDate prevFrom, prevTo;
         if (from.getDayOfMonth() == 1) {
             long months = ChronoUnit.MONTHS.between(YearMonth.from(from), YearMonth.from(to)) + 1;
@@ -74,7 +86,7 @@ public class CostTrackerService {
         }
         Map<String, Double> prevByGroup = new LinkedHashMap<>();
         for (String[] g : GROUPS) prevByGroup.put(g[0], 0.0);
-        for (Map<String, Object> e : entries(prevFrom, prevTo, seg, batches)) {
+        for (Map<String, Object> e : entries(prevFrom, prevTo, seg, batches, false)) {
             prevByGroup.merge((String) e.get("group"), (Double) e.get("amount"), Double::sum);
         }
 
@@ -85,6 +97,7 @@ public class CostTrackerService {
             m.put("label", g[1]);
             groups.add(m);
         }
+        if (includeUnaccounted) groups.add(Map.of("key", UNACCOUNTED, "label", "Unaccounted"));
 
         Map<String, Object> previous = new LinkedHashMap<>();
         previous.put("from", prevFrom);
@@ -101,10 +114,12 @@ public class CostTrackerService {
         return out;
     }
 
-    private List<Map<String, Object>> entries(LocalDate from, LocalDate to, String seg, Map<Long, Herd> batches) {
+    private List<Map<String, Object>> entries(LocalDate from, LocalDate to, String seg, Map<Long, Herd> batches,
+                                              boolean includeUnaccounted) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Expense x : expenseRepository.findByDateBetween(from, to)) {
-            if (x.getAmount() == null || x.isUnaccounted()) continue; // paid outside the farm's books
+            if (x.getAmount() == null) continue;
+            if (x.isUnaccounted() && !includeUnaccounted) continue; // paid outside the farm's books
             String category = x.getCategory() == null ? "" : x.getCategory().trim();
             boolean poultry = "POULTRY".equalsIgnoreCase(x.getSegment())
                     || "poultry".equalsIgnoreCase(category)
@@ -114,7 +129,7 @@ public class CostTrackerService {
             e.put("id", x.getId());
             e.put("date", x.getDate());
             e.put("category", category);
-            e.put("group", groupOf(category));
+            e.put("group", x.isUnaccounted() ? UNACCOUNTED : groupOf(category));
             e.put("amount", x.getAmount());
             e.put("description", x.getDescription());
             e.put("segment", poultry ? "POULTRY" : "CATTLE");

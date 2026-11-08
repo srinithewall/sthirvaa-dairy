@@ -41,9 +41,9 @@ function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTota
           tone={s.repro.efficiency != null ? toneOf(s.repro.efficiency) : undefined} />
         <Kpi label="Milk target efficiency" value={s.milk.efficiency != null ? `${Math.round(s.milk.efficiency)}%` : '—'}
           sub={`${litres(s.milk.avg, 1)} of ${litres(s.milk.target)} a day`} tone={s.milk.efficiency != null ? toneOf(s.milk.efficiency) : undefined} />
-        <Kpi label="Total milk per day" value={report.milkPerDay.last7Avg != null ? litres(report.milkPerDay.last7Avg, 1) : '—'}
-          sub={`last ${report.milkPerDay.days} days`} />
-        <Kpi label="Total expenses" value={expenseTotal != null ? rupees(expenseTotal) : '…'} sub="all time" />
+        <Kpi label="Milk per day · full cycle" value={litres(s.milk.cyclePerDay, 1)}
+          sub={`dry days included${report.milkPerDay.last7Avg != null ? ` · last ${report.milkPerDay.days} days ${litres(report.milkPerDay.last7Avg, 1)}` : ''}`} />
+        <Kpi label="Total expenses" value={expenseTotal != null ? rupees(expenseTotal) : '…'} sub="all time, incl. unaccounted" />
       </KpiRow>
 
       <Card className="divide-y divide-border-custom">
@@ -91,7 +91,8 @@ function EfficiencyPage() {
   useEffect(() => {
     api.get('/reports/efficiency').then(r => setReport(r.data)).catch(() => setError("Couldn't load the efficiency report. Try again."));
     const today = new Date().toISOString().slice(0, 10);
-    api.get('/reports/costs', { params: { from: '2000-01-01', to: today, segment: 'ALL' } })
+    // Same figure as the Expenses tab opens on: all time, unaccounted expenses included.
+    api.get('/reports/costs', { params: { from: '2000-01-01', to: today, segment: 'ALL', includeUnaccounted: true } })
       .then(r => setExpenseTotal((r.data.entries || []).reduce((t: number, e: any) => t + e.amount, 0)))
       .catch(() => setExpenseTotal(null));
   }, []);

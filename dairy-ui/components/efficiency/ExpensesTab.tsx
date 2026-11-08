@@ -3,13 +3,65 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js';
+import { ChevronDown, Info } from 'lucide-react';
 import api from '@/lib/api';
 import { rupees, shortDate } from '@/lib/efficiency';
 import { Card } from './ui';
 
 ChartJS.register(ArcElement, Tooltip);
 
-interface CostEntry { id: number; date: string; category: string; group: string; amount: number; segment: string }
+interface CostEntry {
+  id: number; date: string; category: string; group: string; amount: number; segment: string;
+  description?: string | null; source?: string; herdId?: number | null;
+}
+/** A cow bought for the herd, from the asset register: investment, not expense. */
+interface CattlePurchase {
+  id: number; name: string; date: string; amount: number; status: string;
+  herdId?: number | null; animalName?: string | null;
+}
+
+const DEATH_WORDS = /expire|death|dead|died/i;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * The death of an animal the farm bought: linked to her in the ledger, or (older entries) naming her
+ * in the category or note, on or after the day she was bought. Her purchase is already counted as
+ * investment, so in "total spent" the death loss would count her twice.
+ */
+function boughtAnimalOf(e: CostEntry, cattle: CattlePurchase[]): CattlePurchase | undefined {
+  if (!DEATH_WORDS.test(`${e.category} ${e.description ?? ''}`)) return undefined;
+  const linked = e.herdId != null ? cattle.find(c => c.herdId === e.herdId) : undefined;
+  if (linked) return linked;
+  const text = `${e.category} ${e.description ?? ''}`;
+  return cattle.find(c => {
+    const name = (c.animalName || c.name.replace(/\(.*\)/, '')).trim();
+    return name.length >= 3 && c.date <= e.date && new RegExp(`\\b${escapeRe(name)}\\b`, 'i').test(text);
+  });
+}
+
+/** Entries listed when a type is opened, biggest first. */
+const DRILL_LIMIT = 40;
+
+/** A type's ledger entries, biggest first (the caller sorts), capped at DRILL_LIMIT. */
+function EntryList({ items, className = 'bg-surface2' }: { items: CostEntry[]; className?: string }) {
+  return (
+    <div className={`${className} rounded-lg px-2.5 py-1.5 text-[12px] max-h-[280px] overflow-y-auto`}>
+      {items.slice(0, DRILL_LIMIT).map(e => (
+        <div key={`${e.source ?? 'EXPENSE'}-${e.id}`} className="flex items-start gap-2 py-1 border-b border-border-custom last:border-0">
+          <span className="text-text3 w-[74px] flex-shrink-0">{shortDate(e.date, true)}</span>
+          <span className="flex-1 min-w-0">
+            <span className="font-bold text-text">{e.category || '—'}</span>
+            {e.description && <span className="block text-text3 break-words">{e.description}</span>}
+          </span>
+          <span className="font-black text-text whitespace-nowrap">{rupees(e.amount)}</span>
+        </div>
+      ))}
+      {items.length > DRILL_LIMIT && (
+        <div className="text-text3 py-1">and {items.length - DRILL_LIMIT} smaller entries — see the Digital Ledger</div>
+      )}
+    </div>
+  );
+}
 interface IncomeEntry { date: string; category: string; amount: number; segment?: string | null }
 
 /** Ledger income categories as people say them; MILK_SALES is the milk distributed to customers. */
@@ -51,6 +103,13 @@ export default function ExpensesTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [income, setIncome] = useState<IncomeEntry[] | null>(null);
+  const [cattle, setCattle] = useState<CattlePurchase[]>([]);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [showCattle, setShowCattle] = useState(false);
+  const [showOutlay, setShowOutlay] = useState(false);
+  // Running expenses opened up: its types, and which type's entries are showing.
+  const [showRunning, setShowRunning] = useState(false);
+  const [runningOpen, setRunningOpen] = useState<string | null>(null);
 
   // Revenue = ledger income, as the dashboard counts it; filtered here by the same range and segment.
   useEffect(() => {
@@ -65,8 +124,13 @@ export default function ExpensesTab() {
     setLoading(true);
     setError('');
     // Unaccounted expenses come back as their own type, so they can be shown or clicked off like any other.
-    api.get('/reports/costs', { params: { from, to, segment, includeUnaccounted: true } })
-      .then(res => { if (live) { setEntries(res.data.entries || []); setGroups(res.data.groups || []); } })
+    api.get('/reports/costs', { params: { from, to, segment, includeUnaccounted: true, includeCattlePurchases: true } })
+      .then(res => {
+        if (!live) return;
+        setEntries(res.data.entries || []);
+        setGroups(res.data.groups || []);
+        setCattle(res.data.cattlePurchases || []);
+      })
       .catch(() => { if (live) setError("Couldn't load expenses. Try again."); })
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
@@ -89,6 +153,17 @@ export default function ExpensesTab() {
   const total = shown.reduce((t, s) => t + s.value, 0);
   const entryCount = shown.reduce((t, s) => t + s.count, 0);
   const unaccountedShown = shown.find(s => s.key === 'UNACCOUNTED')?.value ?? 0;
+  // Total outlay = expenses + investment, where investment = infrastructure (in the ledger) + cattle bought.
+  const infraShown = shown.find(s => s.key === 'INFRA')?.value ?? 0;
+  const cattleTotal = cattle.reduce((t, c) => t + c.amount, 0);
+  const runningExpenses = total - infraShown;
+  // Deaths of bought cattle among the types shown: in "total spent" she counts once, as her purchase.
+  const countedTwice = useMemo(() => entries
+    .filter(e => !hidden.has(e.group))
+    .map(e => ({ e, cow: boughtAnimalOf(e, cattle) }))
+    .filter((x): x is { e: CostEntry; cow: CattlePurchase } => !!x.cow), [entries, cattle, hidden]);
+  const countedTwiceTotal = countedTwice.reduce((t, x) => t + x.e.amount, 0);
+  const totalSpent = total + cattleTotal - countedTwiceTotal;
   // What the unaccounted slice is made of, by ledger category (e.g. cattle that died).
   const unaccountedParts = useMemo(() => {
     const by: Record<string, number> = {};
@@ -146,10 +221,83 @@ export default function ExpensesTab() {
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-4">
-        <span className="text-[12px] font-bold text-text3 uppercase tracking-wider">Total expenses</span>
+        <span className="text-[12px] font-bold text-text3 uppercase tracking-wider flex items-center gap-1.5 self-center">
+          Total expenses
+          <button type="button" onClick={() => setShowOutlay(v => !v)} aria-expanded={showOutlay}
+            aria-label="Expenses plus investment" title="Expenses plus investment"
+            className={`rounded-full p-0.5 transition-colors ${showOutlay ? 'text-white bg-brand' : 'text-brand hover:bg-surface2'}`}>
+            <Info size={15} />
+          </button>
+        </span>
         <span className="text-[26px] font-black text-text">{loading ? '…' : rupees(total)}</span>
         {!loading && <span className="text-[12px] text-text3">{shortDate(shownFrom, true)} – {shortDate(to, true)} · {entryCount} entries</span>}
       </div>
+      {showOutlay && !loading && (
+        <div className="mt-2 max-w-md bg-surface2 rounded-lg px-3 py-2.5 text-[13px]">
+          <div className="text-[11px] font-bold text-text3 uppercase tracking-wider mb-1.5">Total spent · expenses + investment</div>
+          <table className="w-full">
+            <tbody>
+              <tr>
+                <td className="py-1">
+                  <button type="button" onClick={() => setShowRunning(v => !v)} aria-expanded={showRunning}
+                    className="flex items-center gap-1 text-text2 hover:text-brand font-medium">
+                    <ChevronDown size={14} className={`transition-transform ${showRunning ? 'rotate-180' : ''}`} />
+                    Running expenses
+                  </button>
+                </td>
+                <td className="py-1 text-right font-bold text-text">{rupees(runningExpenses)}</td>
+              </tr>
+              {showRunning && (
+                <tr>
+                  <td colSpan={2} className="pb-1.5">
+                    <div className="bg-white rounded-lg border border-border-custom px-2 py-1">
+                      {shown.filter(s => s.key !== 'INFRA').map(s => {
+                        const open = runningOpen === s.key;
+                        return (
+                          <div key={s.key} className="border-b border-border-custom last:border-0">
+                            <button type="button" onClick={() => setRunningOpen(open ? null : s.key)} aria-expanded={open}
+                              className="w-full flex items-center gap-2 py-1.5 text-left hover:bg-surface2 rounded">
+                              <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: GROUP_COLOR[s.key] ?? '#c3c2b7' }} />
+                              <span className="flex-1 min-w-0 font-bold text-text">{s.label}</span>
+                              <span className="font-bold text-text">{rupees(s.value)}</span>
+                              <span className="w-9 text-right text-text3 text-[11px]">
+                                {runningExpenses > 0 ? `${Math.round((100 * s.value) / runningExpenses)}%` : '—'}
+                              </span>
+                              <ChevronDown size={13} className={`text-text3 transition-transform ${open ? 'rotate-180' : ''}`} />
+                            </button>
+                            {open && (
+                              <div className="pb-1.5">
+                                <EntryList items={entries.filter(e => e.group === s.key).sort((a, b) => b.amount - a.amount)} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {shown.filter(s => s.key !== 'INFRA').length === 0 && <div className="text-text3 py-1 text-[12px]">No running expenses shown.</div>}
+                    </div>
+                  </td>
+                </tr>
+              )}
+              <tr><td className="py-1 text-text3 text-[11px] font-bold uppercase tracking-wider" colSpan={2}>Investment</td></tr>
+              <tr><td className="py-1 pl-3 text-text2">Infrastructure and equipment{hidden.has('INFRA') ? ' (left out)' : ''}</td><td className="py-1 text-right font-bold text-text">{rupees(infraShown)}</td></tr>
+              <tr><td className="py-1 pl-3 text-text2">Cattle purchases ({cattle.length})</td><td className="py-1 text-right font-bold text-text">{rupees(cattleTotal)}</td></tr>
+              {countedTwice.map(({ e, cow }) => (
+                <tr key={`twice-${e.source ?? 'EXPENSE'}-${e.id}`}>
+                  <td className="py-1 text-text2">
+                    Less: death of {(cow.animalName || cow.name.replace(/\(.*\)/, '')).trim()} ({shortDate(e.date)})
+                    <span className="block text-[11px] text-text3">already counted as her purchase</span>
+                  </td>
+                  <td className="py-1 text-right font-bold text-text">−{rupees(e.amount)}</td>
+                </tr>
+              ))}
+              <tr className="border-t border-border-custom">
+                <td className="pt-1.5 font-black text-text">Total spent</td>
+                <td className="pt-1.5 text-right font-black text-text">{rupees(totalSpent)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
       {!loading && removed.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mt-1 text-[12px] text-text2">
           <span>Leaving out {removed.map(s => s.label).join(', ')} ({rupees(removed.reduce((t, s) => t + s.value, 0))})</span>
@@ -158,7 +306,7 @@ export default function ExpensesTab() {
       )}
 
       {!loading && !rangeError && revenue && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-3">
           <div className="bg-[#E8F5EE] rounded-lg px-3 py-2.5 min-w-0">
             <div className="text-[11px] font-bold text-brand uppercase tracking-wider">Revenue</div>
             <div className="text-[18px] font-black text-brand">{rupees(revenue.total)}</div>
@@ -181,6 +329,29 @@ export default function ExpensesTab() {
               {revenue.total > 0 ? `expenses are ${Math.round((100 * total) / revenue.total)}% of revenue` : '—'}
             </div>
           </div>
+          <button type="button" onClick={() => setShowCattle(v => !v)} aria-expanded={showCattle}
+            className="bg-[#FEF6E0] rounded-lg px-3 py-2.5 min-w-0 text-left hover:ring-1 hover:ring-warn transition-shadow">
+            <div className="text-[11px] font-bold text-[#8a5a00] uppercase tracking-wider flex items-center justify-between gap-2">
+              Cattle purchases
+              <ChevronDown size={14} className={`transition-transform ${showCattle ? 'rotate-180' : ''}`} />
+            </div>
+            <div className="text-[18px] font-black text-[#8a5a00]">{rupees(cattleTotal)}</div>
+            <div className="text-[11px] text-text2">{cattle.length} {cattle.length === 1 ? 'animal' : 'animals'} bought · investment</div>
+          </button>
+        </div>
+      )}
+
+      {showCattle && !loading && (
+        <div className="mt-2 bg-surface2 rounded-lg px-3 py-2 text-[12px]">
+          {cattle.length === 0
+            ? <div className="text-text3 py-1">No cattle bought in this range.</div>
+            : cattle.map(c => (
+              <div key={c.id} className="flex items-center gap-3 py-1 border-b border-border-custom last:border-0">
+                <span className="text-text3 w-[86px] flex-shrink-0">{shortDate(c.date, true)}</span>
+                <span className="flex-1 min-w-0 truncate font-bold text-text">{c.name}{c.status === 'DISPOSED' && <span className="font-medium text-text3"> · disposed</span>}</span>
+                <span className="font-black text-text">{rupees(c.amount)}</span>
+              </div>
+            ))}
         </div>
       )}
 
@@ -203,8 +374,11 @@ export default function ExpensesTab() {
               <tbody className="divide-y divide-border-custom">
                 {slices.map(s => {
                   const off = hidden.has(s.key);
+                  const isOpen = openGroup === s.key;
+                  const items = isOpen ? entries.filter(e => e.group === s.key).sort((a, b) => b.amount - a.amount) : [];
                   return (
-                    <tr key={s.key} onClick={() => toggle(s.key)} className="cursor-pointer hover:bg-surface2"
+                    <React.Fragment key={s.key}>
+                    <tr onClick={() => toggle(s.key)} className="cursor-pointer hover:bg-surface2"
                       title={off ? 'Add back to the total' : 'Leave out of the total'}>
                       <td className="py-2 pr-2">
                         <button type="button" aria-pressed={!off} onClick={e => { e.stopPropagation(); toggle(s.key); }}
@@ -221,24 +395,34 @@ export default function ExpensesTab() {
                       </td>
                       <td className={`py-2 text-right font-black ${off ? 'text-text3 line-through' : 'text-text'}`}>{rupees(s.value)}</td>
                       <td className="py-2 pl-3 text-right text-text3 w-12">{off ? 'off' : total > 0 ? `${Math.round((s.value / total) * 100)}%` : '—'}</td>
+                      <td className="py-2 pl-1 w-7 text-right">
+                        <button type="button" onClick={e => { e.stopPropagation(); setOpenGroup(isOpen ? null : s.key); }}
+                          aria-expanded={isOpen} aria-label={`${isOpen ? 'Hide' : 'Show'} ${s.label} entries`} title="Show the entries"
+                          className="p-1 rounded-md text-text3 hover:text-brand hover:bg-white">
+                          <ChevronDown size={15} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                      </td>
                     </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={4} className="pb-2">
+                          <EntryList items={items} />
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })}
                 <tr>
                   <td className="py-2 font-black text-text">Total{removed.length > 0 ? ' shown' : ''}</td>
                   <td className="py-2 text-right font-black text-text">{rupees(total)}</td>
                   <td className="py-2 pl-3 text-right text-text3">100%</td>
+                  <td />
                 </tr>
               </tbody>
             </table>
           </div>
         )}
-      <p className="text-[12px] text-text3 mt-3">
-        Click a type to leave it out of the total and the pie; click again to add it back. Nothing is deleted from the ledger.
-        Unaccounted = ledger expenses marked unaccounted (paid outside the farm&apos;s books); the ledger and dashboard totals leave them out, so click it off to match them.
-        Revenue is the ledger&apos;s income, as on the dashboard; milk sales are counted at the rate entered when the milk was distributed.
-        From the Digital Ledger, sorted into cost groups by category name. Deaths include cattle written off in the ledger and poultry deaths at cost per bird.
-      </p>
     </Card>
   );
 }

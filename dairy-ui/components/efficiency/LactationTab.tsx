@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { EffCow, EffReport, litres, rupees, shortDate, summarise, toneOf } from '@/lib/efficiency';
-import { Card, Kpi, KpiRow, Note, PctBar, Sub, TableWrap, TD, TH } from './ui';
+import { Card, Kpi, KpiRow, PctBar, Sub, TableWrap, TD, TH } from './ui';
 
 function History({ cow, lactationDays }: { cow: EffCow; lactationDays: number }) {
   const target = cow.milkTarget?.targetPerDay ?? (cow.lactation?.estimate ? cow.lactation.estimate / lactationDays : null);
@@ -30,7 +30,6 @@ export default function LactationTab({ report }: { report: EffReport }) {
   const { milkRate, rules } = report;
   const [open, setOpen] = useState<number | null>(null);
   const cows = report.cows.filter(c => c.lactation).sort((a, b) => (b.lactation!.achieved ?? -1) - (a.lactation!.achieved ?? -1));
-  const partly = cows.filter(c => c.lactation!.partlyRecorded).map(c => c.name);
 
   return (
     <div className="space-y-3">
@@ -46,7 +45,8 @@ export default function LactationTab({ report }: { report: EffReport }) {
           <thead>
             <tr>
               <th className={TH}>Cow · lactation</th><th className={TH}>Days in milk</th><th className={TH}>Milk recorded</th>
-              <th className={`${TH} w-[22%]`}>Achieved so far</th><th className={`${TH} text-right`}>Projected {rules.lactationDays} d</th>
+              <th className={`${TH} w-[17%]`}>Achieved so far</th><th className={`${TH} text-right`}>Projected {rules.lactationDays} d</th>
+              <th className={`${TH} w-[17%]`}>{rules.lactationDays}-day efficiency</th>
               <th className={`${TH} text-right`}>Per day · full cycle</th>
             </tr>
           </thead>
@@ -61,14 +61,15 @@ export default function LactationTab({ report }: { report: EffReport }) {
                       <div className="font-bold text-text flex items-center gap-1">
                         <ChevronDown size={14} className={`text-text3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />{c.name}
                       </div>
-                      <Sub>lactation {c.history.length || '—'}{l.ended ? ' · dry now' : ''}</Sub>
+                      <Sub>lactation {c.lactationNumber || '—'}{l.ended ? ' · dry now' : ''}</Sub>
                     </td>
                     <td className={TD}>{l.ended ? 'ended' : `${c.dim} of ${rules.lactationDays}`}
                       <Sub>{l.recordedDays} days recorded{l.partlyRecorded ? ' · part' : ''}</Sub></td>
                     <td className={TD}>{litres(l.recordedLitres)}{l.recordedTarget != null && <Sub>target {litres(l.recordedTarget)}</Sub>}</td>
                     <td className={TD}>{l.achieved != null ? <PctBar pct={l.achieved} /> : <span className="text-text3">no target</span>}</td>
                     <td className={`${TD} text-right`}>{l.ended ? '≈ ' : ''}{litres(l.projected)}
-                      {l.estimate != null && <Sub>of {litres(l.estimate)} · {Math.round(l.projectedPct!)}%</Sub>}</td>
+                      {l.estimate != null && <Sub>of {litres(l.estimate)}</Sub>}</td>
+                    <td className={TD}>{l.projectedPct != null ? <PctBar pct={l.projectedPct} /> : <span className="text-text3">no target</span>}</td>
                     <td className={`${TD} text-right`}>
                       {c.cycleAverage ? litres(c.cycleAverage.perDay, 1) : '—'}
                       {c.cycleAverage && <Sub>{c.cycleAverage.completedCycles > 0
@@ -77,20 +78,13 @@ export default function LactationTab({ report }: { report: EffReport }) {
                     </td>
                   </tr>
                   {isOpen && (
-                    <tr><td colSpan={6} className="px-3 py-2 border-b border-border-custom"><History cow={c} lactationDays={rules.lactationDays} /></td></tr>
+                    <tr><td colSpan={7} className="px-3 py-2 border-b border-border-custom"><History cow={c} lactationDays={rules.lactationDays} /></td></tr>
                   )}
                 </React.Fragment>
               );
             })}
           </tbody>
         </TableWrap>
-        <Note>
-          Tap a cow to see every lactation. Estimate = target litres a day × {rules.lactationDays}. Achieved = milk recorded since calving ÷ (target × days recorded).
-          Projected = milk recorded, plus unrecorded days at her recorded average, plus the days left at her 30-day average.
-          Per day · full cycle = all the milk of her recorded calving cycles (every lactation recorded from calving, plus this one projected)
-          ÷ all the days of those cycles, dry days included — the herd figure is these added up.
-          {partly.length > 0 && ` Part-recorded (milk recording started after calving): ${partly.join(', ')}.`}
-        </Note>
       </Card>
     </div>
   );

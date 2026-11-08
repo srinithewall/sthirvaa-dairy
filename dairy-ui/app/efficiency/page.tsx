@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Gauge, AlertTriangle, ChevronRight } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { EffReport, litres, rupees, summarise, toneOf } from '@/lib/efficiency';
+import { EffReport, litres, monthsDays, rupees, summarise, toneOf } from '@/lib/efficiency';
 import { Card, Kpi, KpiRow } from '@/components/efficiency/ui';
 import ReproductionTab from '@/components/efficiency/ReproductionTab';
 import MilkTargetTab from '@/components/efficiency/MilkTargetTab';
@@ -28,7 +28,7 @@ function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTota
   const flagged = report.cows.filter(c => c.flags.length > 0);
   const rows: { tab: TabKey; title: string; line: string }[] = [
     { tab: 'reproduction', title: 'Reproduction', line: s.repro.cows
-        ? `${Math.round(s.repro.avgDaysOpen)} days open on average (target ${report.rules.targetDaysOpen}) · ${litres(s.repro.milkLost)} of milk a year lost to late calving`
+        ? `${monthsDays(s.repro.avgDaysOpen)} open on average (target ${monthsDays(report.rules.targetDaysOpen)}) · ${litres(s.repro.milkLost)} of milk a year lost to late calving`
         : 'No cows to score yet' },
     { tab: 'milk', title: 'Milk target', line: `${litres(s.milk.lostPerDay, 1)} a day below target · ${rupees(s.milk.lostPerDay * 30 * report.milkRate)} a month` },
     { tab: 'lactation', title: 'Lactation', line: `On course for ${litres(s.lactation.projected)} of ${litres(s.lactation.estimate)} this lactation` },
@@ -69,13 +69,9 @@ function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTota
               <li key={`${c.id}-${i}`}><span className="font-bold text-text">{c.name}:</span> <span className="text-text2">{f}</span></li>
             )))}
           </ul>
-          <p className="text-[12px] text-text3 mt-2">These skew the figures above. Fix them on the animal&apos;s page.</p>
         </Card>
       )}
 
-      <p className="text-[12px] text-text3">
-        Milk priced at ₹{report.milkRate.toFixed(2)} a litre ({report.milkRateSource === 'AMCS' ? 'AMCS society rate, last 90 days' : 'default; no AMCS collections yet'}).
-      </p>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 package com.dairy.service;
 
+import com.dairy.model.Asset;
 import com.dairy.model.Expense;
 import com.dairy.model.Herd;
 import com.dairy.model.HerdEvent;
+import com.dairy.repo.AssetRepository;
 import com.dairy.repo.ExpenseRepository;
 import com.dairy.repo.HerdEventRepository;
 import com.dairy.repo.HerdRepository;
@@ -56,6 +58,43 @@ public class CostTrackerService {
 
     @Autowired
     private HerdRepository herdRepository;
+
+    @Autowired
+    private AssetRepository assetRepository;
+
+    /** Asset categories that are animals bought for the herd. */
+    static final Set<String> CATTLE_ASSET_CATEGORIES = Set.of("cow", "calf", "heifer", "buffalo", "bull");
+
+    /**
+     * Cattle bought in the range, from the asset register (registering a bought cow records her
+     * purchase cost there, not in the ledger), by purchase date. Disposed animals count too: the
+     * money was spent. This is investment, so it is kept apart from the expense entries.
+     */
+    public List<Map<String, Object>> cattlePurchases(LocalDate from, LocalDate to) {
+        // A cow's asset carries her tag as its serial number; that ties the purchase to her herd record.
+        Map<String, Herd> herdByTag = new HashMap<>();
+        for (Herd h : herdRepository.findAll()) {
+            if (h.getTagNumber() != null) herdByTag.put(h.getTagNumber().trim(), h);
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Asset a : assetRepository.findAll()) {
+            if (a.getCategory() == null || !CATTLE_ASSET_CATEGORIES.contains(a.getCategory().trim().toLowerCase())) continue;
+            if (a.getPurchaseDate() == null || a.getPurchaseDate().isBefore(from) || a.getPurchaseDate().isAfter(to)) continue;
+            if (a.getValue() == null || a.getValue() <= 0) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", a.getId());
+            m.put("name", a.getName() == null ? "" : a.getName().trim());
+            m.put("date", a.getPurchaseDate());
+            m.put("amount", a.getValue());
+            m.put("status", a.getStatus());
+            Herd herd = a.getSerialNumber() == null ? null : herdByTag.get(a.getSerialNumber().trim());
+            m.put("herdId", herd != null ? herd.getId() : null);
+            m.put("animalName", herd != null && herd.getAnimalName() != null ? herd.getAnimalName().trim() : null);
+            out.add(m);
+        }
+        out.sort(Comparator.comparing((Map<String, Object> m) -> (LocalDate) m.get("date")).reversed());
+        return out;
+    }
 
     public Map<String, Object> summary(LocalDate from, LocalDate to, String segment) {
         return summary(from, to, segment, false);
@@ -134,6 +173,7 @@ public class CostTrackerService {
             e.put("description", x.getDescription());
             e.put("segment", poultry ? "POULTRY" : "CATTLE");
             e.put("source", "EXPENSE");
+            e.put("herdId", x.getHerdId());
             out.add(e);
         }
 

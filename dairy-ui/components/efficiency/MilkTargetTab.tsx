@@ -2,14 +2,12 @@
 
 import React from 'react';
 import { EffReport, litres, rupees, summarise, toneOf } from '@/lib/efficiency';
-import { Card, Kpi, KpiRow, Note, PctBar, Sub, TableWrap, TD, TH } from './ui';
+import { Card, Kpi, KpiRow, PctBar, Sub, TableWrap, TD, TH } from './ui';
 
 export default function MilkTargetTab({ report }: { report: EffReport }) {
   const s = summarise(report).milk;
   const { milkRate, milkPerDay } = report;
   const cows = report.cows.filter(c => c.milkTarget).sort((a, b) => b.milkTarget!.efficiency - a.milkTarget!.efficiency);
-  const dry = report.cows.filter(c => c.animalStatus === 'DRY').map(c => c.name);
-  const noTarget = report.cows.filter(c => !c.milkTarget && c.animalStatus !== 'DRY').map(c => c.name);
 
   return (
     <div className="space-y-3">
@@ -52,11 +50,6 @@ export default function MilkTargetTab({ report }: { report: EffReport }) {
             )}
           </tbody>
         </TableWrap>
-        <Note>
-          Avg = last 30 days. Target = the cow&apos;s milk potential. Milk lost = target − avg, at ₹{milkRate.toFixed(2)} a litre.
-          {dry.length > 0 && ` Dry, left out: ${dry.join(', ')}.`}
-          {noTarget.length > 0 && ` No target yet (needs breed and birth date): ${noTarget.join(', ')}.`}
-        </Note>
       </Card>
     </div>
   );

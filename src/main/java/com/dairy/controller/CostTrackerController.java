@@ -20,8 +20,14 @@ public class CostTrackerController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "ALL") String segment,
-            @RequestParam(defaultValue = "false") boolean includeUnaccounted) {
+            @RequestParam(defaultValue = "false") boolean includeUnaccounted,
+            @RequestParam(defaultValue = "false") boolean includeCattlePurchases) {
         if (to.isBefore(from)) { LocalDate t = from; from = to; to = t; }
-        return costTrackerService.summary(from, to, segment, includeUnaccounted);
+        Map<String, Object> out = costTrackerService.summary(from, to, segment, includeUnaccounted);
+        // Investment, not expense: listed apart so the expense totals are unchanged. Poultry has none.
+        if (includeCattlePurchases) {
+            out.put("cattlePurchases", "POULTRY".equalsIgnoreCase(segment) ? java.util.List.of() : costTrackerService.cattlePurchases(from, to));
+        }
+        return out;
     }
 }

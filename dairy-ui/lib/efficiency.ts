@@ -53,6 +53,8 @@ export interface EffCow {
   imageUrl: string | null;
   lastCalving: string | null;
   dim: number | null;
+  /** Parity: calvings before her records (entered on the animal form) plus those recorded. */
+  lactationNumber: number;
   reproduction: Reproduction;
   milkTarget: MilkTarget | null;
   lactation: Lactation | null;
@@ -76,6 +78,15 @@ export const litres = (n: number, digits = 0) =>
   `${n.toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits })} L`;
 export const shortDate = (iso: string | null | undefined, withYear = false) =>
   iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) }) : '—';
+
+/** 168 → "5m 16d"; months of 30.44 days, the same average used for months to the next calf. */
+export const monthsDays = (days: number) => {
+  const total = Math.round(days);
+  const m = Math.floor(total / 30.44);
+  const d = Math.round(total - m * 30.44);
+  if (m === 0) return `${d}d`;
+  return d === 0 ? `${m}m` : `${m}m ${d}d`;
+};
 
 export type Tone = 'good' | 'fair' | 'poor';
 /**

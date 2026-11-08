@@ -55,7 +55,3 @@ export const TD = 'px-3 py-2.5 border-b border-border-custom align-middle';
 export function Sub({ children }: { children: React.ReactNode }) {
   return <div className="text-[11px] text-text3 mt-0.5">{children}</div>;
 }
-
-export function Note({ children }: { children: React.ReactNode }) {
-  return <p className="text-[12px] text-text3 px-3 py-2.5">{children}</p>;
-}

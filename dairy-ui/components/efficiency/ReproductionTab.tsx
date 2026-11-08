@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { EffReport, EffCow, litres, rupees, shortDate, summarise, toneOf } from '@/lib/efficiency';
-import { Card, fromToday, Kpi, KpiRow, Note, PctBar, Sub, TableWrap, TD, TH } from './ui';
+import { EffReport, EffCow, litres, monthsDays, rupees, shortDate, summarise, toneOf } from '@/lib/efficiency';
+import { Card, fromToday, Kpi, KpiRow, PctBar, Sub, TableWrap, TD, TH } from './ui';
 
 const daysUntil = (iso: string, today: string) =>
   Math.round((new Date(iso).getTime() - new Date(today).getTime()) / 86400000);
@@ -50,14 +50,18 @@ function NextCalf({ c }: { c: EffCow }) {
   );
 }
 
+const months = (days: number) => (days / 30.44).toFixed(1).replace(/\.0$/, '');
+/** Under a month reads better in days ("in 8 days"); longer in months ("in 3.7 months"). */
+const span = (days: number) => (Math.abs(days) < 30 ? `${Math.abs(days)} days` : `${months(Math.abs(days))} months`);
+
 function DryOff({ c, dryDays }: { c: EffCow; dryDays: number }) {
   const r = c.reproduction;
   if (r.drySince) {
     const long = (r.dryPeriodDays ?? 0) > dryDays + 10;
     return (
       <>
-        <div>Dry since {shortDate(r.drySince)}</div>
-        <Sub><span className={long ? 'text-[#8a5a00] font-bold' : ''}>{r.dryPeriodDays}-day dry period{long ? ` (aim ${dryDays})` : ''}</span></Sub>
+        <div className={long ? 'text-[#8a5a00] font-bold' : 'font-bold text-text'}>{months(r.dryPeriodDays ?? 0)} months dry</div>
+        <Sub>since {shortDate(r.drySince)}{long ? ` · aim ${months(dryDays)} months` : ''}</Sub>
       </>
     );
   }
@@ -65,8 +69,12 @@ function DryOff({ c, dryDays }: { c: EffCow; dryDays: number }) {
   const d = r.dryOffInDays!;
   return (
     <>
-      <div className={d < 0 ? 'text-danger font-bold' : d <= 14 ? 'text-[#8a5a00] font-bold' : ''}>{shortDate(r.dryOffDate, true)}</div>
-      <Sub>{d < 0 ? `overdue by ${-d} days` : fromToday(d)}</Sub>
+      <div className="font-bold text-text">{months(dryDays)} months dry</div>
+      <Sub>
+        <span className={d < 0 ? 'text-danger font-bold' : d <= 14 ? 'text-[#8a5a00] font-bold' : ''}>
+          from {shortDate(r.dryOffDate, true)} · {d < 0 ? `overdue by ${span(d)}` : d === 0 ? 'today' : `in ${span(d)}`}
+        </span>
+      </Sub>
     </>
   );
 }
@@ -76,7 +84,6 @@ export default function ReproductionTab({ report }: { report: EffReport }) {
   const { rules, milkRate, asOf } = report;
   const dryDays = 60;
   const cows = report.cows.filter(c => c.reproduction.state !== 'NO_CALVING').sort((a, b) => rank(b) - rank(a));
-  const noCalving = report.cows.filter(c => c.reproduction.state === 'NO_CALVING');
 
   return (
     <div className="space-y-3">
@@ -84,18 +91,13 @@ export default function ReproductionTab({ report }: { report: EffReport }) {
         <Kpi label="Calving efficiency" value={s.efficiency != null ? `${Math.round(s.efficiency)}%` : '—'}
           sub={s.cows ? `${(s.avgInterval / 30.44).toFixed(1)} months between calves` : 'no cows to score yet'}
           tone={s.efficiency != null ? toneOf(s.efficiency) : undefined} />
-        <Kpi label="Avg days open" value={s.cows ? `${Math.round(s.avgDaysOpen)}` : '—'} sub={`target ${rules.targetDaysOpen} or less`} />
+        <Kpi label="Avg days open" value={s.cows ? monthsDays(s.avgDaysOpen) : '—'}
+          sub={`${s.cows ? `${Math.round(s.avgDaysOpen)} days · ` : ''}target ${monthsDays(rules.targetDaysOpen)} (${rules.targetDaysOpen} days) or less`} />
         <Kpi label="Milk lost to late calving" value={litres(s.milkLostPerCow)} sub={`per cow a year · ${rupees(s.milkLostPerCow * milkRate)}`} />
         <Kpi label="Whole herd" value={litres(s.milkLost)} sub={`${rupees(s.milkLost * milkRate)} a year · ${s.calvesMissed.toFixed(1)} calves missed`} />
       </KpiRow>
 
       <Card>
-        <div className="px-3 pt-3 flex flex-wrap items-center gap-1.5 text-[12px] text-text2">
-          <span className="font-bold">Calving efficiency = {rules.calvingInterval} ÷ calving interval.</span>
-          {[365, 400, 450, 500, 600].map(d => (
-            <span key={d} className="text-text3">{(d / 30.44).toFixed(0)} months → {Math.round((100 * rules.calvingInterval) / d)}%</span>
-          ))}
-        </div>
         <TableWrap wide>
           <thead>
             <tr>
@@ -114,22 +116,30 @@ export default function ReproductionTab({ report }: { report: EffReport }) {
                   <td className={TD}><NextCalf c={c} /></td>
                   <td className={TD}>
                     {r.state === 'WAITING'
-                      ? <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-[#EBF3FD] text-[#1d5fa8]">Can still reach 100%</span>
+                      ? <span className="text-text3">—</span>
                       : <PctBar pct={r.efficiency!} />}
                   </td>
                   <td className={TD}><DryOff c={c} dryDays={dryDays} /></td>
-                  <td className={`${TD} text-right`}>{litres(r.milkLostPerYear ?? 0)}<Sub>{rupees((r.milkLostPerYear ?? 0) * milkRate)}</Sub></td>
+                  <td className={`${TD} text-right`}>
+                    {litres(r.milkLostPerYear ?? 0)}
+                    {(() => {
+                      // The same daily yield the backend priced the loss with: her recorded average this lactation.
+                      const l = c.lactation;
+                      const perDay = l && l.recordedDays > 0 ? l.recordedLitres / l.recordedDays : c.milkTarget?.avgPerDay ?? 0;
+                      const lost = r.milkLostPerYear ?? 0;
+                      return (
+                        <Sub>
+                          {lost > 0 && perDay > 0 && <>≈ {Math.round(lost / perDay)} days of her milk · </>}
+                          {rupees(lost * milkRate)}
+                        </Sub>
+                      );
+                    })()}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </TableWrap>
-        <Note>
-          Days open = calving to the insemination that took. Months to the next calf = (days open + {rules.gestationDays} days of pregnancy) ÷ 30.4,
-          so an AI 6 months after calving means about 15–16 months to the next calf. A cow found not pregnant is due her next AI 21 days later (one heat cycle).
-          Dry off = {dryDays} days before the expected calving. Unconfirmed inseminations count as if they took.
-          {noCalving.length > 0 && ` No calving recorded for ${noCalving.map(c => c.name).join(', ')}, so they aren't scored.`}
-        </Note>
       </Card>
     </div>
   );

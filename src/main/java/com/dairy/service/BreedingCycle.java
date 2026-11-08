@@ -13,13 +13,17 @@ import java.util.Set;
  * born belongs to the pregnancy that just ended. A confirmed pregnancy dates from the insemination
  * that led to it (the latest one on or before the PD), not from the PD itself - the check is
  * weeks after conception. An unconfirmed insemination is taken as the conception until a PD or a
- * later insemination says otherwise.
+ * later insemination says otherwise. A negative PD (or a return to heat) after the latest
+ * insemination and PD means she is open again; {@code notPregnantOn} is that date. An
+ * insemination on the same day as the negative PD starts a new attempt.
  */
-public record BreedingCycle(LocalDate lastCalving, LocalDate conception, LocalDate pdDate, int inseminations) {
+public record BreedingCycle(LocalDate lastCalving, LocalDate conception, LocalDate pdDate, int inseminations,
+                            LocalDate notPregnantOn) {
 
     static final Set<String> CALVING_TYPES = Set.of("CALVING", "CALF_DELIVERED");
     static final Set<String> AI_TYPES = Set.of("SEMEN_GIVEN", "AI_DONE");
     static final String PD_TYPE = "PREGNANCY_CONFIRMED";
+    static final String PD_NEGATIVE_TYPE = "PREGNANCY_NEGATIVE";
 
     /** Events in any order; only those dated on or before {@code today} are read. */
     public static BreedingCycle of(List<HerdEvent> events, LocalDate today) {
@@ -34,7 +38,7 @@ public record BreedingCycle(LocalDate lastCalving, LocalDate conception, LocalDa
         // A lactation recorded without a calving (a cow bought in milk) still starts a cycle.
         if (calving == null) calving = lactationStart;
 
-        LocalDate lastAi = null, lastPd = null;
+        LocalDate lastAi = null, lastPd = null, lastNegative = null;
         int count = 0;
         for (HerdEvent e : events) {
             LocalDate d = e.getEventDate();
@@ -44,10 +48,17 @@ public record BreedingCycle(LocalDate lastCalving, LocalDate conception, LocalDa
             if (AI_TYPES.contains(type)) {
                 count++;
                 if (lastAi == null || d.isAfter(lastAi)) lastAi = d;
-            } else if (PD_TYPE.equals(type) && (lastPd == null || d.isAfter(lastPd))) {
-                lastPd = d;
+            } else if (PD_TYPE.equals(type)) {
+                if (lastPd == null || d.isAfter(lastPd)) lastPd = d;
+            } else if (PD_NEGATIVE_TYPE.equals(type)) {
+                if (lastNegative == null || d.isAfter(lastNegative)) lastNegative = d;
             }
         }
+
+        boolean open = lastNegative != null
+                && (lastAi == null || lastAi.isBefore(lastNegative))
+                && (lastPd == null || !lastPd.isAfter(lastNegative));
+        if (open) return new BreedingCycle(calving, null, null, count, lastNegative);
 
         LocalDate conception;
         if (lastPd != null && (lastAi == null || !lastAi.isAfter(lastPd))) {
@@ -58,7 +69,7 @@ public record BreedingCycle(LocalDate lastCalving, LocalDate conception, LocalDa
             conception = lastAi;
             lastPd = null;
         }
-        return new BreedingCycle(calving, conception, lastPd, count);
+        return new BreedingCycle(calving, conception, lastPd, count, null);
     }
 
     public boolean pregnant() { return conception != null; }

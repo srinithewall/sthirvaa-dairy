@@ -64,6 +64,27 @@ class BreedingCycleTest {
     }
 
     @Test
+    void negativePdAfterAConfirmedPdMeansOpenAgain() {
+        // Kumudha: calved 8 Apr, AI 15 Jul, PD positive 4 Oct, then found not pregnant on 8 Nov.
+        BreedingCycle c = BreedingCycle.of(List.of(
+                ev("2026-04-08", "CALF_DELIVERED"), ev("2026-07-15", "SEMEN_GIVEN"),
+                ev("2026-10-04", "PREGNANCY_CONFIRMED"), ev("2026-11-08", "PREGNANCY_NEGATIVE")), TODAY);
+
+        assertFalse(c.pregnant());
+        assertEquals(LocalDate.of(2026, 11, 8), c.notPregnantOn());
+    }
+
+    @Test
+    void inseminationOnTheDayOfTheNegativePdStartsANewAttempt() {
+        BreedingCycle c = BreedingCycle.of(List.of(
+                ev("2026-04-08", "CALF_DELIVERED"), ev("2026-07-15", "SEMEN_GIVEN"),
+                ev("2026-09-01", "PREGNANCY_NEGATIVE"), ev("2026-09-01", "SEMEN_GIVEN")), TODAY);
+
+        assertEquals(LocalDate.of(2026, 9, 1), c.conception());
+        assertNull(c.notPregnantOn());
+    }
+
+    @Test
     void scheduledFutureEventsAreIgnored() {
         BreedingCycle c = BreedingCycle.of(List.of(
                 ev("2026-05-01", "CALF_DELIVERED"), ev("2026-12-01", "SEMEN_GIVEN")), TODAY);

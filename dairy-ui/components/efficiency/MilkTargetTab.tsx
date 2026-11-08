@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { EffReport, litres, rupees, shortDate, summarise, toneOf } from '@/lib/efficiency';
+import { EffReport, litres, rupees, summarise, toneOf } from '@/lib/efficiency';
 import { Card, Kpi, KpiRow, Note, PctBar, Sub, TableWrap, TD, TH } from './ui';
 
 export default function MilkTargetTab({ report }: { report: EffReport }) {
@@ -14,8 +14,8 @@ export default function MilkTargetTab({ report }: { report: EffReport }) {
   return (
     <div className="space-y-3">
       <KpiRow>
-        <Kpi label="Total milk per day" value={milkPerDay.last7Avg != null ? litres(milkPerDay.last7Avg, 1) : '—'}
-          sub={milkPerDay.latestDate ? `last ${milkPerDay.days} days · ${shortDate(milkPerDay.latestDate)}: ${litres(milkPerDay.latestTotal ?? 0, 1)}` : 'no milk recorded'} />
+        <Kpi label="Milk per day · full cycle" value={litres(s.cyclePerDay, 1)}
+          sub={`${s.cycleCows} cows, dry days included${milkPerDay.last7Avg != null ? ` · last ${milkPerDay.days} days ${litres(milkPerDay.last7Avg, 1)}` : ''}`} />
         <Kpi label="Herd efficiency" value={s.efficiency != null ? `${Math.round(s.efficiency)}%` : '—'}
           sub={`${litres(s.avg, 1)} of ${litres(s.target)} a day`} tone={s.efficiency != null ? toneOf(s.efficiency) : undefined} />
         <Kpi label="Avg lost per cow" value={`${litres(s.lostPerCowPerDay, 1)} / day`} sub={`${rupees(s.lostPerCowPerDay * 30 * milkRate)} a month`} />

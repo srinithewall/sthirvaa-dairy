@@ -13,6 +13,17 @@ export interface Reproduction {
   efficiency?: number;
   milkLostPerYear?: number;
   calvesMissedPerYear?: number;
+  /** Set when a negative PD made her open again; the next AI is one heat cycle later. */
+  notPregnantOn?: string;
+  nextAiDue?: string;
+  /** Still in the rest after calving: inseminate by this date to keep one calf a year. */
+  breedBy?: string;
+  monthsToNextCalf?: number;
+  expectedCalving?: string;
+  dryOffDate?: string;
+  dryOffInDays?: number;
+  drySince?: string;
+  dryPeriodDays?: number;
 }
 
 export interface MilkTarget { avgPerDay: number; targetPerDay: number; efficiency: number; lostPerDay: number }
@@ -45,6 +56,8 @@ export interface EffCow {
   reproduction: Reproduction;
   milkTarget: MilkTarget | null;
   lactation: Lactation | null;
+  /** Milk a day over whole calving cycles, dry days included (current cycle projected). */
+  cycleAverage: { perDay: number; completedCycles: number } | null;
   history: LactationHistory[];
   flags: string[];
 }
@@ -88,6 +101,10 @@ export function summarise(r: EffReport) {
   const milkTarget = sum(milking.map(c => c.milkTarget!.targetPerDay));
   const milkLost = sum(milking.map(c => c.milkTarget!.lostPerDay));
 
+  // Every cow in the milking herd, dry ones too: that is what "over a full cycle" means.
+  const cycleCows = r.cows.filter(c => c.cycleAverage);
+  const cyclePerDay = sum(cycleCows.map(c => c.cycleAverage!.perDay));
+
   const lact = r.cows.filter(c => c.lactation?.estimate);
   const estimate = sum(lact.map(c => c.lactation!.estimate!));
   const projected = sum(lact.map(c => c.lactation!.projected));
@@ -109,6 +126,8 @@ export function summarise(r: EffReport) {
       efficiency: milkTarget ? (100 * milkAvg) / milkTarget : null,
       lostPerDay: milkLost,
       lostPerCowPerDay: milking.length ? milkLost / milking.length : 0,
+      cyclePerDay,
+      cycleCows: cycleCows.length,
     },
     lactation: {
       cows: lact.length,

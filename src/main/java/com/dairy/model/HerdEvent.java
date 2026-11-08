@@ -18,7 +18,7 @@ public class HerdEvent {
     private LocalDate eventDate;
 
     @Column(name = "event_type", nullable = false)
-    private String eventType; // SEMEN_GIVEN, PREGNANCY_CONFIRMED, CALF_DELIVERED, DRY_PERIOD_STARTED, LACTATION_STARTED, VACCINATION_DUE, DEWORMING_DUE, PREGNANCY_CHECK_DUE
+    private String eventType; // SEMEN_GIVEN, PREGNANCY_CONFIRMED, PREGNANCY_NEGATIVE, AI_DUE, CALF_DELIVERED, DRY_PERIOD_STARTED, LACTATION_STARTED, VACCINATION_DUE, DEWORMING_DUE, PREGNANCY_CHECK_DUE
 
     @Column(nullable = false)
     private String title;

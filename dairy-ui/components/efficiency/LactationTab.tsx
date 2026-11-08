@@ -42,11 +42,12 @@ export default function LactationTab({ report }: { report: EffReport }) {
       </KpiRow>
 
       <Card>
-        <TableWrap>
+        <TableWrap wide>
           <thead>
             <tr>
               <th className={TH}>Cow · lactation</th><th className={TH}>Days in milk</th><th className={TH}>Milk recorded</th>
-              <th className={`${TH} w-[26%]`}>Achieved so far</th><th className={`${TH} text-right`}>Projected {rules.lactationDays} d</th>
+              <th className={`${TH} w-[22%]`}>Achieved so far</th><th className={`${TH} text-right`}>Projected {rules.lactationDays} d</th>
+              <th className={`${TH} text-right`}>Per day · full cycle</th>
             </tr>
           </thead>
           <tbody>
@@ -68,9 +69,15 @@ export default function LactationTab({ report }: { report: EffReport }) {
                     <td className={TD}>{l.achieved != null ? <PctBar pct={l.achieved} /> : <span className="text-text3">no target</span>}</td>
                     <td className={`${TD} text-right`}>{l.ended ? '≈ ' : ''}{litres(l.projected)}
                       {l.estimate != null && <Sub>of {litres(l.estimate)} · {Math.round(l.projectedPct!)}%</Sub>}</td>
+                    <td className={`${TD} text-right`}>
+                      {c.cycleAverage ? litres(c.cycleAverage.perDay, 1) : '—'}
+                      {c.cycleAverage && <Sub>{c.cycleAverage.completedCycles > 0
+                        ? `${c.cycleAverage.completedCycles} past cycle${c.cycleAverage.completedCycles > 1 ? 's' : ''} + this one`
+                        : 'this cycle, projected'}</Sub>}
+                    </td>
                   </tr>
                   {isOpen && (
-                    <tr><td colSpan={5} className="px-3 py-2 border-b border-border-custom"><History cow={c} lactationDays={rules.lactationDays} /></td></tr>
+                    <tr><td colSpan={6} className="px-3 py-2 border-b border-border-custom"><History cow={c} lactationDays={rules.lactationDays} /></td></tr>
                   )}
                 </React.Fragment>
               );
@@ -80,6 +87,8 @@ export default function LactationTab({ report }: { report: EffReport }) {
         <Note>
           Tap a cow to see every lactation. Estimate = target litres a day × {rules.lactationDays}. Achieved = milk recorded since calving ÷ (target × days recorded).
           Projected = milk recorded, plus unrecorded days at her recorded average, plus the days left at her 30-day average.
+          Per day · full cycle = all the milk of her recorded calving cycles (every lactation recorded from calving, plus this one projected)
+          ÷ all the days of those cycles, dry days included — the herd figure is these added up.
           {partly.length > 0 && ` Part-recorded (milk recording started after calving): ${partly.join(', ')}.`}
         </Note>
       </Card>

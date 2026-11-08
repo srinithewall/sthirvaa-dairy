@@ -276,10 +276,12 @@ function getRecommendations(herd: Herd): string[] {
 }
 
 /* ─── Event Config ───────────────────────────── */
-const REMINDER_TYPES  = ['VACCINATION_DUE', 'DEWORMING_DUE', 'PREGNANCY_CHECK_DUE'];
+const REMINDER_TYPES  = ['VACCINATION_DUE', 'DEWORMING_DUE', 'PREGNANCY_CHECK_DUE', 'AI_DUE'];
 const EV: Record<string, { icon: React.ElementType; color: string; bg: string; label: string; emoji: string }> = {
   SEMEN_GIVEN:          { icon: Syringe,     color: 'text-violet-700',  bg: 'bg-violet-100',  label: 'AI Performed',        emoji: '💉' },
   PREGNANCY_CONFIRMED:  { icon: Heart,       color: 'text-rose-700',    bg: 'bg-rose-100',    label: 'PD Positive',         emoji: '🤰' },
+  PREGNANCY_NEGATIVE:   { icon: XCircle,     color: 'text-slate-700',   bg: 'bg-slate-200',   label: 'PD Negative',         emoji: '✖️' },
+  AI_DUE:               { icon: Syringe,     color: 'text-violet-700',  bg: 'bg-violet-100',  label: 'Next AI Due',         emoji: '📅' },
   CALF_DELIVERED:       { icon: Baby,        color: 'text-emerald-700', bg: 'bg-emerald-100', label: 'Calving',             emoji: '🐄' },
   DRY_PERIOD_STARTED:   { icon: Leaf,        color: 'text-amber-700',   bg: 'bg-amber-100',   label: 'Dry Period',          emoji: '🍂' },
   LACTATION_STARTED:    { icon: Droplets,    color: 'text-sky-700',     bg: 'bg-sky-100',     label: 'Lactation',           emoji: '🥛' },
@@ -841,7 +843,8 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
   herd: Herd; prefill?: string; onClose: () => void; onSaved: (e: HerdEvent) => void;
 }) {
   const titleMap: Record<string,string> = {
-    SEMEN_GIVEN:'AI Performed', PREGNANCY_CONFIRMED:'PD Positive', CALF_DELIVERED:'Calf Delivered',
+    SEMEN_GIVEN:'AI Performed', PREGNANCY_CONFIRMED:'PD Positive', PREGNANCY_NEGATIVE:'PD Negative', AI_DUE:'Next AI Due',
+    CALF_DELIVERED:'Calf Delivered',
     DRY_PERIOD_STARTED:'Dry Period Started', LACTATION_STARTED:'Lactation Started',
     VACCINATION_DUE:'Vaccination Scheduled', VACCINATION_DONE:'Vaccination Done',
     DEWORMING_DUE:'Deworming Scheduled', DEWORMING_DONE:'Deworming Done',
@@ -851,6 +854,8 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
   const titleOptionsMap: Record<string, string[]> = {
     SEMEN_GIVEN: ['AI Performed', 'Natural Service', 'Inseminated'],
     PREGNANCY_CONFIRMED: ['Pregnancy Confirmed (PD)', 'PD Positive (60 Days)', 'PD Positive (90 Days)'],
+    PREGNANCY_NEGATIVE: ['PD Negative (not pregnant)', 'Returned to heat', 'Early abortion'],
+    AI_DUE: ['Next AI Due'],
     CALF_DELIVERED: ['Calf Delivered', 'Stillborn', 'Abortion'],
     DRY_PERIOD_STARTED: ['Dry Period Started', 'Force Dry', 'Natural Dry'],
     LACTATION_STARTED: ['Lactation Started', 'First Lactation', 'Second Lactation'],
@@ -881,12 +886,12 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
 
   const groups = [
     { label:'🧬 Breeding', opts:[
-      {v:'SEMEN_GIVEN',l:'AI Performed'},{v:'PREGNANCY_CONFIRMED',l:'PD Positive'},
+      {v:'SEMEN_GIVEN',l:'AI Performed'},{v:'PREGNANCY_CONFIRMED',l:'PD Positive'},{v:'PREGNANCY_NEGATIVE',l:'PD Negative'},
       {v:'CALF_DELIVERED',l:'Calf Delivered'},{v:'DRY_PERIOD_STARTED',l:'Dry Period Started'},{v:'LACTATION_STARTED',l:'Lactation Started'}]},
     { label:'🩺 Health', opts:[
       {v:'VACCINATION_DONE',l:'Vaccination Done'},{v:'VACCINATION_DUE',l:'Schedule Vaccination'},
       {v:'DEWORMING_DONE',l:'Deworming Done'},{v:'DEWORMING_DUE',l:'Schedule Deworming'},
-      {v:'PREGNANCY_CHECK_DUE',l:'Schedule PD Check'},{v:'TREATMENT',l:'Treatment / Medication'}]},
+      {v:'PREGNANCY_CHECK_DUE',l:'Schedule PD Check'},{v:'AI_DUE',l:'Schedule Next AI'},{v:'TREATMENT',l:'Treatment / Medication'}]},
   ];
 
   // Adjust defaults when event type or event date changes
@@ -910,6 +915,13 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
       setReminderTitle('Expected Calving Due');
       baseDate.setDate(baseDate.getDate() + 220); // typical remaining gestation before dry/calving
       setReminderDate(baseDate.toISOString().split('T')[0]);
+    } else if (type === 'PREGNANCY_NEGATIVE') {
+      // Not pregnant: try again at the next heat, one cycle (21 days) on. On by default.
+      setReminderType('AI_DUE');
+      setReminderTitle('Next AI Due');
+      baseDate.setDate(baseDate.getDate() + 21);
+      setReminderDate(baseDate.toISOString().split('T')[0]);
+      setSetReminder(true);
     } else if (type === 'DEWORMING_DONE') {
       setReminderType('DEWORMING_DUE');
       setReminderTitle('Deworming Scheduled');
@@ -1051,6 +1063,7 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
                     }} required
                       className="w-full px-2 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:border-brand">
                       <option value="PREGNANCY_CHECK_DUE">Schedule PD Check</option>
+                      <option value="AI_DUE">Schedule Next AI</option>
                       <option value="DEWORMING_DUE">Schedule Deworming</option>
                       <option value="VACCINATION_DUE">Schedule Vaccination</option>
                       <option value="TREATMENT">Follow-up Treatment</option>
@@ -1181,8 +1194,10 @@ export default function AnimalWorkspace({
     const pd   = events.filter(e=>e.eventType==='PREGNANCY_CONFIRMED').sort((a,b)=>b.eventDate.localeCompare(a.eventDate));
     const calv = events.filter(e=>e.eventType==='CALF_DELIVERED').sort((a,b)=>b.eventDate.localeCompare(a.eventDate));
     const lastAi=ai[0]?.eventDate??null, lastPd=pd[0]?.eventDate??null, lastCalving=calv[0]?.eventDate??null;
+    // A negative PD on or after the last positive one means she is open again.
+    const lastNeg=events.filter(e=>e.eventType==='PREGNANCY_NEGATIVE').map(e=>e.eventDate).sort().pop()??null;
     let isPregnant=false,daysPregnant=0,gestationPct=0,expectedDelivery:string|null=null;
-    if(lastPd&&(!lastCalving||lastPd>lastCalving)){
+    if(lastPd&&(!lastCalving||lastPd>lastCalving)&&!(lastNeg&&lastNeg>=lastPd)){
       isPregnant=true;
       if(lastAi){
         const g=herd.animalType==='BUFFALO'?310:283;
@@ -1278,8 +1293,11 @@ export default function AnimalWorkspace({
     if (reproStats.isPregnant) {
       return 'PREGNANT';
     }
+    // A PD positive that a later PD negative overturned no longer decides the status.
+    const lastNeg = events.filter(e => e.eventType === 'PREGNANCY_NEGATIVE').map(e => e.eventDate).sort().pop() ?? '';
     const statusEvents = [...events]
       .filter(e => ['PREGNANCY_CONFIRMED', 'CALF_DELIVERED', 'DRY_PERIOD_STARTED', 'LACTATION_STARTED'].includes(e.eventType))
+      .filter(e => !(e.eventType === 'PREGNANCY_CONFIRMED' && e.eventDate <= lastNeg))
       .sort((a, b) => b.eventDate.localeCompare(a.eventDate));
 
     if (statusEvents.length === 0) {

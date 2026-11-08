@@ -42,9 +42,12 @@ export function Card({ children, className = '' }: { children: React.ReactNode; 
 }
 
 /** Wide tables scroll sideways on phones instead of squeezing. */
-export function TableWrap({ children }: { children: React.ReactNode }) {
-  return <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-[13px]">{children}</table></div>;
+export function TableWrap({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
+  return <div className="overflow-x-auto"><table className={`w-full ${wide ? 'min-w-[760px]' : 'min-w-[620px]'} text-[13px]`}>{children}</table></div>;
 }
+
+/** "in 5 days", "today", "3 days ago". */
+export const fromToday = (days: number) => (days === 0 ? 'today' : days > 0 ? `in ${days} days` : `${-days} days ago`);
 
 export const TH = 'text-left text-[11px] font-bold text-text3 uppercase tracking-wider px-3 py-2.5 border-b border-border-custom';
 export const TD = 'px-3 py-2.5 border-b border-border-custom align-middle';

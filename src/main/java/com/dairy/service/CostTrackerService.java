@@ -36,7 +36,7 @@ public class CostTrackerService {
             {"FEED", "Feed & fodder", "feed,fodder,mineral,silage,hay,straw,concentrate,grass,calcium,bran,cake"},
             {"VET", "Vet & medical", "medic,doctor,vet,insemin,semen,vaccin,deworm,treatment,tablet,injection"},
             {"DEATHS", "Deaths & losses", "expire,death,dead,died,mortal,loss"},
-            {"LABOUR", "Labour & salary", "salary,labour,labor,wage,staff"},
+            {"LABOUR", "Salary", "salary,labour,labor,wage,staff"},
             {"ANIMALS", "Animal purchase", "poultry,commission,broker,cow purchase,calf purchase,animal"},
             {"INFRA", "Infrastructure & equipment", "suppl,machiner,repair,pesticide,contract,equipment,electric,plumb,construct,shed,tool"},
             {"TRANSPORT", "Transport & fuel", "transport,fuel,diesel,petrol,vehicle"},

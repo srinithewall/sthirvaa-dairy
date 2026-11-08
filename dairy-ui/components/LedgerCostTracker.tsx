@@ -25,16 +25,30 @@ const shiftYm = (ym: string, by: number) => {
 };
 const monthLabel = (ym: string) => new Date(`${ym}-01`).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 
+/** Pass as `month` for every month on record instead of one. */
+export const ALL_MONTHS = 'ALL';
+
 /**
- * The ledger's cost tracker: the last six months of expense against income (one line chart), and where the
- * month's money went (pie of the top 5 categories).
+ * The cost tracker: the last six months of expense against income (one line chart), and where the
+ * month's money went (pie of the top 5 categories). With ALL_MONTHS the line runs from the first month
+ * on record to this month and the pie covers every expense.
  * Income received = milk payments that reached the bank + other income; the estimate uses the AMCS rate.
  * Months before the first milk payment in the bank feed have no bank record, so received = the estimate there.
  */
 export default function LedgerCostTracker({ entries, milkReceived, month }: {
   entries: TrackerEntry[]; milkReceived: TrackerMilkReceived[]; month: string;
 }) {
-  const months = useMemo(() => Array.from({ length: 6 }, (_, i) => shiftYm(month, i - 5)), [month]);
+  const all = month === ALL_MONTHS;
+  const months = useMemo(() => {
+    if (!all) return Array.from({ length: 6 }, (_, i) => shiftYm(month, i - 5));
+    const d = new Date();
+    const thisMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const first = entries.map(e => e.date.substring(0, 7)).sort()[0] ?? thisMonth;
+    const out: string[] = [];
+    for (let m = first; m <= thisMonth; m = shiftYm(m, 1)) out.push(m);
+    return out;
+  }, [all, month, entries]);
+  const inScope = (e: TrackerEntry) => all || e.date.startsWith(month);
 
   // First month the bank feed has a milk payment for; earlier months fall back to the estimate.
   const bankFrom = useMemo(() => milkReceived.map(r => r.month).sort()[0] ?? null, [milkReceived]);
@@ -49,22 +63,23 @@ export default function LedgerCostTracker({ entries, milkReceived, month }: {
     return { month: m, expense, estimated: other + milkEst, received };
   }), [entries, milkReceived, months, bankFrom]);
 
-  const now = byMonth[5];
+  // Expense in the pie's scope (the month, or everything), for each category's share.
+  const scopeExpense = entries.filter(e => e.type === 'EXPENSE' && inScope(e)).reduce((t, e) => t + e.amount, 0);
 
   const top = useMemo(() => {
     const totals: Record<string, number> = {};
-    entries.filter(e => e.type === 'EXPENSE' && e.date.startsWith(month))
+    entries.filter(e => e.type === 'EXPENSE' && (all || e.date.startsWith(month)))
       .forEach(e => { totals[e.category.trim()] = (totals[e.category.trim()] || 0) + e.amount; });
     const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
     const five = sorted.slice(0, 5).map(([name, value], i) => ({ name, value, color: SERIES[i] }));
     const rest = sorted.slice(5).reduce((t, [, v]) => t + v, 0);
     return rest > 0 ? [...five, { name: `Other (${sorted.length - 5})`, value: rest, color: OTHER }] : five;
-  }, [entries, month]);
+  }, [entries, month, all]);
 
   return (
     <div className="space-y-3">
       <div className="bg-white border border-border-custom rounded-radius-custom-lg p-4">
-        <div className="text-[13px] font-black text-text mb-2">Expense and income, last 6 months</div>
+        <div className="text-[13px] font-black text-text mb-2">Expense and income, {all ? `${months.length} months` : 'last 6 months'}</div>
         <div className="h-[260px]">
           <Line
             data={{
@@ -94,9 +109,9 @@ export default function LedgerCostTracker({ entries, milkReceived, month }: {
       </div>
 
       <div className="bg-white border border-border-custom rounded-radius-custom-lg p-4">
-        <div className="text-[13px] font-black text-text">Top 5 expense categories · {new Date(`${month}-01`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</div>
+        <div className="text-[13px] font-black text-text">Top 5 expense categories · {all ? 'All time' : new Date(`${month}-01`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</div>
         {top.length === 0 ? (
-          <div className="py-10 text-center text-text3 text-[13px]">No expenses this month.</div>
+          <div className="py-10 text-center text-text3 text-[13px]">{all ? 'No expenses yet.' : 'No expenses this month.'}</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center mt-2">
             <div className="h-[220px]">
@@ -125,7 +140,7 @@ export default function LedgerCostTracker({ entries, milkReceived, month }: {
                       </span>
                     </td>
                     <td className="py-2 text-right font-black text-text">{rupees(t.value)}</td>
-                    <td className="py-2 pl-3 text-right text-text3 w-12">{now.expense > 0 ? `${Math.round((t.value / now.expense) * 100)}%` : '—'}</td>
+                    <td className="py-2 pl-3 text-right text-text3 w-12">{scopeExpense > 0 ? `${Math.round((t.value / scopeExpense) * 100)}%` : '—'}</td>
                   </tr>
                 ))}
               </tbody>

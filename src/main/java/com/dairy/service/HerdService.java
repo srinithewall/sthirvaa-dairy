@@ -272,15 +272,14 @@ public class HerdService {
                 .findFirst()
                 .ifPresent(e -> herd.setDim((int) java.time.temporal.ChronoUnit.DAYS.between(e.getEventDate(), LocalDate.now())));
 
-        // Pregnancy: Days since last AI (SEMEN_GIVEN) or PREGNANCY_CONFIRMED
-        events.stream()
-                .filter(e -> "PREGNANCY_CONFIRMED".equalsIgnoreCase(e.getEventType()) || "SEMEN_GIVEN".equalsIgnoreCase(e.getEventType()) || "AI_DONE".equalsIgnoreCase(e.getEventType()))
-                .findFirst()
-                .ifPresent(e -> {
-                    int days = (int) java.time.temporal.ChronoUnit.DAYS.between(e.getEventDate(), LocalDate.now());
-                    herd.setPregnancyDaysPregnant(days);
-                    herd.setPregnancyStatus(days + " days pregnant");
-                });
+        // Pregnancy: days since the insemination that led to it (see BreedingCycle), so a PD does
+        // not restart the count and an insemination from before the last calving no longer counts.
+        BreedingCycle cycle = BreedingCycle.of(events, LocalDate.now());
+        if (cycle.pregnant()) {
+            int days = (int) java.time.temporal.ChronoUnit.DAYS.between(cycle.conception(), LocalDate.now());
+            herd.setPregnancyDaysPregnant(days);
+            herd.setPregnancyStatus(days + " days pregnant");
+        }
     }
 
     /**

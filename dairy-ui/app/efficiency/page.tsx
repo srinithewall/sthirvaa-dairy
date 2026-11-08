@@ -12,12 +12,14 @@ import MilkTargetTab from '@/components/efficiency/MilkTargetTab';
 import LactationTab from '@/components/efficiency/LactationTab';
 import ExpensesTab from '@/components/efficiency/ExpensesTab';
 import CostTrackerTab from '@/components/efficiency/CostTrackerTab';
+import EmpReport from '@/components/EmpReport';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'reproduction', label: 'Reproduction' },
   { key: 'milk', label: 'Milk target' },
   { key: 'lactation', label: 'Lactation' },
+  { key: 'emp', label: 'Milk forecast (EMP)' },
   { key: 'expenses', label: 'Expenses' },
   { key: 'costs', label: 'Cost tracker' },
 ] as const;
@@ -116,8 +118,9 @@ function EfficiencyPage() {
           ))}
         </div>
 
-        {/* Expenses and the cost tracker load their own data from the ledger. */}
-        {tab === 'expenses' ? <ExpensesTab />
+        {/* The milk forecast, expenses and the cost tracker load their own data. */}
+        {tab === 'emp' ? <EmpReport />
+          : tab === 'expenses' ? <ExpensesTab />
           : tab === 'costs' ? <CostTrackerTab />
           : error ? <div className="py-16 text-center text-danger text-[13px]">{error}</div>
           : !report ? <div className="py-16 text-center text-text3 text-[13px]">Loading…</div>

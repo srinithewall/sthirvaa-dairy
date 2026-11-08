@@ -35,7 +35,7 @@ interface EmpResponse {
   priceFrom: string | null; priceTo: string | null; pricePeriod: "THIS_MONTH" | "LAST_MONTH" | "LAST_YEAR" | "NONE";
   daily: EmpDay[]; monthly: EmpMonth[]; animals: EmpAnimal[];
   assumptions: {
-    gestationCowDays: number; gestationBuffaloDays: number; dryPeriodDays: number; pdAssumedDays: number;
+    gestationCowDays: number; gestationBuffaloDays: number; dryPeriodDays: number; openLactationDays?: number; pdAssumedDays: number;
     firstLactationFactor: number; colostrumDays: number;
   };
   heatStress: {
@@ -427,7 +427,7 @@ export default function EmpReport() {
               ? <>The cut is {data.heatStress.measuredPct}%, measured from this farm&apos;s summer {data.heatStress.measuredYear} records ({data.heatStress.measuredCows} cows&apos; Apr–May yield against their Jan–Feb yield, allowing for the lactation curve).</>
               : <>The farm&apos;s records don&apos;t cover a full summer yet, so breed figures are used: HF / high HF cross 15%, HF cross 12%, Jersey 8%, Indian breeds and buffalo 4%. Once a summer is recorded, the farm&apos;s own measured loss replaces them automatically.</>}
             {" "}Over this report: −{num(data.heatStress.totalLossLitres)} L (−{rupees(data.heatStress.totalLossRevenue)}).</li>
-          <li><b>Dry period:</b> {a.dryPeriodDays} days before the expected calving. A cow that is not pregnant keeps milking along the curve (she can&apos;t calve within the window).</li>
+          <li><b>Dry period:</b> {a.dryPeriodDays} days before the expected calving. Pregnancy is read as on the Lactation tab: an AI counts until a PD-negative says otherwise. A cow that is not pregnant is dried off at {a.openLactationDays ?? 305} days in milk and stays dry until a new AI is recorded.</li>
           <li>After an expected calving she starts a new lactation at the same level. Open heifers and calves are left out.</li>
         </ul>
       </div>

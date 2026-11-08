@@ -1,122 +1,122 @@
 [
   {
     "version": "v0.1.1",
+    "date": "2026-11-09",
+    "commit": "7c781fc",
+    "changes": [
+      "feat(efficiency): expense drill-downs, cattle purchases, total spent; tidier tabs"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-09",
+    "commit": "89d6327",
+    "changes": [
+      "feat(herds): editable lactation number (parity) that counts calvings itself"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-08",
+    "commit": "3e2d126",
+    "changes": [
+      "feat(efficiency): include unaccounted expenses in the Expenses chart"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-08",
+    "commit": "8cdf8c3",
+    "changes": [
+      "feat(efficiency): PD negative, next AI, months to next calf, dry-off, full-cycle milk"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-08",
+    "commit": "1dcdc0f",
+    "changes": [
+      "feat(ledger): sort transactions by amount; stop rows clipping the amount"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-08",
+    "commit": "2975015",
+    "changes": [
+      "feat(efficiency): reproduction, milk target, lactation and expenses module"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-08",
+    "commit": "229a9ce",
+    "changes": [
+      "fix(herds): count days pregnant from the insemination, not the PD"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-05",
+    "commit": "e40690e",
+    "changes": [
+      "feat(dashboard): compact mobile layout, chores open their screen"
+    ]
+  },
+  {
+    "version": "v0.1.0",
+    "date": "2026-11-05",
+    "commit": "03105a1",
+    "changes": [
+      "feat(staff): everyone sees their own salary, without Bank access"
+    ]
+  },
+  {
+    "version": "v0.1.0",
     "date": "2026-11-04",
-    "commit": "1e2bd45",
+    "commit": "e679650",
     "changes": [
-      "feat: bank feed, salary rules, ledger milk received and cost tracker"
+      "feat(dashboard): chores as red buttons with a details pop-up"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-11-03",
-    "commit": "400bfc7",
+    "date": "2026-11-04",
+    "commit": "49256ec",
     "changes": [
-      "feat(herds): new animal onboarding with quarantine checklist and emergency contacts"
+      "fix(weight-round): leave poultry and fish out of the herd weight round"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-10-27",
-    "commit": "4a78e4a",
+    "date": "2026-11-04",
+    "commit": "e5ea428",
     "changes": [
-      "feat(herds): BCS half points 2.5 and 3.5"
+      "feat(salary): share of Est. Income minus expenses, per-month cards"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-10-27",
-    "commit": "9ece9ed",
+    "date": "2026-11-04",
+    "commit": "203287e",
     "changes": [
-      "chore(debug): collect load, firewall, docker and nginx diagnostics"
+      "feat(ledger): unaccounted expenses, and Paid By no longer changes the summary cards"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-10-27",
-    "commit": "107042f",
+    "date": "2026-11-04",
+    "commit": "551eea5",
     "changes": [
-      "feat(distribute): record milk fed to calves, per calf"
+      "feat(ledger): received in bank from the statement, month notes, cattle only"
     ]
   },
   {
     "version": "v0.1.0",
-    "date": "2026-10-27",
-    "commit": "aa9f5ee",
+    "date": "2026-11-04",
+    "commit": "1d147d5",
     "changes": [
-      "fix(deploy): load AMCS settings from the server's amcs.env"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-27",
-    "commit": "32ce64d",
-    "changes": [
-      "feat(herds): body condition score with history and low-BCS risks"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-27",
-    "commit": "30dce09",
-    "changes": [
-      "feat(herds): phone table view, breeding bull ID and order, deworming fix"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-27",
-    "commit": "9939dfa",
-    "changes": [
-      "feat(store): billing fixes, bill change log and Sthirvaa Diamonds rewards"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-27",
-    "commit": "0b4d7da",
-    "changes": [
-      "feat(assets): value dry cows from their last lactation; recalibrate milk factor"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-24",
-    "commit": "1f101c9",
-    "changes": [
-      "feat(production): list animals in Log Milk Yield by DIM, lowest first"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-24",
-    "commit": "4d75276",
-    "changes": [
-      "fix(distribute): round the rate per litre to paise"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-24",
-    "commit": "4198f4b",
-    "changes": [
-      "feat(production): show only the Sales figure; calf/own use/waste stay in the hover tooltip"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-24",
-    "commit": "a8e9748",
-    "changes": [
-      "feat(production): 0.5 L tolerance on the Sales accounting; drop the \"not accounted\" text"
-    ]
-  },
-  {
-    "version": "v0.1.0",
-    "date": "2026-10-24",
-    "commit": "53690da",
-    "changes": [
-      "feat(production): show Sales apart from calf/own use/waste; green only when all milk is accounted"
+      "Merge remote-tracking branch 'origin/main' into FeedShop"
     ]
   }
 ]

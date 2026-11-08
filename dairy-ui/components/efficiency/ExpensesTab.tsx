@@ -71,7 +71,7 @@ interface CostGroup { key: string; label: string }
 /* One colour per cost group, fixed so a group keeps its colour whatever the range. */
 const GROUP_COLOR: Record<string, string> = {
   FEED: '#2a78d6', INFRA: '#008300', LABOUR: '#eda100', VET: '#eb6834',
-  DEATHS: '#e34948', TRANSPORT: '#6250d6', ANIMALS: '#e87ba4', OTHER: '#c3c2b7',
+  DEATHS: '#e34948', TRANSPORT: '#6250d6', ANIMALS: '#e87ba4', BROKERAGE: '#1baf7a', OTHER: '#c3c2b7',
   UNACCOUNTED: '#5f5e5a',
 };
 
@@ -110,6 +110,8 @@ export default function ExpensesTab() {
   // Running expenses opened up: its types, and which type's entries are showing.
   const [showRunning, setShowRunning] = useState(false);
   const [runningOpen, setRunningOpen] = useState<string | null>(null);
+  // Cattle lost to death: one line until opened.
+  const [showDeaths, setShowDeaths] = useState(false);
 
   // Revenue = ledger income, as the dashboard counts it; filtered here by the same range and segment.
   useEffect(() => {
@@ -156,14 +158,30 @@ export default function ExpensesTab() {
   // Total outlay = expenses + investment, where investment = infrastructure (in the ledger) + cattle bought.
   const infraShown = shown.find(s => s.key === 'INFRA')?.value ?? 0;
   const cattleTotal = cattle.reduce((t, c) => t + c.amount, 0);
-  const runningExpenses = total - infraShown;
-  // Deaths of bought cattle among the types shown: in "total spent" she counts once, as her purchase.
+  // Deaths of bought cattle among the types shown: in "total spent" she counts once, as her purchase,
+  // so her death stays out of running expenses there.
   const countedTwice = useMemo(() => entries
-    .filter(e => !hidden.has(e.group))
+    .filter(e => !hidden.has(e.group) && e.group !== 'INFRA')
     .map(e => ({ e, cow: boughtAnimalOf(e, cattle) }))
     .filter((x): x is { e: CostEntry; cow: CattlePurchase } => !!x.cow), [entries, cattle, hidden]);
-  const countedTwiceTotal = countedTwice.reduce((t, x) => t + x.e.amount, 0);
-  const totalSpent = total + cattleTotal - countedTwiceTotal;
+  const entryKey = (e: CostEntry) => `${e.source ?? 'EXPENSE'}-${e.id}`;
+  const inPurchases = new Set(countedTwice.map(x => entryKey(x.e)));
+  const runningTypes = shown
+    .filter(s => s.key !== 'INFRA')
+    .map(s => ({ ...s, value: s.value - countedTwice.filter(x => x.e.group === s.key).reduce((t, x) => t + x.e.amount, 0) }))
+    .filter(s => s.value > 0);
+  const runningExpenses = runningTypes.reduce((t, s) => t + s.value, 0);
+  const totalSpent = runningExpenses + infraShown + cattleTotal;
+  // Value lost to cattle deaths (poultry left out), for information: each is already inside total spent,
+  // a bought cow as her purchase and any other animal as a running expense.
+  const cattleDeaths = entries
+    .filter(e => !hidden.has(e.group) && e.segment !== 'POULTRY' && e.source !== 'BIRD_DEATH'
+      && DEATH_WORDS.test(`${e.category} ${e.description ?? ''}`))
+    .map(e => {
+      const cow = countedTwice.find(x => entryKey(x.e) === entryKey(e))?.cow;
+      return { e, label: cow ? (cow.animalName || cow.name.replace(/\(.*\)/, '')).trim() : (e.description?.trim() || e.category.trim()), bought: !!cow };
+    });
+  const cattleDeathTotal = cattleDeaths.reduce((t, d) => t + d.e.amount, 0);
   // What the unaccounted slice is made of, by ledger category (e.g. cattle that died).
   const unaccountedParts = useMemo(() => {
     const by: Record<string, number> = {};
@@ -244,6 +262,11 @@ export default function ExpensesTab() {
                     <ChevronDown size={14} className={`transition-transform ${showRunning ? 'rotate-180' : ''}`} />
                     Running expenses
                   </button>
+                  {countedTwice.length > 0 && (
+                    <span className="block pl-[18px] text-[11px] text-text3">
+                      without the death of {countedTwice.map(({ cow }) => (cow.animalName || cow.name.replace(/\(.*\)/, '')).trim()).join(', ')} (in cattle purchases)
+                    </span>
+                  )}
                 </td>
                 <td className="py-1 text-right font-bold text-text">{rupees(runningExpenses)}</td>
               </tr>
@@ -251,7 +274,7 @@ export default function ExpensesTab() {
                 <tr>
                   <td colSpan={2} className="pb-1.5">
                     <div className="bg-white rounded-lg border border-border-custom px-2 py-1">
-                      {shown.filter(s => s.key !== 'INFRA').map(s => {
+                      {runningTypes.map(s => {
                         const open = runningOpen === s.key;
                         return (
                           <div key={s.key} className="border-b border-border-custom last:border-0">
@@ -267,13 +290,13 @@ export default function ExpensesTab() {
                             </button>
                             {open && (
                               <div className="pb-1.5">
-                                <EntryList items={entries.filter(e => e.group === s.key).sort((a, b) => b.amount - a.amount)} />
+                                <EntryList items={entries.filter(e => e.group === s.key && !inPurchases.has(entryKey(e))).sort((a, b) => b.amount - a.amount)} />
                               </div>
                             )}
                           </div>
                         );
                       })}
-                      {shown.filter(s => s.key !== 'INFRA').length === 0 && <div className="text-text3 py-1 text-[12px]">No running expenses shown.</div>}
+                      {runningTypes.length === 0 && <div className="text-text3 py-1 text-[12px]">No running expenses shown.</div>}
                     </div>
                   </td>
                 </tr>
@@ -281,21 +304,30 @@ export default function ExpensesTab() {
               <tr><td className="py-1 text-text3 text-[11px] font-bold uppercase tracking-wider" colSpan={2}>Investment</td></tr>
               <tr><td className="py-1 pl-3 text-text2">Infrastructure and equipment{hidden.has('INFRA') ? ' (left out)' : ''}</td><td className="py-1 text-right font-bold text-text">{rupees(infraShown)}</td></tr>
               <tr><td className="py-1 pl-3 text-text2">Cattle purchases ({cattle.length})</td><td className="py-1 text-right font-bold text-text">{rupees(cattleTotal)}</td></tr>
-              {countedTwice.map(({ e, cow }) => (
-                <tr key={`twice-${e.source ?? 'EXPENSE'}-${e.id}`}>
-                  <td className="py-1 text-text2">
-                    Less: death of {(cow.animalName || cow.name.replace(/\(.*\)/, '')).trim()} ({shortDate(e.date)})
-                    <span className="block text-[11px] text-text3">already counted as her purchase</span>
-                  </td>
-                  <td className="py-1 text-right font-bold text-text">−{rupees(e.amount)}</td>
-                </tr>
-              ))}
               <tr className="border-t border-border-custom">
                 <td className="pt-1.5 font-black text-text">Total spent</td>
                 <td className="pt-1.5 text-right font-black text-text">{rupees(totalSpent)}</td>
               </tr>
             </tbody>
           </table>
+          {cattleDeaths.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-dashed border-border-custom text-[12px]">
+              <button type="button" onClick={() => setShowDeaths(v => !v)} aria-expanded={showDeaths}
+                className="w-full flex items-center justify-between gap-3 text-left hover:text-brand">
+                <span className="flex items-center gap-1 font-bold text-text2">
+                  <ChevronDown size={13} className={`transition-transform ${showDeaths ? 'rotate-180' : ''}`} />
+                  Cattle lost to death
+                </span>
+                <span className="font-bold text-text2">{rupees(cattleDeathTotal)}</span>
+              </button>
+              {showDeaths && cattleDeaths.map(({ e, label, bought }) => (
+                <div key={entryKey(e)} className="flex items-baseline justify-between gap-3 text-text3 pl-[17px]">
+                  <span>{label} · {shortDate(e.date)} · {bought ? 'bought, cost in cattle purchases' : 'in running expenses'}</span>
+                  <span className="whitespace-nowrap">{rupees(e.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {!loading && removed.length > 0 && (

@@ -366,8 +366,21 @@ public class AssetValuationService {
         if (b.contains("gir")) return new double[]{85000, 10};
         if (b.contains("sahiwal")) return new double[]{80000, 9};
         if (b.contains("sindhi") || b.contains("tharparkar")) return new double[]{70000, 8};
-        if (b.contains("holstein") || b.contains("hf")) return b.contains("cross") ? new double[]{80000, 12} : new double[]{150000, 15};
-        if (b.contains("jersey")) return b.contains("cross") ? new double[]{60000, 10} : new double[]{70000, 12};
+        // Graded crosses ("Holstein 75%") sit between a plain cross and a pure animal, by blood level.
+        // Normal yield is the average over a whole lactation, not the peak.
+        if (b.contains("holstein") || b.contains("hf")) {
+            if (b.contains("85")) return new double[]{120000, 14.5};
+            if (b.contains("75")) return new double[]{100000, 13.5};
+            if (b.contains("65")) return new double[]{90000, 12};
+            if (b.contains("50")) return new double[]{80000, 11};
+            return b.contains("cross") ? new double[]{80000, 12} : new double[]{150000, 15};
+        }
+        if (b.contains("jersey")) {
+            if (b.contains("85")) return new double[]{68000, 11.5};
+            if (b.contains("75")) return new double[]{65000, 10.5};
+            if (b.contains("50")) return new double[]{60000, 9};
+            return b.contains("cross") ? new double[]{60000, 10} : new double[]{70000, 12};
+        }
         return new double[]{60000, 9};
     }
 

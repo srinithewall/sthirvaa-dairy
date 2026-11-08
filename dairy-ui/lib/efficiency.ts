@@ -40,6 +40,8 @@ export interface Lactation {
   achieved?: number | null;
   estimate?: number;
   projectedPct?: number;
+  /** What a well-kept cow of her breed and lactation can give in 305 days, and how close she is. */
+  possible?: { litres: number; normalPerDay: number; factor: number; efficiency: number | null };
 }
 
 export interface LactationHistory { number: number; from: string; to: string | null; recordedDays: number; litres: number }
@@ -120,6 +122,11 @@ export function summarise(r: EffReport) {
   const estimate = sum(lact.map(c => c.lactation!.estimate!));
   const projected = sum(lact.map(c => c.lactation!.projected));
 
+  // Farm efficiency score: milk the herd is on course for ÷ what its breeds and lactations can give.
+  const withPossible = r.cows.filter(c => c.lactation?.possible?.litres);
+  const possibleTotal = sum(withPossible.map(c => c.lactation!.possible!.litres));
+  const possibleProjected = sum(withPossible.map(c => c.lactation!.projected));
+
   return {
     repro: {
       cows: scored.length,
@@ -146,6 +153,11 @@ export function summarise(r: EffReport) {
       projected,
       pct: estimate ? (100 * projected) / estimate : null,
       shortfall: Math.max(0, estimate - projected),
+      possibleCows: withPossible.length,
+      possible: possibleTotal,
+      possibleProjected,
+      farmScore: possibleTotal ? (100 * possibleProjected) / possibleTotal : null,
+      possibleShortfall: Math.max(0, possibleTotal - possibleProjected),
     },
   };
 }

@@ -43,7 +43,7 @@ export function Card({ children, className = '' }: { children: React.ReactNode; 
 
 /** Wide tables scroll sideways on phones instead of squeezing. */
 export function TableWrap({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
-  return <div className="overflow-x-auto"><table className={`w-full ${wide ? 'min-w-[760px]' : 'min-w-[620px]'} text-[13px]`}>{children}</table></div>;
+  return <div className="overflow-x-auto"><table className={`w-full ${wide ? 'min-w-[860px]' : 'min-w-[620px]'} text-[13px]`}>{children}</table></div>;
 }
 
 /** "in 5 days", "today", "3 days ago". */

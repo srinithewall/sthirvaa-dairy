@@ -29,15 +29,17 @@ export default function LactationTab({ report }: { report: EffReport }) {
   const s = summarise(report).lactation;
   const { milkRate, rules } = report;
   const [open, setOpen] = useState<number | null>(null);
-  const cows = report.cows.filter(c => c.lactation).sort((a, b) => (b.lactation!.achieved ?? -1) - (a.lactation!.achieved ?? -1));
+  const cows = report.cows.filter(c => c.lactation)
+    .sort((a, b) => (b.lactation!.possible?.efficiency ?? -1) - (a.lactation!.possible?.efficiency ?? -1));
 
   return (
     <div className="space-y-3">
       <KpiRow>
-        <Kpi label="Total potential" value={litres(s.estimate)} sub={`${s.cows} cows × ${rules.lactationDays}-day estimate`} />
-        <Kpi label="On course for" value={litres(s.projected)} sub={`projected to day ${rules.lactationDays}`} />
-        <Kpi label="Achieving" value={s.pct != null ? `${Math.round(s.pct)}%` : '—'} sub="of total potential" tone={s.pct != null ? toneOf(s.pct) : undefined} />
-        <Kpi label="Shortfall" value={litres(s.shortfall)} sub={rupees(s.shortfall * milkRate)} />
+        <Kpi label="Possible for the herd" value={litres(s.possible)} sub={`${s.possibleCows} cows · by breed and lactation`} />
+        <Kpi label="On course for" value={litres(s.possibleProjected)} sub={`projected to day ${rules.lactationDays}`} />
+        <Kpi label="Farm efficiency score" value={s.farmScore != null ? `${Math.round(s.farmScore)}%` : '—'}
+          sub="on course ÷ possible" tone={s.farmScore != null ? toneOf(s.farmScore) : undefined} />
+        <Kpi label="Shortfall" value={litres(s.possibleShortfall)} sub={rupees(s.possibleShortfall * milkRate)} />
       </KpiRow>
 
       <Card>
@@ -45,8 +47,9 @@ export default function LactationTab({ report }: { report: EffReport }) {
           <thead>
             <tr>
               <th className={TH}>Cow · lactation</th><th className={TH}>Days in milk</th><th className={TH}>Milk recorded</th>
-              <th className={`${TH} w-[17%]`}>Achieved so far</th><th className={`${TH} text-right`}>Projected {rules.lactationDays} d</th>
-              <th className={`${TH} w-[17%]`}>{rules.lactationDays}-day efficiency</th>
+              <th className={`${TH} w-[15%]`}>Achieved so far</th><th className={`${TH} text-right`}>Projected {rules.lactationDays} d</th>
+              <th className={`${TH} text-right`}>Possible for breed</th>
+              <th className={`${TH} w-[15%]`}>Efficiency</th>
               <th className={`${TH} text-right`}>Per day · full cycle</th>
             </tr>
           </thead>
@@ -67,9 +70,12 @@ export default function LactationTab({ report }: { report: EffReport }) {
                       <Sub>{l.recordedDays} days recorded{l.partlyRecorded ? ' · part' : ''}</Sub></td>
                     <td className={TD}>{litres(l.recordedLitres)}{l.recordedTarget != null && <Sub>target {litres(l.recordedTarget)}</Sub>}</td>
                     <td className={TD}>{l.achieved != null ? <PctBar pct={l.achieved} /> : <span className="text-text3">no target</span>}</td>
-                    <td className={`${TD} text-right`}>{l.ended ? '≈ ' : ''}{litres(l.projected)}
-                      {l.estimate != null && <Sub>of {litres(l.estimate)}</Sub>}</td>
-                    <td className={TD}>{l.projectedPct != null ? <PctBar pct={l.projectedPct} /> : <span className="text-text3">no target</span>}</td>
+                    <td className={`${TD} text-right`}>{l.ended ? '≈ ' : ''}{litres(l.projected)}</td>
+                    <td className={`${TD} text-right`}>
+                      {l.possible ? litres(l.possible.litres) : '—'}
+                      {l.possible && <Sub>{c.breed || 'breed not set'} · {l.possible.normalPerDay} L/day{l.possible.factor !== 1 ? ` · ×${l.possible.factor}` : ''}</Sub>}
+                    </td>
+                    <td className={TD}>{l.possible?.efficiency != null ? <PctBar pct={l.possible.efficiency} /> : <span className="text-text3">—</span>}</td>
                     <td className={`${TD} text-right`}>
                       {c.cycleAverage ? litres(c.cycleAverage.perDay, 1) : '—'}
                       {c.cycleAverage && <Sub>{c.cycleAverage.completedCycles > 0
@@ -78,7 +84,7 @@ export default function LactationTab({ report }: { report: EffReport }) {
                     </td>
                   </tr>
                   {isOpen && (
-                    <tr><td colSpan={7} className="px-3 py-2 border-b border-border-custom"><History cow={c} lactationDays={rules.lactationDays} /></td></tr>
+                    <tr><td colSpan={8} className="px-3 py-2 border-b border-border-custom"><History cow={c} lactationDays={rules.lactationDays} /></td></tr>
                   )}
                 </React.Fragment>
               );

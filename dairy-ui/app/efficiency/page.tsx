@@ -31,7 +31,9 @@ function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTota
         ? `${monthsDays(s.repro.avgDaysOpen)} open on average (target ${monthsDays(report.rules.targetDaysOpen)}) · ${litres(s.repro.milkLost)} of milk a year lost to late calving`
         : 'No cows to score yet' },
     { tab: 'milk', title: 'Milk target', line: `${litres(s.milk.lostPerDay, 1)} a day below target · ${rupees(s.milk.lostPerDay * 30 * report.milkRate)} a month` },
-    { tab: 'lactation', title: 'Lactation', line: `On course for ${litres(s.lactation.projected)} of ${litres(s.lactation.estimate)} this lactation` },
+    { tab: 'lactation', title: 'Lactation', line: s.lactation.farmScore != null
+        ? `Farm efficiency score ${Math.round(s.lactation.farmScore)}% · on course for ${litres(s.lactation.possibleProjected)} of ${litres(s.lactation.possible)} possible for these breeds`
+        : 'No lactations to score yet' },
   ];
   return (
     <div className="space-y-3">

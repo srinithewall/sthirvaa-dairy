@@ -53,13 +53,20 @@ jobs:
             mkdir -p ~/dairy-deployment
             cd ~/dairy-deployment
             
-            # Update the full docker-compose file
+            # Update the full docker-compose file. Keep the app service identical to
+            # deploy-backend.yml: if this copy drops the volume or env_file, the next time the
+            # backend container is recreated it loses Firebase (push notifications) and the AMCS
+            # settings - which is what silently stopped both on 8 Nov 2026.
             cat <<EOF > docker-compose.yml
             version: '3.8'
             services:
               app:
                 image: ${{ env.REGISTRY }}/${{ github.repository_owner }}/dairy-backend:latest
                 container_name: dairy-backend
+                volumes:
+                  - ./resources/service-account.json:/app/firebase-service-account.json
+                env_file:
+                  - ./amcs.env
                 environment:
                   - DB_URL=${{ secrets.DB_URL }}
                   - DB_USER=${{ secrets.DB_USER }}
@@ -74,7 +81,10 @@ jobs:
                 restart: always
                 network_mode: "host"
             EOF
-            
+
+            # env_file must exist or compose refuses to run (see deploy-backend.yml)
+            touch amcs.env
+
             # Authenticate Docker to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
             

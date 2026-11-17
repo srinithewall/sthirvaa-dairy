@@ -57,7 +57,8 @@ def post_json(url, payload, content_type, headers=None, timeout=60):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": content_type, **(headers or {})},
+        # Cloudflare in front of the dairy API rejects urllib's default User-Agent ("error code: 1010")
+        headers={"Content-Type": content_type, "User-Agent": "sthirvaa-amcs-sync/1.0", **(headers or {})},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:

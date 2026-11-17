@@ -7,6 +7,7 @@ import com.dairy.model.FarmActivityLog;
 import com.dairy.model.User;
 import com.dairy.repo.UserRepository;
 import com.dairy.model.HerdWeightRecord;
+import com.dairy.model.MeasurementMethod;
 import com.dairy.model.Herd;
 import com.dairy.repo.HerdWeightRecordRepository;
 import com.dairy.repo.HerdRepository;
@@ -48,6 +49,13 @@ public class HerdWeightService {
     }
 
     public HerdWeightRecord addWeightRecord(HerdWeightRecord record) {
+        if (!hasReading(record)) {
+            throw new IllegalArgumentException("Enter a heart girth or the weight in kg.");
+        }
+        // No tape reading means the weight was entered straight from a scale.
+        if (record.getHeartGirthCm() == null) {
+            record.setMeasurementMethod(MeasurementMethod.SCALE);
+        }
         if (record.getWeightKg() == null) {
             Herd herd = herdRepo.findById(record.getHerdId()).orElse(null);
             record.setWeightKg(herdService.estimateWeightKg(
@@ -69,16 +77,22 @@ public class HerdWeightService {
 
         HerdWeightRecord saved = weightRepo.save(record);
 
-        // Update main Herd entity with latest weight
+        // Keep the animal's girth current. A scale weight has no girth, so the last tape reading
+        // stays; the animal's weight still follows this record (HerdService uses the latest weight).
         Optional<Herd> optHerd = herdRepo.findById(record.getHerdId());
-        if (optHerd.isPresent()) {
+        if (optHerd.isPresent() && record.getHeartGirthCm() != null) {
             Herd herd = optHerd.get();
-            // calculatedWeight stays derived - HerdService recomputes it from heartGirth.
             herd.setHeartGirth(record.getHeartGirthCm());
             herdRepo.save(herd);
         }
 
         return saved;
+    }
+
+    /** A reading needs a tape girth or a weight from a scale. */
+    static boolean hasReading(HerdWeightRecord record) {
+        return (record.getHeartGirthCm() != null && record.getHeartGirthCm() > 0)
+                || (record.getWeightKg() != null && record.getWeightKg() > 0);
     }
 
     /**
@@ -116,7 +130,7 @@ public class HerdWeightService {
         List<HerdWeightRecord> saved = new ArrayList<>();
         if (records != null) {
             for (HerdWeightRecord record : records) {
-                if (record.getHerdId() == null || record.getHeartGirthCm() == null) continue;
+                if (record.getHerdId() == null || !hasReading(record)) continue;
                 if (record.getRecordedBy() == null) record.setRecordedBy(staffId);
                 saved.add(addWeightRecord(record));
             }

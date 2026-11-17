@@ -25,6 +25,9 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
   const [currentIndex, setCurrentIndex] = useState(0);
   const [girth, setGirth] = useState("");
   const [length, setLength] = useState("");
+  // "tape" = heart girth (weight worked out), "scale" = net weight typed in directly
+  const [mode, setMode] = useState<"tape" | "scale">("tape");
+  const [netWeight, setNetWeight] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -40,10 +43,17 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
     if (!g || isNaN(g)) return null;
     return l ? (g * g * l) / 10838 : (g * g * (g * 0.85)) / 10838;
   })();
+  const scaleW = (() => {
+    const w = parseFloat(netWeight);
+    return w > 0 ? w : null;
+  })();
+  const newWeight = mode === "scale" ? scaleW : calcW;
 
+  // The method choice stays for the next animal; only the readings clear.
   const resetForm = () => {
     setGirth("");
     setLength("");
+    setNetWeight("");
     setError("");
   };
 
@@ -63,29 +73,28 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!girth || isNaN(parseFloat(girth))) {
-      setError("Heart girth is required.");
+    if (mode === "scale" ? !scaleW : (!girth || isNaN(parseFloat(girth)))) {
+      setError(mode === "scale" ? "Net weight is required." : "Heart girth is required.");
       return;
     }
 
     setSaving(true);
     setError("");
-    
-    try {
-      const g = parseFloat(girth);
-      const l = length ? parseFloat(length) : null;
-      let weightKg = l ? (g * g * l) / 10838 : (g * g * (g * 0.85)) / 10838;
 
+    try {
       const recordDate = new Date().toISOString().split("T")[0];
 
-      const payload = [{
-        herdId: currentAnimal.herdId,
-        recordDate,
-        measurementMethod: "HEART_GIRTH_TAPE",
-        heartGirthCm: g,
-        bodyLengthCm: l,
-        weightKg: parseFloat(weightKg.toFixed(2))
-      }];
+      let reading;
+      if (mode === "scale") {
+        reading = { measurementMethod: "SCALE", heartGirthCm: null, bodyLengthCm: null, weightKg: parseFloat(scaleW!.toFixed(2)) };
+      } else {
+        const g = parseFloat(girth);
+        const l = length ? parseFloat(length) : null;
+        const weightKg = l ? (g * g * l) / 10838 : (g * g * (g * 0.85)) / 10838;
+        reading = { measurementMethod: "HEART_GIRTH_TAPE", heartGirthCm: g, bodyLengthCm: l, weightKg: parseFloat(weightKg.toFixed(2)) };
+      }
+
+      const payload = [{ herdId: currentAnimal.herdId, recordDate, ...reading }];
 
       const query = logId ? `?logId=${logId}&date=${recordDate}` : `?date=${recordDate}`;
       await api.post(`/herds/weight/bulk${query}`, payload);
@@ -143,42 +152,74 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
               </div>
             )}
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl">
+              {([["tape", "Heart girth tape"], ["scale", "Net weight (scale)"]] as const).map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { setMode(m); setError(""); }}
+                  className={`py-2 rounded-lg text-xs font-bold transition-colors ${mode === m ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {mode === "tape" ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Heart Girth (cm) *</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    required
+                    value={girth}
+                    onChange={e => setGirth(e.target.value)}
+                    className="w-full border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-xl p-3 text-lg font-bold text-center transition-all outline-none"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Body Length (cm)</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    value={length}
+                    onChange={e => setLength(e.target.value)}
+                    className="w-full border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-xl p-3 text-lg font-bold text-center transition-all outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Heart Girth (cm) *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Net Weight (kg) *</label>
                 <input
                   type="number"
                   inputMode="decimal"
                   step="0.1"
+                  min="0.1"
                   required
-                  value={girth}
-                  onChange={e => setGirth(e.target.value)}
+                  value={netWeight}
+                  onChange={e => setNetWeight(e.target.value)}
                   className="w-full border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-xl p-3 text-lg font-bold text-center transition-all outline-none"
                   autoFocus
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Body Length (cm)</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  value={length}
-                  onChange={e => setLength(e.target.value)}
-                  className="w-full border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-xl p-3 text-lg font-bold text-center transition-all outline-none"
-                />
-              </div>
-            </div>
+            )}
 
-            <div className={`mt-2 p-4 rounded-xl border-2 flex items-center justify-between transition-colors ${calcW ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
-               <span className={`text-sm font-bold flex items-center gap-2 ${calcW ? 'text-emerald-800' : 'text-slate-400'}`}>
-                  <Calculator size={18} />
-                  New Weight
-               </span>
-               <div className={`text-2xl font-black ${calcW ? 'text-emerald-600' : 'text-slate-300'}`}>
-                  {calcW ? calcW.toFixed(1) : "--"} <span className="text-sm font-bold opacity-70">kg</span>
-               </div>
-            </div>
+            {mode === "tape" && (
+              <div className={`mt-2 p-4 rounded-xl border-2 flex items-center justify-between transition-colors ${newWeight ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+                 <span className={`text-sm font-bold flex items-center gap-2 ${newWeight ? 'text-emerald-800' : 'text-slate-400'}`}>
+                    <Calculator size={18} />
+                    New Weight
+                 </span>
+                 <div className={`text-2xl font-black ${newWeight ? 'text-emerald-600' : 'text-slate-300'}`}>
+                    {newWeight ? newWeight.toFixed(1) : "--"} <span className="text-sm font-bold opacity-70">kg</span>
+                 </div>
+              </div>
+            )}
           </form>
         </div>
 
@@ -196,7 +237,7 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
           <button
             type="submit"
             form="weight-form"
-            disabled={saving || !girth}
+            disabled={saving || !newWeight}
             className="flex-[2] py-3 px-4 flex items-center justify-center gap-2 font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600 rounded-xl shadow-md shadow-emerald-600/20 transition-all"
           >
             {saving ? "Saving..." : (

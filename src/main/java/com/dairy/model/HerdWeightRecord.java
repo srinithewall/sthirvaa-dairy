@@ -21,7 +21,7 @@ public class HerdWeightRecord {
     @Column(name = "measurement_method", nullable = false)
     private MeasurementMethod measurementMethod = MeasurementMethod.HEART_GIRTH_TAPE;
 
-    @Column(name = "heart_girth_cm", nullable = false)
+    @Column(name = "heart_girth_cm")
     private Double heartGirthCm;
 
     @Column(name = "body_length_cm")

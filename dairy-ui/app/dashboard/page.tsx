@@ -207,9 +207,10 @@ export default function DashboardPage() {
 
   const fetchCowsAndRecords = async () => {
     try {
-      const [cowsRes, recordsRes] = await Promise.all([
+      const [cowsRes, recordsRes, eventsRes] = await Promise.all([
         api.get('/herds'),
-        api.get('/milk-records')
+        api.get('/milk-records'),
+        api.get('/herds/events/all').catch(() => ({ data: [] }))
       ]);
       const allCows = cowsRes.data.herds || cowsRes.data || [];
       // Animals under 22 months are not milking yet, so they stay out of the picker. No birth date = keep.
@@ -218,7 +219,26 @@ export default function DashboardPage() {
         const born = new Date(c.birthDate), now = new Date();
         return (now.getFullYear() - born.getFullYear()) * 12 + (now.getMonth() - born.getMonth());
       };
-      setCows(allCows.filter((c: any) => c.status?.toUpperCase() !== 'DISPOSED' && c.animalStatus?.toUpperCase() !== 'CALF' && ageInMonths(c) >= 22));
+      // Days in milk = days since the latest calving, for lactating cows only (same rule as the Herds page)
+      const lastCalving: Record<string, string> = {};
+      for (const e of (eventsRes.data || []) as any[]) {
+        if (e.eventType !== 'CALF_DELIVERED' || !e.eventDate) continue;
+        const k = String(e.herdId);
+        if (!lastCalving[k] || e.eventDate > lastCalving[k]) lastCalving[k] = e.eventDate;
+      }
+      const withDim = allCows
+        .filter((c: any) => c.status?.toUpperCase() !== 'DISPOSED' && c.animalStatus?.toUpperCase() !== 'CALF' && ageInMonths(c) >= 22)
+        .map((c: any) => {
+          const calved = lastCalving[String(c.id)];
+          const dim = c.animalStatus === 'LACTATING' && calved
+            ? Math.ceil(Math.abs(Date.now() - new Date(calved).getTime()) / 86400000)
+            : null;
+          return { ...c, dim };
+        });
+      // Picker order: milking cows by days in milk (freshest first), then cows not in milk
+      withDim.sort((a: any, b: any) =>
+        (a.dim ?? Infinity) - (b.dim ?? Infinity) || (a.animalName || '').localeCompare(b.animalName || ''));
+      setCows(withDim);
       setMilkRecords(recordsRes.data || []);
     } catch (err) {
       console.error("Failed to fetch cows or milk records for daily chart:", err);
@@ -887,6 +907,9 @@ export default function DashboardPage() {
                             <span className="text-[9px] text-text3 font-mono opacity-80 mt-0.5">{cow.tagNumber}</span>
                           </div>
                         </div>
+                        <span className="ml-auto mr-2 text-[10px] font-bold text-text3 whitespace-nowrap">
+                          {cow.dim != null ? `${cow.dim} DIM` : '—'}
+                        </span>
                         <input
                           type="checkbox"
                           checked={isSelected}

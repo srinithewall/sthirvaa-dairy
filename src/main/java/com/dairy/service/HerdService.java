@@ -62,6 +62,9 @@ public class HerdService {
 
     public static boolean isValidBcs(Double bcs) { return bcs != null && BCS_LABELS.containsKey(bcs); }
 
+    /** "Ideal" for 3, "Lean" for 2.5 ...; null for no score. */
+    public static String bcsLabel(Double bcs) { return bcs == null ? null : BCS_LABELS.get(bcs); }
+
     /** 3.0 → "3", 2.5 → "2.5". */
     private static String bcsText(double bcs) { return bcs == Math.floor(bcs) ? String.valueOf((int) bcs) : String.valueOf(bcs); }
 

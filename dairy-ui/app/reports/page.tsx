@@ -5,6 +5,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import api from "@/lib/api";
+import HerdWeightOverview from "@/components/HerdWeightOverview";
 import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -131,6 +132,8 @@ function ReportsPage() {
             <p className="text-sm text-slate-500">Correlate animal health metrics with farm productivity.</p>
           </div>
         </div>
+
+        <HerdWeightOverview />
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <div className="flex justify-between items-center">

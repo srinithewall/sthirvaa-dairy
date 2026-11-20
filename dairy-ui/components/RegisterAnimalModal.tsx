@@ -26,6 +26,8 @@ interface FormData {
   motherName: string;
   fatherSemen: string;
   heartGirth: string;
+  /** Parity as the user sees it; saved as previousLactations (see handleRegisterSubmit). */
+  lactationNo: string;
 }
 
 interface Herd {
@@ -51,6 +53,8 @@ interface Herd {
   costPerBird?: number;
   purpose?: string;
   notes?: string;
+  lactationNumber?: number;
+  previousLactations?: number | null;
 }
 
 // ─── Reusable styled select dropdown ────────
@@ -268,6 +272,7 @@ export default function RegisterAnimalModal({
     motherName: herdToEdit?.motherName || '',
     fatherSemen: herdToEdit?.fatherSemen || '',
     heartGirth: herdToEdit?.heartGirth ? String(herdToEdit.heartGirth) : '',
+    lactationNo: herdToEdit?.lactationNumber != null ? String(herdToEdit.lactationNumber) : '',
   });
 
   const startOnboarding = onboardChoice ?? !/self|born|home/i.test(formData.source || '');
@@ -373,6 +378,14 @@ export default function RegisterAnimalModal({
     }
   };
 
+  // The form shows parity (her lactation number); the server keeps only the calvings from before her
+  // records, so each calving recorded later adds one by itself. Blank leaves it as it was.
+  const previousLactationsFor = (entered: string): number | null => {
+    if (entered.trim() === '') return herdToEdit?.previousLactations ?? null;
+    const recorded = (herdToEdit?.lactationNumber ?? 0) - (herdToEdit?.previousLactations ?? 0);
+    return Math.max(0, parseInt(entered, 10) - recorded);
+  };
+
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === 'P') {
@@ -388,10 +401,14 @@ export default function RegisterAnimalModal({
     if (!formData.animalType) {
       newErrors.animalType = 'Animal type is required';
     }
+    const recordedCalvings = (herdToEdit?.lactationNumber ?? 0) - (herdToEdit?.previousLactations ?? 0);
+    if (formData.lactationNo.trim() !== '' && parseInt(formData.lactationNo, 10) < recordedCalvings) {
+      newErrors.lactationNo = `At least ${recordedCalvings}: that many calvings are recorded`;
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      showToast('Please fill in all mandatory fields.', 'error');
+      showToast(newErrors.lactationNo && Object.keys(newErrors).length === 1 ? newErrors.lactationNo : 'Please fill in all mandatory fields.', 'error');
       return;
     }
 
@@ -402,6 +419,7 @@ export default function RegisterAnimalModal({
         birthDate: formData.birthDate || null,
         birthTime: formData.birthTime || null,
         procuredDate: formData.procuredDate || null,
+        previousLactations: previousLactationsFor(formData.lactationNo),
       };
 
       let response;
@@ -850,6 +868,23 @@ export default function RegisterAnimalModal({
                 />
               </Field>
             )}
+
+            {/* Lactation number (parity) */}
+            <Field label="Lactation No. (parity)" fullWidth error={errors.lactationNo}>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number" min={0} max={15} step={1} inputMode="numeric"
+                  value={formData.lactationNo}
+                  onChange={(e) => set('lactationNo', e.target.value.replace(/\D/g, '').slice(0, 2))}
+                  placeholder="e.g. 3"
+                  className={`${INPUT_CLS.replace('w-full ', '')} w-24 flex-shrink-0`}
+                />
+                <span className="text-[11px] text-text3 leading-snug">
+                  {herdToEdit && (herdToEdit.lactationNumber ?? 0) > (herdToEdit.previousLactations ?? 0) &&
+                    ` ${(herdToEdit.lactationNumber ?? 0) - (herdToEdit.previousLactations ?? 0)} calving(s) already recorded.`}
+                </span>
+              </div>
+            </Field>
 
             {/* Animal Status */}
             <div className="col-span-1 sm:col-span-2">

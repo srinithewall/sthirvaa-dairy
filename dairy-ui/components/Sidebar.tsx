@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf, Landmark } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf, Landmark, Gauge } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api, { formatImageUrl } from '@/lib/api';
@@ -26,7 +26,9 @@ interface SidebarSection {
 const sidebarItems: SidebarSection[] = [
   { group: 'Overview', items: [
     // Reports & Analytics is opened from a button on the Dashboard.
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', also: ['/reports'], module: 'DASHBOARD' }
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', also: ['/reports'], module: 'DASHBOARD' },
+    // Reads /api/reports/efficiency and /api/reports/costs, both under the Dashboard permission.
+    { name: 'Efficiency', icon: Gauge, path: '/efficiency', module: 'DASHBOARD' }
   ]},
   { group: 'Farm Management', items: [
     { name: 'Herd Management', icon: Layout, path: '/herds', module: 'HERDS' },

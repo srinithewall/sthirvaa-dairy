@@ -1,19 +1,18 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Line, Pie } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
-  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend,
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend,
 } from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 export interface TrackerEntry { category: string; amount: number; date: string; type: 'EXPENSE' | 'INCOME' }
 export interface TrackerMilkReceived { month: string; received: number }
 
-/* Categorical slots in fixed order (validated: CVD-safe on the light surface); "Other" is neutral. */
-const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'];
-const OTHER = '#c3c2b7';
+/* Categorical slots in fixed order (validated: CVD-safe on the light surface). */
+const SERIES = ['#2a78d6', '#eb6834', '#1baf7a'];
 const MILK = 'MILK_SALES';
 const TEXT = '#52514e';
 
@@ -25,16 +24,29 @@ const shiftYm = (ym: string, by: number) => {
 };
 const monthLabel = (ym: string) => new Date(`${ym}-01`).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 
+/** Pass as `month` for every month on record instead of one. */
+export const ALL_MONTHS = 'ALL';
+
 /**
- * The ledger's cost tracker: the last six months of expense against income (one line chart), and where the
- * month's money went (pie of the top 5 categories).
+ * The cost tracker: the last six months of expense against income, as one line chart. With ALL_MONTHS
+ * the line runs from the first month on record to this month. Where the money went is on the
+ * Efficiency screen's Expenses tab.
  * Income received = milk payments that reached the bank + other income; the estimate uses the AMCS rate.
  * Months before the first milk payment in the bank feed have no bank record, so received = the estimate there.
  */
 export default function LedgerCostTracker({ entries, milkReceived, month }: {
   entries: TrackerEntry[]; milkReceived: TrackerMilkReceived[]; month: string;
 }) {
-  const months = useMemo(() => Array.from({ length: 6 }, (_, i) => shiftYm(month, i - 5)), [month]);
+  const all = month === ALL_MONTHS;
+  const months = useMemo(() => {
+    if (!all) return Array.from({ length: 6 }, (_, i) => shiftYm(month, i - 5));
+    const d = new Date();
+    const thisMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const first = entries.map(e => e.date.substring(0, 7)).sort()[0] ?? thisMonth;
+    const out: string[] = [];
+    for (let m = first; m <= thisMonth; m = shiftYm(m, 1)) out.push(m);
+    return out;
+  }, [all, month, entries]);
 
   // First month the bank feed has a milk payment for; earlier months fall back to the estimate.
   const bankFrom = useMemo(() => milkReceived.map(r => r.month).sort()[0] ?? null, [milkReceived]);
@@ -49,22 +61,10 @@ export default function LedgerCostTracker({ entries, milkReceived, month }: {
     return { month: m, expense, estimated: other + milkEst, received };
   }), [entries, milkReceived, months, bankFrom]);
 
-  const now = byMonth[5];
-
-  const top = useMemo(() => {
-    const totals: Record<string, number> = {};
-    entries.filter(e => e.type === 'EXPENSE' && e.date.startsWith(month))
-      .forEach(e => { totals[e.category.trim()] = (totals[e.category.trim()] || 0) + e.amount; });
-    const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
-    const five = sorted.slice(0, 5).map(([name, value], i) => ({ name, value, color: SERIES[i] }));
-    const rest = sorted.slice(5).reduce((t, [, v]) => t + v, 0);
-    return rest > 0 ? [...five, { name: `Other (${sorted.length - 5})`, value: rest, color: OTHER }] : five;
-  }, [entries, month]);
-
   return (
     <div className="space-y-3">
       <div className="bg-white border border-border-custom rounded-radius-custom-lg p-4">
-        <div className="text-[13px] font-black text-text mb-2">Expense and income, last 6 months</div>
+        <div className="text-[13px] font-black text-text mb-2">Expense and income, {all ? `${months.length} months` : 'last 6 months'}</div>
         <div className="h-[260px]">
           <Line
             data={{
@@ -91,47 +91,6 @@ export default function LedgerCostTracker({ entries, milkReceived, month }: {
             }}
           />
         </div>
-      </div>
-
-      <div className="bg-white border border-border-custom rounded-radius-custom-lg p-4">
-        <div className="text-[13px] font-black text-text">Top 5 expense categories · {new Date(`${month}-01`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</div>
-        {top.length === 0 ? (
-          <div className="py-10 text-center text-text3 text-[13px]">No expenses this month.</div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center mt-2">
-            <div className="h-[220px]">
-              <Pie
-                data={{
-                  labels: top.map(t => t.name),
-                  datasets: [{ data: top.map(t => Math.round(t.value)), backgroundColor: top.map(t => t.color), borderColor: '#ffffff', borderWidth: 2 }],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: item => ` ${item.label}: ${rupees(item.raw as number)}` } },
-                  },
-                }}
-              />
-            </div>
-            <table className="w-full text-[13px]">
-              <tbody className="divide-y divide-border-custom">
-                {top.map(t => (
-                  <tr key={t.name}>
-                    <td className="py-2 pr-2">
-                      <span className="flex items-center gap-2 text-text font-bold">
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.color }} />{t.name}
-                      </span>
-                    </td>
-                    <td className="py-2 text-right font-black text-text">{rupees(t.value)}</td>
-                    <td className="py-2 pl-3 text-right text-text3 w-12">{now.expense > 0 ? `${Math.round((t.value / now.expense) * 100)}%` : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );

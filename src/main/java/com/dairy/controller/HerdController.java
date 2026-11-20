@@ -77,6 +77,8 @@ public class HerdController {
                         herd.setBcs(existing.getBcs());
                         herd.setBcsDate(existing.getBcsDate());
                     }
+                    // Forms that don't carry the earlier-lactation count (poultry, older screens) keep it.
+                    if (herd.getPreviousLactations() == null) herd.setPreviousLactations(existing.getPreviousLactations());
                     return ResponseEntity.ok(herdService.saveHerd(herd));
                 })
                 .orElse(ResponseEntity.notFound().build());

@@ -116,7 +116,9 @@ export default function WeightTracker({ herdId }: WeightTrackerProps) {
                 <div className="font-semibold text-slate-800 text-sm">
                   {new Date(h.recordDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                 </div>
-                <div className="text-xs text-slate-500">Tape Method: {h.heartGirthCm}cm Girth</div>
+                <div className="text-xs text-slate-500">
+                  {h.heartGirthCm != null ? `Tape Method: ${h.heartGirthCm}cm Girth` : "Scale: net weight"}
+                </div>
               </div>
             </div>
             <div className="text-right">

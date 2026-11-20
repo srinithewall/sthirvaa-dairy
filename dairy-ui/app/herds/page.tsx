@@ -82,6 +82,8 @@ interface HerdEvent {
 const EVENT_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
   SEMEN_GIVEN:         { icon: Syringe,       color: 'text-purple-600',  bg: 'bg-purple-100',  label: 'AI / Semen' },
   PREGNANCY_CONFIRMED: { icon: Heart,          color: 'text-pink-600',    bg: 'bg-pink-100',    label: 'Pregnancy' },
+  PREGNANCY_NEGATIVE:  { icon: X,              color: 'text-slate-600',   bg: 'bg-slate-200',   label: 'PD Negative' },
+  AI_DUE:              { icon: Syringe,        color: 'text-purple-600',  bg: 'bg-purple-100',  label: 'Next AI Due' },
   CALF_DELIVERED:      { icon: Baby,           color: 'text-green-600',   bg: 'bg-green-100',   label: 'Calving' },
   DRY_PERIOD_STARTED:  { icon: Leaf,           color: 'text-amber-600',   bg: 'bg-amber-100',   label: 'Dry Period' },
   LACTATION_STARTED:   { icon: Droplets,       color: 'text-blue-600',    bg: 'bg-blue-100',    label: 'Lactation' },
@@ -155,6 +157,8 @@ export default function HerdsPage() {
     const titles: Record<string, string> = {
       SEMEN_GIVEN: 'Semen Given (AI)',
       PREGNANCY_CONFIRMED: 'Pregnancy Confirmed (PD)',
+      PREGNANCY_NEGATIVE: 'PD Negative (not pregnant)',
+      AI_DUE: 'Next AI Due',
       CALF_DELIVERED: 'Calf Delivered',
       DRY_PERIOD_STARTED: 'Dry Period Started',
       LACTATION_STARTED: 'Lactation Started',
@@ -345,9 +349,9 @@ export default function HerdsPage() {
             // 1. Semen Injection Check (Syringe)
             // Semen is considered given if they have a SEMEN_GIVEN event as the latest breeding event.
             const breedingEvents = herdEvents
-              .filter(e => ['SEMEN_GIVEN', 'AI_DONE', 'PREGNANCY_CONFIRMED', 'CALF_DELIVERED'].includes(e.eventType))
+              .filter(e => ['SEMEN_GIVEN', 'AI_DONE', 'PREGNANCY_CONFIRMED', 'PREGNANCY_NEGATIVE', 'CALF_DELIVERED'].includes(e.eventType))
               .sort((a, b) => b.eventDate.localeCompare(a.eventDate));
-            // NONE: no breeding since last calving; GIVEN: semen/AI done, awaiting PD; PD: pregnancy confirmed
+            // NONE: no breeding since last calving, or a PD negative since; GIVEN: semen/AI done, awaiting PD; PD: pregnancy confirmed
             const latestBreeding = breedingEvents[0]?.eventType;
             const semenState: 'NONE' | 'GIVEN' | 'PD' =
               latestBreeding === 'PREGNANCY_CONFIRMED' ? 'PD'
@@ -372,7 +376,9 @@ export default function HerdsPage() {
             let eddTitle: string | undefined;
             const lastPd = breedingEvents.find(e => e.eventType === 'PREGNANCY_CONFIRMED');
             const lastAi = breedingEvents.find(e => e.eventType === 'SEMEN_GIVEN' || e.eventType === 'AI_DONE');
-            if (lastPd && (!lastCalving || new Date(lastPd.eventDate) > new Date(lastCalving.eventDate))) {
+            const lastNeg = breedingEvents.find(e => e.eventType === 'PREGNANCY_NEGATIVE');
+            const pdOverturned = !!(lastPd && lastNeg && lastNeg.eventDate >= lastPd.eventDate);
+            if (lastPd && !pdOverturned && (!lastCalving || new Date(lastPd.eventDate) > new Date(lastCalving.eventDate))) {
               if (lastAi) {
                 const gestation = item.animalType === 'BUFFALO' ? 310 : 283;
                 const expectedDelivery = new Date(lastAi.eventDate);
@@ -1065,12 +1071,14 @@ export default function HerdsPage() {
                 >
                   <option value="SEMEN_GIVEN">Artificial Insemination (AI)</option>
                   <option value="PREGNANCY_CONFIRMED">Pregnancy Confirmed (PD)</option>
+                  <option value="PREGNANCY_NEGATIVE">PD Negative (not pregnant)</option>
                   <option value="CALF_DELIVERED">Calf Delivered</option>
                   <option value="DRY_PERIOD_STARTED">Dry Period Started</option>
                   <option value="LACTATION_STARTED">Lactation Started</option>
                   <option value="VACCINATION_DUE">Vaccination Reminder</option>
                   <option value="DEWORMING_DUE">Deworming Reminder</option>
                   <option value="PREGNANCY_CHECK_DUE">Pregnancy Check Reminder</option>
+                  <option value="AI_DUE">Next AI Reminder</option>
                 </select>
               </div>
 
@@ -1295,9 +1303,13 @@ function BreedingModal({ onClose, events, herds, onAnimalClick }: {
       // Latest first; a detailed record wins over a blank one on the same day
       const ais = cycle.filter(e => isAi(e.eventType))
         .sort((a, b) => b.eventDate.localeCompare(a.eventDate) || (bullIdOf(b) ? 1 : 0) - (bullIdOf(a) ? 1 : 0));
-      const pdDate = cycle.filter(e => e.eventType === 'PREGNANCY_CONFIRMED')
+      // A PD negative overturns the PD and the inseminations before it (an AI the same day is a new attempt).
+      const negDate = cycle.filter(e => e.eventType === 'PREGNANCY_NEGATIVE')
         .map(e => e.eventDate.slice(0, 10)).sort().pop() ?? null;
-      const latestAi = ais[0] ?? null;
+      const lastPdDate = cycle.filter(e => e.eventType === 'PREGNANCY_CONFIRMED')
+        .map(e => e.eventDate.slice(0, 10)).sort().pop() ?? null;
+      const pdDate = lastPdDate && negDate && lastPdDate <= negDate ? null : lastPdDate;
+      const latestAi = ais[0] && !(negDate && ais[0].eventDate.slice(0, 10) < negDate) ? ais[0] : null;
       // PD due: a PD check scheduled on/after the latest AI, else AI + PD_AFTER_AI_DAYS
       let pdDue: Date | null = null;
       if (latestAi) {
@@ -1549,6 +1561,8 @@ function AllEventsModal({ isOpen, onClose, events, herds, onAnimalClick, onRefre
     const map: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
       SEMEN_GIVEN:         { icon: Syringe,    color: 'text-purple-600', bg: 'bg-purple-50' },
       PREGNANCY_CONFIRMED: { icon: Heart,       color: 'text-pink-600',   bg: 'bg-pink-50' },
+      PREGNANCY_NEGATIVE:  { icon: X,           color: 'text-slate-600',  bg: 'bg-slate-100' },
+      AI_DUE:              { icon: Syringe,     color: 'text-purple-600', bg: 'bg-purple-50' },
       CALF_DELIVERED:      { icon: Baby,        color: 'text-green-600',  bg: 'bg-green-50' },
       DRY_PERIOD_STARTED:  { icon: Leaf,        color: 'text-amber-600',  bg: 'bg-amber-50' },
       LACTATION_STARTED:   { icon: Droplets,    color: 'text-blue-600',   bg: 'bg-blue-50' },

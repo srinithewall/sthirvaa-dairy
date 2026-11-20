@@ -25,11 +25,12 @@ import java.util.*;
  * For every active milch animal (cow, buffalo, goat; not calves, not open heifers):
  *   - Where she is now: milking or dry from her status, else from her latest calving / lactation-start /
  *     dry-off events; days in milk from the last calving or lactation start.
- *   - Pregnancy: an AI (SEMEN_GIVEN / AI_DONE) after the last calving, counted only when confirmed by
- *     PREGNANCY_CONFIRMED or the PREGNANT status. Expected calving = AI + gestation (283 days cow,
- *     310 buffalo). Confirmed without an AI date: taken as 60 days pregnant on the confirmation date.
+ *   - Pregnancy: read by BreedingCycle, as on the Lactation tab - the last AI (SEMEN_GIVEN / AI_DONE)
+ *     after the last calving, unless a PREGNANCY_NEGATIVE came after it. Expected calving = AI + gestation
+ *     (283 days cow, 310 buffalo). Confirmed without an AI date: taken as 60 days pregnant on the PD date.
  *   - Dry-off 60 days before expected calving (or the recorded dry-off, if she is already dry).
- *     A cow that is not pregnant cannot calve within the window, so she keeps milking along the curve.
+ *     A cow that is not pregnant is dried off at 305 days in milk and stays dry for the rest of the
+ *     window: no calving is assumed until an AI is recorded.
  *   - The first 7 days after a calving are colostrum for the calf: not counted as lactation or milk.
  *   - Heat stress: litres cut from 15 Mar, at full strength 1 Apr - 15 May, gone by 31 May. How much is
  *     measured from the farm's own last summer once its records cover one (each cow's mid-Apr-mid-May yield
@@ -47,6 +48,10 @@ import java.util.*;
 public class MilkProjectionService {
 
     static final int DRY_PERIOD_DAYS = 60;
+    /** A cow that is not pregnant is dried off at the end of a normal lactation. */
+    static final int LACTATION_DAYS = 305;
+    /** An open cow already past LACTATION_DAYS is taken to be milked this much longer. */
+    static final int OPEN_PAST_LACTATION_DAYS = 30;
     /** Taken as the pregnancy length on the PD date when no AI date is recorded. */
     static final int PD_ASSUMED_DAYS = 60;
     static final double FIRST_LACTATION_FACTOR = 0.85;
@@ -292,6 +297,7 @@ public class MilkProjectionService {
         assumptions.put("gestationCowDays", AssetValuationService.GESTATION_COW);
         assumptions.put("gestationBuffaloDays", AssetValuationService.GESTATION_BUFFALO);
         assumptions.put("dryPeriodDays", DRY_PERIOD_DAYS);
+        assumptions.put("openLactationDays", LACTATION_DAYS);
         assumptions.put("pdAssumedDays", PD_ASSUMED_DAYS);
         assumptions.put("firstLactationFactor", FIRST_LACTATION_FACTOR);
         assumptions.put("colostrumDays", COLOSTRUM_DAYS);
@@ -458,25 +464,32 @@ public class MilkProjectionService {
         p.calvedBefore = p.milkingNow || lactation > 0 || freshened != null || "DRY".equals(status);
         if (p.milkingNow && freshened != null) p.dim0 = (int) ChronoUnit.DAYS.between(freshened, today);
 
-        // Pregnancy since the last calving
-        LocalDate lastPd = latest(events, "PREGNANCY_CONFIRMED", freshened);
-        LocalDate lastAi = latest(events, "SEMEN_GIVEN", freshened);
-        if (lastAi == null) lastAi = latest(events, "AI_DONE", freshened);
-        boolean pregnant = lastPd != null || "PREGNANT".equals(status);
+        // Pregnancy since the last calving, read the same way as the Lactation tab: a negative PD
+        // after the last AI / positive PD means open; an AI not yet checked counts as the conception.
+        BreedingCycle cycle = BreedingCycle.of(events, today);
         int gestation = "BUFFALO".equals(upper(herd.getAnimalType()))
                 ? AssetValuationService.GESTATION_BUFFALO : AssetValuationService.GESTATION_COW;
-        if (pregnant) {
-            LocalDate conceived = lastAi != null ? lastAi
-                    : lastPd != null ? lastPd.minusDays(PD_ASSUMED_DAYS) : null;
-            if (conceived != null) {
-                LocalDate due = conceived.plusDays(gestation);
-                // A due date already passed without a calving record: expected any day now
-                p.nextCalving = due.isBefore(today) ? today : due;
-                if (p.milkingNow) {
-                    LocalDate dryOff = p.nextCalving.minusDays(DRY_PERIOD_DAYS);
-                    p.dryOff = dryOff.isBefore(today) ? today : dryOff;
-                }
+        LocalDate conceived = null;
+        if (cycle.pregnant()) {
+            // A PD with no AI recorded before it: taken as PD_ASSUMED_DAYS into the pregnancy
+            conceived = cycle.confirmed() && cycle.conception().equals(cycle.pdDate())
+                    ? cycle.pdDate().minusDays(PD_ASSUMED_DAYS) : cycle.conception();
+        }
+        if (conceived != null) {
+            LocalDate due = conceived.plusDays(gestation);
+            // A due date already passed without a calving record: expected any day now
+            p.nextCalving = due.isBefore(today) ? today : due;
+            if (p.milkingNow) {
+                LocalDate dryOff = p.nextCalving.minusDays(DRY_PERIOD_DAYS);
+                p.dryOff = dryOff.isBefore(today) ? today : dryOff;
             }
+        } else if (p.milkingNow && freshened != null) {
+            // Open (not inseminated, or PD negative): no calving in sight, so she is dried off at the
+            // end of a normal lactation and stays dry until a new pregnancy is recorded. One already
+            // past it is given OPEN_PAST_LACTATION_DAYS more, since she is evidently still being milked.
+            LocalDate dryOff = freshened.plusDays(LACTATION_DAYS);
+            LocalDate earliest = today.plusDays(OPEN_PAST_LACTATION_DAYS);
+            p.dryOff = dryOff.isBefore(earliest) && !dryOff.isAfter(today) ? earliest : dryOff;
         }
         if (!p.calvedBefore && p.nextCalving == null) return null; // open heifer: no milk in the window
 

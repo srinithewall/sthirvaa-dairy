@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown, Layers, Bell, BarChart3, StickyNote } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
-import LedgerCostTracker from '@/components/LedgerCostTracker';
+import Link from 'next/link';
 
 interface Category {
   id: number;
@@ -73,14 +73,9 @@ function LedgerPage() {
   const [noteOpen, setNoteOpen] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
-  const [showTracker, setShowTracker] = useState(false);
-  useEffect(() => {
-    if (!showTracker) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowTracker(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [showTracker]);
-  
+  // Order of the transactions list, on both the Expense and Income tabs.
+  const [sortBy, setSortBy] = useState<'DATE' | 'AMOUNT_DESC' | 'AMOUNT_ASC'>('DATE');
+
   // Selection & Form State
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [amount, setAmount] = useState('');
@@ -107,9 +102,6 @@ function LedgerPage() {
   // Month filter opens on the current month for both expenses and income.
   const currentMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
   const [filterMonth, setFilterMonth] = useState<string>(currentMonth);
-  // The cost tracker always opens on last month (a full month), whatever the page's month filter is.
-  const lastMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
-  const [trackerMonth, setTrackerMonth] = useState<string>(lastMonth);
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterPaidBy, setFilterPaidBy] = useState<string>('ALL');
   const [settling, setSettling] = useState(false);
@@ -250,7 +242,7 @@ function LedgerPage() {
   };
 
   // The list shows one milk row per month in place of a row for every day.
-  const listed: Transaction[] = (() => {
+  const listedByDate: Transaction[] = (() => {
     const rows = filteredHistory.filter(h => h.type === activeTab && !isMilk(h));
     if (activeTab !== 'INCOME' || !milkInView || showUnaccounted) return rows;
     const months: Record<string, NonNullable<Transaction['milkMonth']> & { last: string }> = {};
@@ -268,6 +260,10 @@ function LedgerPage() {
     }));
     return [...rows, ...milkRows].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   })();
+  // Amount sorts keep the date order for equal amounts (Array.sort is stable). A milk month sorts by
+  // the amount it shows, the money received.
+  const listed: Transaction[] = sortBy === 'DATE' ? listedByDate
+    : [...listedByDate].sort((a, b) => sortBy === 'AMOUNT_DESC' ? b.amount - a.amount : a.amount - b.amount);
 
   // Paid-by summary (respects the month filter, independent of the category filter)
   const paidByEntries = history.filter(h =>
@@ -461,7 +457,6 @@ function LedgerPage() {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const uniqueMonths = Array.from(new Set([currentMonth, ...history.map(h => h.date.substring(0, 7))])).sort().reverse();
-  const trackerMonths = Array.from(new Set([lastMonth, ...uniqueMonths])).sort().reverse();
   const currentTabCategories = categories.filter(c => c.type === activeTab).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
@@ -532,10 +527,10 @@ function LedgerPage() {
             </button>
           </div>
           {/* Cost tracker report: top right of the header (pinned to the corner on phones) */}
-          <button type="button" onClick={() => { setTrackerMonth(lastMonth); setShowTracker(true); }} title="Cost tracker" aria-label="Cost tracker"
+          <Link href="/efficiency?tab=costs" title="Cost tracker (now under Efficiency)" aria-label="Cost tracker, under Efficiency"
             className="absolute top-0 right-0 sm:static w-11 h-11 bg-white rounded-xl border border-border-custom shadow-sm inline-flex items-center justify-center text-brand hover:bg-surface2">
             <BarChart3 size={18} />
-          </button>
+          </Link>
           </div>
         </div>
 
@@ -750,10 +745,17 @@ function LedgerPage() {
 
         {/* Recent Transactions List */}
         <div className="bg-white rounded-radius-custom-lg border border-border-custom overflow-hidden card-shadow">
-          <div className="p-4 sm:p-5 border-b border-border-custom bg-surface2/50 flex items-center justify-between">
+          <div className="p-4 sm:p-5 border-b border-border-custom bg-surface2/50 flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-[13px] font-black flex items-center gap-2 text-text uppercase tracking-widest">
               <History size={16} className="text-brand" /> Recent Transactions
             </h3>
+            <div className="flex items-center gap-3 sm:gap-4">
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} aria-label="Sort transactions"
+              className="bg-white border border-border-custom text-text2 text-[12px] font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand/30">
+              <option value="DATE">Newest first</option>
+              <option value="AMOUNT_DESC">Amount: high to low</option>
+              <option value="AMOUNT_ASC">Amount: low to high</option>
+            </select>
             <button type="button" role="switch" aria-checked={showUnaccounted} onClick={() => setShowUnaccounted(v => !v)}
               title={showUnaccounted ? 'Back to the regular entries' : 'Show only unaccounted expenses'}
               className="flex items-center gap-2 text-[11px] font-black text-text2 uppercase tracking-widest">
@@ -762,8 +764,9 @@ function LedgerPage() {
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showUnaccounted ? 'translate-x-4' : ''}`} />
               </span>
             </button>
+            </div>
           </div>
-          
+
           <div className="divide-y divide-border-custom bg-white">
             {loading ? (
               <div className="p-10 sm:p-20 text-center">
@@ -798,38 +801,41 @@ function LedgerPage() {
               );
               const isHighlighted = filterPaidBy !== 'ALL' && filterPaidBy !== 'SETTLED' && !item.settled && (filterPaidBy === 'UNSETTLED' ? !!item.paidBy : item.paidBy === filterPaidBy);
               return (
-              <div key={`${item.type}-${item.id}`} className={`p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-surface transition-all group border-l-4 gap-4 sm:gap-0 ${isHighlighted ? 'bg-amber-400/10 border-amber-400' : 'border-transparent hover:border-brand'}`}>
-                <div className="flex items-center gap-4 sm:gap-5 w-full sm:w-auto">
+              <div key={`${item.type}-${item.id}`} className={`p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-surface transition-all group border-l-4 gap-3 sm:gap-4 ${isHighlighted ? 'bg-amber-400/10 border-amber-400' : 'border-transparent hover:border-brand'}`}>
+                {/* Text side takes the room that is left; the amount column never shrinks. */}
+                <div className="flex items-start sm:items-center gap-4 sm:gap-5 w-full sm:w-auto sm:flex-1 min-w-0">
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-xl flex items-center justify-center text-lg sm:text-xl font-bold shadow-sm ${item.type === 'EXPENSE' ? 'bg-danger/10 text-danger' : 'bg-brand/10 text-brand'}`}>
                     {categories.find(c => c.name === item.category)?.iconCode || item.category.charAt(0)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-black text-text text-[14px] sm:text-[15px]">{item.category}</div>
-                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                      <span className="text-[10px] font-black bg-surface2 px-1.5 py-0.5 rounded text-text2 flex-shrink-0">{item.date}</span>
-                      <span className="text-[11px] sm:text-[12px] text-text3 font-medium truncate sm:line-clamp-1 max-w-[150px] sm:max-w-none">
-                        {item.description}
-                        {item.paidBy && (
-                          <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${item.settled ? 'bg-brand/10 text-brand' : 'bg-surface2 text-text2'}`}>
-                            {item.settled ? '✓ Settled · ' : 'Paid by: '}{item.paidBy}
-                            {item.settled && item.settledAt && ` · ${new Date(item.settledAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
-                            {item.settled && item.settledBy && ` by ${item.settledBy}`}
-                          </span>
-                        )}
-                        {item.unaccounted && (
-                          <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-amber-400/15 text-amber-700"
-                            title="Not taken off the profit when salaries are worked out">
-                            Unaccounted
-                          </span>
-                        )}
-                      </span>
+                    <div className="font-black text-text text-[14px] sm:text-[15px] break-words">{item.category}</div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className="text-[10px] font-black bg-surface2 px-1.5 py-0.5 rounded text-text2">{item.date}</span>
+                      {item.paidBy && (
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${item.settled ? 'bg-brand/10 text-brand' : 'bg-surface2 text-text2'}`}
+                          title={item.settled && item.settledBy ? `Settled by ${item.settledBy}` : undefined}>
+                          {item.settled ? '✓ Settled · ' : 'Paid by: '}{item.paidBy}
+                          {item.settled && item.settledAt && ` · ${new Date(item.settledAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
+                        </span>
+                      )}
+                      {item.unaccounted && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-400/15 text-amber-700"
+                          title="Not taken off the profit when salaries are worked out">
+                          Unaccounted
+                        </span>
+                      )}
                     </div>
+                    {item.description && (
+                      <div className="text-[11px] sm:text-[12px] text-text3 font-medium mt-1 line-clamp-2 break-words" title={item.description}>
+                        {item.description}
+                      </div>
+                    )}
                   </div>
                 </div>
-                
-                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-1 sm:mt-0">
+
+                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto flex-shrink-0 pl-14 sm:pl-0">
                   <div className="text-left sm:text-right">
-                    <div className={`font-black text-[16px] sm:text-[18px] ${item.unaccounted ? 'text-text3' : item.type === 'EXPENSE' ? 'text-danger' : 'text-brand'}`}
+                    <div className={`font-black text-[16px] sm:text-[18px] whitespace-nowrap ${item.unaccounted ? 'text-text3' : item.type === 'EXPENSE' ? 'text-danger' : 'text-brand'}`}
                       title={item.unaccounted ? 'Unaccounted: not counted in any total' : undefined}>
                       {item.type === 'EXPENSE' ? '-' : '+'} ₹{item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
@@ -1020,35 +1026,6 @@ function LedgerPage() {
         </div>
       )}
 
-      {showTracker && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowTracker(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="cost-tracker-title"
-            className="bg-surface w-full max-w-3xl max-h-[92vh] rounded-[24px] overflow-hidden shadow-2xl flex flex-col"
-            onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 bg-white border-b border-border-custom flex items-center justify-between gap-3">
-              <div>
-                <div id="cost-tracker-title" className="text-[15px] font-black text-text uppercase tracking-widest flex items-center gap-2">
-                  <BarChart3 size={18} className="text-brand" /> Cost Tracker
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <select value={trackerMonth} onChange={e => setTrackerMonth(e.target.value)} aria-label="Cost tracker month"
-                  className="bg-surface2 border border-border-custom text-text text-sm font-bold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/30">
-                  {trackerMonths.map(m => <option key={m} value={m}>{monthName(m)}</option>)}
-                </select>
-                <button type="button" onClick={() => setShowTracker(false)} aria-label="Close"
-                  className="p-2 rounded-lg text-text3 hover:text-text hover:bg-surface2"><X size={22} /></button>
-              </div>
-            </div>
-            <div className="p-3 sm:p-5 overflow-y-auto">
-              <LedgerCostTracker entries={history.filter(h => inSegment(h) && !h.unaccounted)}
-                milkReceived={segmentFilter === 'POULTRY' ? [] : milkReceived}
-                month={trackerMonth} />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* New Category Modal */}
       {showCategoryModal && (

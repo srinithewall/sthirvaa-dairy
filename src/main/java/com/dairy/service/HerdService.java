@@ -13,9 +13,11 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class HerdService {
@@ -222,12 +224,18 @@ public class HerdService {
 
             herd.setAvgMilk30Days(averageOf(dailyTotalsByHerd.get(herd.getId())));
 
-            // Counted here rather than by the database. equalsIgnoreCase matches what the old
-            // countBy query did, since MySQL's default collation is case-insensitive.
-            int lactationCount = 0;
+            // Parity: calvings before her records (entered on the animal form) plus every calving
+            // recorded since, so it goes up by itself when a calving is recorded. A calving entered
+            // twice on the same day counts once.
+            Set<LocalDate> calvingDays = new HashSet<>();
             for (HerdEvent event : events) {
-                if ("CALF_DELIVERED".equalsIgnoreCase(event.getEventType())) lactationCount++;
+                if (event.getEventDate() != null && event.getEventType() != null
+                        && BreedingCycle.CALVING_TYPES.contains(event.getEventType().toUpperCase())) {
+                    calvingDays.add(event.getEventDate());
+                }
             }
+            int previous = herd.getPreviousLactations() != null ? herd.getPreviousLactations() : 0;
+            int lactationCount = previous + calvingDays.size();
             herd.setLactationNumber(lactationCount);
 
             Double latestWeight = latestWeightsByHerd.get(herd.getId());
@@ -272,15 +280,14 @@ public class HerdService {
                 .findFirst()
                 .ifPresent(e -> herd.setDim((int) java.time.temporal.ChronoUnit.DAYS.between(e.getEventDate(), LocalDate.now())));
 
-        // Pregnancy: Days since last AI (SEMEN_GIVEN) or PREGNANCY_CONFIRMED
-        events.stream()
-                .filter(e -> "PREGNANCY_CONFIRMED".equalsIgnoreCase(e.getEventType()) || "SEMEN_GIVEN".equalsIgnoreCase(e.getEventType()) || "AI_DONE".equalsIgnoreCase(e.getEventType()))
-                .findFirst()
-                .ifPresent(e -> {
-                    int days = (int) java.time.temporal.ChronoUnit.DAYS.between(e.getEventDate(), LocalDate.now());
-                    herd.setPregnancyDaysPregnant(days);
-                    herd.setPregnancyStatus(days + " days pregnant");
-                });
+        // Pregnancy: days since the insemination that led to it (see BreedingCycle), so a PD does
+        // not restart the count and an insemination from before the last calving no longer counts.
+        BreedingCycle cycle = BreedingCycle.of(events, LocalDate.now());
+        if (cycle.pregnant()) {
+            int days = (int) java.time.temporal.ChronoUnit.DAYS.between(cycle.conception(), LocalDate.now());
+            herd.setPregnancyDaysPregnant(days);
+            herd.setPregnancyStatus(days + " days pregnant");
+        }
     }
 
     /**

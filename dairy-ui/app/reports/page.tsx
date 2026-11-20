@@ -4,7 +4,6 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
-import EmpReport from "@/components/EmpReport";
 import api from "@/lib/api";
 import { Bar } from "react-chartjs-2";
 import {
@@ -24,8 +23,10 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointEleme
 function ReportsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const type = searchParams.get("type");
-  const report = type === "emp" ? type : "weight";
+  // The EMP milk forecast moved to Efficiency; old links still land on it.
+  useEffect(() => {
+    if (searchParams.get("type") === "emp") router.replace("/efficiency?tab=emp");
+  }, [searchParams, router]);
   const [herds, setHerds] = useState<any[]>([]);
   const [selectedHerd, setSelectedHerd] = useState<string>("");
   const [chartData, setChartData] = useState<any>(null);
@@ -123,35 +124,14 @@ function ReportsPage() {
 
   return (
     <AppLayout>
-      <div className={`${report === "weight" ? "max-w-4xl" : "max-w-6xl"} mx-auto space-y-6`}>
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Analytics & Reports</h1>
-            <p className="text-sm text-slate-500">
-              {report === "emp"
-                ? "EMP — estimated milk production and revenue for the next 9 months."
-                : "Correlate animal health metrics with farm productivity."}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            {([["weight", "Weight vs Milk"], ["emp", "EMP"]] as const).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => router.replace(key === "weight" ? "/reports" : `/reports?type=${key}`)}
-                title={key === "emp" ? "Estimated Milk Production and revenue, next 9 months" : undefined}
-                className={`py-2 px-4 rounded-radius-custom font-semibold text-[13px] border transition-all shadow-sm ${
-                  report === key
-                    ? "bg-brand text-white border-brand"
-                    : "bg-white border-border-custom text-text2 hover:border-brand hover:text-brand"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            <p className="text-sm text-slate-500">Correlate animal health metrics with farm productivity.</p>
           </div>
         </div>
 
-        {report === "emp" ? <EmpReport /> : (
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="font-bold text-slate-700">Weight vs. Milk Production</h2>
@@ -199,7 +179,6 @@ function ReportsPage() {
             <div className="h-64 flex items-center justify-center text-slate-400">Not enough data to display.</div>
           )}
         </div>
-        )}
       </div>
     </AppLayout>
   );

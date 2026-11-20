@@ -1,8 +1,10 @@
 package com.dairy.service;
 
+import com.dairy.model.Asset;
 import com.dairy.model.Expense;
 import com.dairy.model.Herd;
 import com.dairy.model.HerdEvent;
+import com.dairy.repo.AssetRepository;
 import com.dairy.repo.ExpenseRepository;
 import com.dairy.repo.HerdEventRepository;
 import com.dairy.repo.HerdRepository;
@@ -36,12 +38,16 @@ public class CostTrackerService {
             {"FEED", "Feed & fodder", "feed,fodder,mineral,silage,hay,straw,concentrate,grass,calcium,bran,cake"},
             {"VET", "Vet & medical", "medic,doctor,vet,insemin,semen,vaccin,deworm,treatment,tablet,injection"},
             {"DEATHS", "Deaths & losses", "expire,death,dead,died,mortal,loss"},
-            {"LABOUR", "Labour & salary", "salary,labour,labor,wage,staff"},
-            {"ANIMALS", "Animal purchase", "poultry,commission,broker,cow purchase,calf purchase,animal"},
+            {"LABOUR", "Salary", "salary,labour,labor,wage,staff"},
+            {"BROKERAGE", "Brokerage", "commission,broker"},
+            {"ANIMALS", "Animal purchase", "poultry,cow purchase,calf purchase,animal"},
             {"INFRA", "Infrastructure & equipment", "suppl,machiner,repair,pesticide,contract,equipment,electric,plumb,construct,shed,tool"},
             {"TRANSPORT", "Transport & fuel", "transport,fuel,diesel,petrol,vehicle"},
             {"OTHER", "Other", ""},
     };
+
+    /** Group for expenses marked unaccounted, when a report asks for them. */
+    static final String UNACCOUNTED = "UNACCOUNTED";
 
     private static final Set<String> BATCH_TYPES = Set.of("CHICKEN", "DUCK", "FISH", "QUAIL");
 
@@ -54,14 +60,60 @@ public class CostTrackerService {
     @Autowired
     private HerdRepository herdRepository;
 
+    @Autowired
+    private AssetRepository assetRepository;
+
+    /** Asset categories that are animals bought for the herd. */
+    static final Set<String> CATTLE_ASSET_CATEGORIES = Set.of("cow", "calf", "heifer", "buffalo", "bull");
+
+    /**
+     * Cattle bought in the range, from the asset register (registering a bought cow records her
+     * purchase cost there, not in the ledger), by purchase date. Disposed animals count too: the
+     * money was spent. This is investment, so it is kept apart from the expense entries.
+     */
+    public List<Map<String, Object>> cattlePurchases(LocalDate from, LocalDate to) {
+        // A cow's asset carries her tag as its serial number; that ties the purchase to her herd record.
+        Map<String, Herd> herdByTag = new HashMap<>();
+        for (Herd h : herdRepository.findAll()) {
+            if (h.getTagNumber() != null) herdByTag.put(h.getTagNumber().trim(), h);
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Asset a : assetRepository.findAll()) {
+            if (a.getCategory() == null || !CATTLE_ASSET_CATEGORIES.contains(a.getCategory().trim().toLowerCase())) continue;
+            if (a.getPurchaseDate() == null || a.getPurchaseDate().isBefore(from) || a.getPurchaseDate().isAfter(to)) continue;
+            if (a.getValue() == null || a.getValue() <= 0) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", a.getId());
+            m.put("name", a.getName() == null ? "" : a.getName().trim());
+            m.put("date", a.getPurchaseDate());
+            m.put("amount", a.getValue());
+            m.put("status", a.getStatus());
+            Herd herd = a.getSerialNumber() == null ? null : herdByTag.get(a.getSerialNumber().trim());
+            m.put("herdId", herd != null ? herd.getId() : null);
+            m.put("animalName", herd != null && herd.getAnimalName() != null ? herd.getAnimalName().trim() : null);
+            out.add(m);
+        }
+        out.sort(Comparator.comparing((Map<String, Object> m) -> (LocalDate) m.get("date")).reversed());
+        return out;
+    }
+
     public Map<String, Object> summary(LocalDate from, LocalDate to, String segment) {
+        return summary(from, to, segment, false);
+    }
+
+    /**
+     * With {@code includeUnaccounted}, expenses marked unaccounted (paid outside the farm's books) are
+     * returned too, in their own UNACCOUNTED group, so a report can show them beside the rest. The
+     * previous-period comparison never includes them.
+     */
+    public Map<String, Object> summary(LocalDate from, LocalDate to, String segment, boolean includeUnaccounted) {
         String seg = segment == null ? "ALL" : segment.toUpperCase();
         Map<Long, Herd> batches = new HashMap<>();
         for (Herd h : herdRepository.findAll()) {
             if (h.getAnimalType() != null && BATCH_TYPES.contains(h.getAnimalType().toUpperCase())) batches.put(h.getId(), h);
         }
 
-        List<Map<String, Object>> entries = entries(from, to, seg, batches);
+        List<Map<String, Object>> entries = entries(from, to, seg, batches, includeUnaccounted);
         LocalDate prevFrom, prevTo;
         if (from.getDayOfMonth() == 1) {
             long months = ChronoUnit.MONTHS.between(YearMonth.from(from), YearMonth.from(to)) + 1;
@@ -74,7 +126,7 @@ public class CostTrackerService {
         }
         Map<String, Double> prevByGroup = new LinkedHashMap<>();
         for (String[] g : GROUPS) prevByGroup.put(g[0], 0.0);
-        for (Map<String, Object> e : entries(prevFrom, prevTo, seg, batches)) {
+        for (Map<String, Object> e : entries(prevFrom, prevTo, seg, batches, false)) {
             prevByGroup.merge((String) e.get("group"), (Double) e.get("amount"), Double::sum);
         }
 
@@ -85,6 +137,7 @@ public class CostTrackerService {
             m.put("label", g[1]);
             groups.add(m);
         }
+        if (includeUnaccounted) groups.add(Map.of("key", UNACCOUNTED, "label", "Unaccounted"));
 
         Map<String, Object> previous = new LinkedHashMap<>();
         previous.put("from", prevFrom);
@@ -101,10 +154,12 @@ public class CostTrackerService {
         return out;
     }
 
-    private List<Map<String, Object>> entries(LocalDate from, LocalDate to, String seg, Map<Long, Herd> batches) {
+    private List<Map<String, Object>> entries(LocalDate from, LocalDate to, String seg, Map<Long, Herd> batches,
+                                              boolean includeUnaccounted) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Expense x : expenseRepository.findByDateBetween(from, to)) {
-            if (x.getAmount() == null || x.isUnaccounted()) continue; // paid outside the farm's books
+            if (x.getAmount() == null) continue;
+            if (x.isUnaccounted() && !includeUnaccounted) continue; // paid outside the farm's books
             String category = x.getCategory() == null ? "" : x.getCategory().trim();
             boolean poultry = "POULTRY".equalsIgnoreCase(x.getSegment())
                     || "poultry".equalsIgnoreCase(category)
@@ -114,11 +169,12 @@ public class CostTrackerService {
             e.put("id", x.getId());
             e.put("date", x.getDate());
             e.put("category", category);
-            e.put("group", groupOf(category));
+            e.put("group", x.isUnaccounted() ? UNACCOUNTED : groupOf(category));
             e.put("amount", x.getAmount());
             e.put("description", x.getDescription());
             e.put("segment", poultry ? "POULTRY" : "CATTLE");
             e.put("source", "EXPENSE");
+            e.put("herdId", x.getHerdId());
             out.add(e);
         }
 

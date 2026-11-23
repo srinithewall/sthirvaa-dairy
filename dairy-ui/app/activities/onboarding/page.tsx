@@ -535,6 +535,10 @@ function OnboardingInner() {
               <Plus size={14} /> New arrival
             </button>
           )}
+          <button onClick={() => router.push("/herds")} aria-label="Close" title="Close and go to Herd Management"
+            className="flex-none w-9 h-9 inline-flex items-center justify-center rounded-lg border border-border-custom bg-white text-text2 hover:text-text hover:bg-surface2">
+            <X size={18} />
+          </button>
           </div>
         </div>
 

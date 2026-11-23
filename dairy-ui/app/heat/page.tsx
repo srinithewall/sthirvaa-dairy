@@ -168,7 +168,8 @@ export default function HeatCyclesPage() {
 
   const load = () =>
     Promise.all([api.get('/herds'), api.get('/herds/events/all')])
-      .then(([h, e]) => { setHerds(h.data || []); setEvents(e.data || []); setError(''); })
+      // /herds answers { total, counts, herds: [...] }
+      .then(([h, e]) => { setHerds(h.data?.herds ?? []); setEvents(e.data || []); setError(''); })
       .catch(() => setError("Couldn't load the herd. Try again."));
   useEffect(() => { load(); }, []);
 

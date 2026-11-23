@@ -21,6 +21,11 @@ interface WeightUpdateModalProps {
   logId?: string | null;
 }
 
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete, logId }: WeightUpdateModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [girth, setGirth] = useState("");
@@ -28,6 +33,10 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
   // "tape" = heart girth (weight worked out), "scale" = net weight typed in directly
   const [mode, setMode] = useState<"tape" | "scale">("tape");
   const [netWeight, setNetWeight] = useState("");
+  /** The kg printed on a weigh tape at that girth; when given it is saved as her weight. */
+  const [tapeKg, setTapeKg] = useState("");
+  /** Day the round was measured, so a Sunday round can be entered later. Kept from animal to animal. */
+  const [measuredOn, setMeasuredOn] = useState(localToday);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,13 +56,18 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
     const w = parseFloat(netWeight);
     return w > 0 ? w : null;
   })();
-  const newWeight = mode === "scale" ? scaleW : calcW;
+  const tapeW = (() => {
+    const w = parseFloat(tapeKg);
+    return w > 0 ? w : null;
+  })();
+  const newWeight = mode === "scale" ? scaleW : (tapeW ?? calcW);
 
   // The method choice stays for the next animal; only the readings clear.
   const resetForm = () => {
     setGirth("");
     setLength("");
     setNetWeight("");
+    setTapeKg("");
     setError("");
   };
 
@@ -82,7 +96,7 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
     setError("");
 
     try {
-      const recordDate = new Date().toISOString().split("T")[0];
+      const recordDate = measuredOn || localToday();
 
       let reading;
       if (mode === "scale") {
@@ -90,8 +104,15 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
       } else {
         const g = parseFloat(girth);
         const l = length ? parseFloat(length) : null;
-        const weightKg = l ? (g * g * l) / 10838 : (g * g * (g * 0.85)) / 10838;
-        reading = { measurementMethod: "HEART_GIRTH_TAPE", heartGirthCm: g, bodyLengthCm: l, weightKg: parseFloat(weightKg.toFixed(2)) };
+        // The kg on the weigh tape when read; otherwise the girth formula.
+        const weightKg = tapeW ?? (l ? (g * g * l) / 10838 : (g * g * (g * 0.85)) / 10838);
+        reading = {
+          measurementMethod: "HEART_GIRTH_TAPE",
+          heartGirthCm: g,
+          bodyLengthCm: l,
+          weightKg: parseFloat(weightKg.toFixed(2)),
+          notes: tapeW ? "kg read off the weigh tape" : null,
+        };
       }
 
       const payload = [{ herdId: currentAnimal.herdId, recordDate, ...reading }];
@@ -152,6 +173,18 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
               </div>
             )}
             
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="measured-on" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Measured on</label>
+              <input
+                id="measured-on"
+                type="date"
+                max={localToday()}
+                value={measuredOn}
+                onChange={e => setMeasuredOn(e.target.value)}
+                className="border-2 border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-1.5 text-sm font-bold outline-none"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl">
               {([["tape", "Heart girth tape"], ["scale", "Net weight (scale)"]] as const).map(([m, label]) => (
                 <button
@@ -191,6 +224,20 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
                     className="w-full border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-xl p-3 text-lg font-bold text-center transition-all outline-none"
                   />
                 </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Kg shown on tape</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    min="0.1"
+                    value={tapeKg}
+                    onChange={e => setTapeKg(e.target.value)}
+                    placeholder="leave empty to work it out"
+                    className="w-full border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-xl p-3 text-lg font-bold text-center transition-all outline-none placeholder:text-sm placeholder:font-normal"
+                    aria-label="Kg shown on tape"
+                  />
+                </div>
               </div>
             ) : (
               <div>
@@ -213,7 +260,7 @@ export default function WeightUpdateModal({ isOpen, onClose, animals, onComplete
               <div className={`mt-2 p-4 rounded-xl border-2 flex items-center justify-between transition-colors ${newWeight ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
                  <span className={`text-sm font-bold flex items-center gap-2 ${newWeight ? 'text-emerald-800' : 'text-slate-400'}`}>
                     <Calculator size={18} />
-                    New Weight
+                    {tapeW ? "Weight (from tape)" : "New Weight"}
                  </span>
                  <div className={`text-2xl font-black ${newWeight ? 'text-emerald-600' : 'text-slate-300'}`}>
                     {newWeight ? newWeight.toFixed(1) : "--"} <span className="text-sm font-bold opacity-70">kg</span>

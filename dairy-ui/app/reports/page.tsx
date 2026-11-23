@@ -26,6 +26,10 @@ function ReportsPage() {
   const onRows = (rows: Row[]) => {
     setAnimals(rows);
     setSelected(cur => cur ?? (rows.find(r => r.currentWeightKg != null) ?? rows[0])?.herdId ?? null);
+    // Opened from an animal (e.g. the weight round): go straight to her history.
+    if (searchParams.get("focus") === "history") {
+      setTimeout(() => historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    }
   };
 
   const pick = (herdId: number, scroll: boolean) => {
@@ -52,7 +56,6 @@ function ReportsPage() {
           <div className="flex justify-between items-start gap-3 flex-wrap">
             <div>
               <h2 className="font-bold text-slate-700">Weight History &amp; Milk</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Every weighing of one animal against its healthy weight at the time, with its milk.</p>
             </div>
             <select
               value={selected ?? ""}

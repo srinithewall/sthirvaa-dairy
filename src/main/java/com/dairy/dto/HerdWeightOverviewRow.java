@@ -32,11 +32,34 @@ public class HerdWeightOverviewRow {
     private Double breedTargetKg;
     /** Her own weight brought to BCS 3 (pregnancy included); null without a weight and a BCS. */
     private Double frameTargetKg;
+    /** Her fixed base minimum (BCS 3, open); null for young stock and cows not yet scored. */
+    private Double baseMinWeightKg;
+    private java.time.LocalDate baseMinWeightDate;
+    /** true = set by hand; false = the app's suggestion. */
+    private Boolean baseManual;
+    /** What her latest BCS says she should weigh on the weighing day (base moved by BCS, plus the calf). */
+    private Double expectedAtBcsKg;
+    /** Latest weight against that, in % (+ heavier, - lighter); outside +/-5% the weight and BCS disagree. */
+    private Double bcsMatchPct;
+
+    // Base check (see BaseCheck): OK, LOW (base under what the data says) or HIGH; null = no data.
+    /** Her latest heart girth (every animal) and, for grown cows, the base it suggests next to the herd. */
+    private Double girthCm;
+    private java.time.LocalDate girthDate;
+    private Double girthBaseKg;
+    private String girthCheck;
+    /** Days pregnant when the girth was taken, when that was late enough (6+ months) for it not to be used. */
+    private Integer girthPregnantDays;
+    /** Her breed's range from the breed table (not checked for an unknown breed). */
+    private Double breedLowKg;
+    private Double breedHighKg;
+    private String breedCheck;
     /** Pregnancy weight included in the target (0 when open). */
     private Double pregnancyKg;
     private Integer daysPregnant;
     /**
-     * SHORT (below the minimum healthy weight), HEALTHY (grown cow at or above it), AHEAD (young
+     * SHORT (below the minimum healthy weight), HEALTHY (grown cow at or above it with a BCS of 3.5
+     * or more), LOW_BCS (grown cow at or above it but scored under 3.5, or not scored), AHEAD (young
      * stock at or above the growth curve), OVER_CONDITIONED (BCS 4 or more - only body condition
      * calls an animal fat, never weight), or null when there is no weight or no target.
      */
@@ -93,6 +116,32 @@ public class HerdWeightOverviewRow {
 
     public Double getFrameTargetKg() { return frameTargetKg; }
     public void setFrameTargetKg(Double frameTargetKg) { this.frameTargetKg = frameTargetKg; }
+    public Double getBaseMinWeightKg() { return baseMinWeightKg; }
+    public void setBaseMinWeightKg(Double baseMinWeightKg) { this.baseMinWeightKg = baseMinWeightKg; }
+    public java.time.LocalDate getBaseMinWeightDate() { return baseMinWeightDate; }
+    public void setBaseMinWeightDate(java.time.LocalDate baseMinWeightDate) { this.baseMinWeightDate = baseMinWeightDate; }
+    public Boolean getBaseManual() { return baseManual; }
+    public void setBaseManual(Boolean baseManual) { this.baseManual = baseManual; }
+    public Double getExpectedAtBcsKg() { return expectedAtBcsKg; }
+    public void setExpectedAtBcsKg(Double expectedAtBcsKg) { this.expectedAtBcsKg = expectedAtBcsKg; }
+    public Double getBcsMatchPct() { return bcsMatchPct; }
+    public void setBcsMatchPct(Double bcsMatchPct) { this.bcsMatchPct = bcsMatchPct; }
+    public Double getGirthCm() { return girthCm; }
+    public void setGirthCm(Double v) { this.girthCm = v; }
+    public java.time.LocalDate getGirthDate() { return girthDate; }
+    public void setGirthDate(java.time.LocalDate v) { this.girthDate = v; }
+    public Double getGirthBaseKg() { return girthBaseKg; }
+    public void setGirthBaseKg(Double v) { this.girthBaseKg = v; }
+    public String getGirthCheck() { return girthCheck; }
+    public void setGirthCheck(String v) { this.girthCheck = v; }
+    public Integer getGirthPregnantDays() { return girthPregnantDays; }
+    public void setGirthPregnantDays(Integer v) { this.girthPregnantDays = v; }
+    public Double getBreedLowKg() { return breedLowKg; }
+    public void setBreedLowKg(Double v) { this.breedLowKg = v; }
+    public Double getBreedHighKg() { return breedHighKg; }
+    public void setBreedHighKg(Double v) { this.breedHighKg = v; }
+    public String getBreedCheck() { return breedCheck; }
+    public void setBreedCheck(String v) { this.breedCheck = v; }
 
     public Double getPregnancyKg() { return pregnancyKg; }
     public void setPregnancyKg(Double pregnancyKg) { this.pregnancyKg = pregnancyKg; }

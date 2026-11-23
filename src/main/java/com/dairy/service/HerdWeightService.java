@@ -66,27 +66,80 @@ public class HerdWeightService {
         if (record.getRecordDate() == null) {
             record.setRecordDate(LocalDate.now());
         }
+        LocalDate day = record.getRecordDate();
+        List<HerdWeightRecord> earlier = weightRepo.findByHerdIdOrderByRecordDateDesc(record.getHerdId());
 
-        // Calculate weight change from previous
-        HerdWeightRecord lastRecord = weightRepo.findFirstByHerdIdOrderByRecordDateDesc(record.getHerdId());
-        if (lastRecord != null && lastRecord.getWeightKg() != null && record.getWeightKg() != null) {
-            record.setWeightChangeKg(record.getWeightKg() - lastRecord.getWeightKg());
+        // One reading per animal per day: entering the day again corrects it instead of adding a
+        // second reading. A BCS or note on the first entry is kept unless the new one brings its own.
+        HerdWeightRecord sameDay = weightRepo
+                .findByHerdIdAndRecordDateBetweenOrderByRecordDateAsc(record.getHerdId(), day, day)
+                .stream().findFirst().orElse(null);
+        if (sameDay != null) {
+            record.setId(sameDay.getId());
+            record.setCreatedAt(sameDay.getCreatedAt());
+            if (record.getBodyConditionScore() == null) record.setBodyConditionScore(sameDay.getBodyConditionScore());
+            if (record.getNotes() == null) record.setNotes(sameDay.getNotes());
+        }
+
+        // Weight change against the reading before this day (not the latest, which may be later).
+        HerdWeightRecord previous = earlier.stream()
+                .filter(r -> r.getRecordDate() != null && r.getRecordDate().isBefore(day) && r.getWeightKg() != null)
+                .findFirst().orElse(null);
+        if (previous != null && record.getWeightKg() != null) {
+            record.setWeightChangeKg(record.getWeightKg() - previous.getWeightKg());
         } else {
             record.setWeightChangeKg(0.0);
         }
+        boolean latestDay = earlier.stream().noneMatch(r -> r.getRecordDate() != null && r.getRecordDate().isAfter(day));
 
         HerdWeightRecord saved = weightRepo.save(record);
 
         // Keep the animal's girth current. A scale weight has no girth, so the last tape reading
         // stays; the animal's weight still follows this record (HerdService uses the latest weight).
+        // A reading entered for an earlier day leaves a later girth alone.
         Optional<Herd> optHerd = herdRepo.findById(record.getHerdId());
-        if (optHerd.isPresent() && record.getHeartGirthCm() != null) {
+        if (optHerd.isPresent() && record.getHeartGirthCm() != null && latestDay) {
             Herd herd = optHerd.get();
             herd.setHeartGirth(record.getHeartGirthCm());
             herdRepo.save(herd);
         }
 
         return saved;
+    }
+
+    /**
+     * Corrects one reading in place. Only the fields sent change; a new date must not already have
+     * a reading for this animal (enter that day again instead to correct it).
+     */
+    public Optional<HerdWeightRecord> updateWeightRecord(Long herdId, Long id, HerdWeightRecord changes) {
+        Optional<HerdWeightRecord> found = weightRepo.findById(id).filter(r -> herdId.equals(r.getHerdId()));
+        if (found.isEmpty()) return Optional.empty();
+        HerdWeightRecord r = found.get();
+        LocalDate day = changes.getRecordDate() != null ? changes.getRecordDate() : r.getRecordDate();
+        if (!day.equals(r.getRecordDate())
+                && !weightRepo.findByHerdIdAndRecordDateBetweenOrderByRecordDateAsc(herdId, day, day).isEmpty()) {
+            throw new IllegalStateException("There is already a reading on " + day + " for this animal.");
+        }
+        r.setRecordDate(day);
+        if (changes.getHeartGirthCm() != null) r.setHeartGirthCm(changes.getHeartGirthCm());
+        if (changes.getBodyLengthCm() != null) r.setBodyLengthCm(changes.getBodyLengthCm());
+        if (changes.getWeightKg() != null) r.setWeightKg(changes.getWeightKg());
+        if (changes.getMeasurementMethod() != null) r.setMeasurementMethod(changes.getMeasurementMethod());
+        if (changes.getNotes() != null) r.setNotes(changes.getNotes().isBlank() ? null : changes.getNotes());
+
+        List<HerdWeightRecord> all = weightRepo.findByHerdIdOrderByRecordDateDesc(herdId);
+        HerdWeightRecord previous = all.stream()
+                .filter(o -> !o.getId().equals(r.getId()) && o.getRecordDate() != null && o.getRecordDate().isBefore(day) && o.getWeightKg() != null)
+                .findFirst().orElse(null);
+        r.setWeightChangeKg(previous != null && r.getWeightKg() != null ? r.getWeightKg() - previous.getWeightKg() : 0.0);
+        HerdWeightRecord saved = weightRepo.save(r);
+
+        // Keep the animal's girth current when this is her newest reading.
+        boolean latestDay = all.stream().noneMatch(o -> !o.getId().equals(r.getId()) && o.getRecordDate() != null && o.getRecordDate().isAfter(day));
+        if (latestDay && r.getHeartGirthCm() != null) {
+            herdRepo.findById(herdId).ifPresent(herd -> { herd.setHeartGirth(r.getHeartGirthCm()); herdRepo.save(herd); });
+        }
+        return Optional.of(saved);
     }
 
     /** A reading needs a tape girth or a weight from a scale. */
@@ -101,9 +154,18 @@ public class HerdWeightService {
      */
     public List<WeightRoundRow> getWeightRound(LocalDate roundDate) {
         LocalDate date = roundDate != null ? roundDate : LocalDate.now();
+        List<Herd> herds = new ArrayList<>();
+        for (Herd herd : herdService.getAllHerds()) {
+            if ("ACTIVE".equalsIgnoreCase(herd.getStatus()) && isWeighed(herd)) herds.add(herd);
+        }
+        // Same order as the weight report and other screens: cows by days in milk, freshest calver
+        // first, then grown animals with no calving, then young stock oldest to youngest.
+        herds.sort(java.util.Comparator
+                .comparingInt((Herd h) -> roundGroup(h.getDim(), h.getAnimalStatus()))
+                .thenComparing(h -> h.getDim() != null ? h.getDim() : Integer.MAX_VALUE)
+                .thenComparing(Herd::getBirthDate, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
         List<WeightRoundRow> rows = new ArrayList<>();
-        for (Herd herd : herdRepo.findByStatus("ACTIVE")) {
-            if (!isWeighed(herd)) continue;
+        for (Herd herd : herds) {
             HerdWeightRecord last = weightRepo.findFirstByHerdIdOrderByRecordDateDesc(herd.getId());
             rows.add(WeightRoundRow.of(herd, last, date));
         }
@@ -126,9 +188,16 @@ public class HerdWeightService {
         }
 
         java.util.Map<Long, HerdWeightRecord> latest = new java.util.HashMap<>();
+        java.util.Map<Long, List<WeightTarget.Weighing>> weighings = new java.util.HashMap<>();
+        java.util.Map<Long, List<HerdWeightRecord>> records = new java.util.HashMap<>();
         if (!herds.isEmpty()) {
             List<Long> ids = herds.stream().map(Herd::getId).toList();
             for (HerdWeightRecord r : weightRepo.findLatestByHerdIdIn(ids)) latest.put(r.getHerdId(), r);
+            for (HerdWeightRecord r : weightRepo.findByHerdIdIn(ids)) {
+                records.computeIfAbsent(r.getHerdId(), k -> new ArrayList<>()).add(r);
+                WeightTarget.Weighing w = weighing(r);
+                if (w != null) weighings.computeIfAbsent(r.getHerdId(), k -> new ArrayList<>()).add(w);
+            }
         }
         java.util.Map<String, com.dairy.model.Breed> breeds = new java.util.HashMap<>();
         for (com.dairy.model.Breed b : breedRepository.findAll()) {
@@ -162,9 +231,27 @@ public class HerdWeightService {
 
             String breedName = herd.getBreed() != null && !herd.getBreed().isBlank() ? herd.getBreed().trim().toLowerCase() : "unknown";
             com.dairy.model.Breed breed = breeds.getOrDefault(breedName, breeds.get("unknown"));
+            // Her frame comes from the weighing her BCS was given against, not the latest one.
+            WeightTarget.Weighing frame = herd.getBcs() != null
+                    ? WeightTarget.frameWeighing(weighings.get(herd.getId()), herd.getBcsDate()) : null;
+            // Her base minimum is fixed. A scored grown cow without one gets the app's suggestion once
+            // (her frame at BCS 3, open); after that only a person changes it.
+            Double base = herd.getBaseMinWeightKg();
+            if (base == null && herd.getBcs() != null) {
+                WeightTarget.Result est = WeightTarget.of(breed, herd.getBirthDate(), herd.getAnimalStatus(),
+                        herd.getLactationNumber(), herd.getPregnancyDaysPregnant(),
+                        row.getCurrentWeightKg(), herd.getBcs(), row.getWeightDate(), frame, today);
+                if (est != null && est.grown() && est.frameTargetKg() != null) {
+                    base = (double) Math.round(est.frameTargetKg() - est.pregnancyKg());
+                    herdRepo.suggestBaseMinWeight(herd.getId(), base, today);
+                    herd.setBaseMinWeightKg(base);
+                    herd.setBaseMinWeightDate(today);
+                    herd.setBaseMinWeightManual(false);
+                }
+            }
             WeightTarget.Result target = WeightTarget.of(breed, herd.getBirthDate(), herd.getAnimalStatus(),
                     herd.getLactationNumber(), herd.getPregnancyDaysPregnant(),
-                    row.getCurrentWeightKg(), herd.getBcs(), row.getWeightDate(), today);
+                    row.getCurrentWeightKg(), herd.getBcs(), row.getWeightDate(), frame, base, today);
             row.setDaysPregnant(herd.getPregnancyDaysPregnant());
             if (target != null) {
                 row.setTargetWeightKg(target.targetKg());
@@ -173,19 +260,51 @@ public class HerdWeightService {
                 row.setPregnancyKg(target.pregnancyKg());
                 row.setTargetBasis(target.basis());
                 Double current = row.getCurrentWeightKg();
+                if (target.grown() && base != null) {
+                    row.setBaseMinWeightKg(base);
+                    row.setBaseMinWeightDate(herd.getBaseMinWeightDate());
+                    row.setBaseManual(Boolean.TRUE.equals(herd.getBaseMinWeightManual()));
+                    // Sunday check: does the weight agree with what her BCS says she should weigh?
+                    if (herd.getBcs() != null && current != null) {
+                        Integer pregThen = WeightTarget.daysPregnantOn(herd.getPregnancyDaysPregnant(), row.getWeightDate(), today);
+                        double expected = WeightTarget.expectedAtBcs(base, herd.getBcs(), pregThen);
+                        row.setExpectedAtBcsKg((double) Math.round(expected));
+                        row.setBcsMatchPct(Math.round((current - expected) / expected * 1000) / 10.0);
+                    }
+                    checkBreed(row, herd, base, breed);
+                }
                 if (current != null) {
                     row.setGapKg(target.targetKg() - current);
                     // Only body condition calls an animal fat; weight above the minimum is frame.
                     if (herd.getBcs() != null && herd.getBcs() >= 4) row.setVerdict("OVER_CONDITIONED");
                     else if (current < target.targetKg()) row.setVerdict("SHORT");
-                    else row.setVerdict(target.grown() ? "HEALTHY" : "AHEAD");
+                    else if (!target.grown()) row.setVerdict("AHEAD");
+                    // Weight alone is not health: a grown cow also needs good cover (BCS 3.5+).
+                    else if (herd.getBcs() != null && herd.getBcs() >= WeightTarget.HEALTHY_MIN_BCS) row.setVerdict("HEALTHY");
+                    else row.setVerdict("LOW_BCS");
                 }
             }
 
             row.setBcs(herd.getBcs());
             row.setBcsDate(herd.getBcsDate());
             row.setBcsLabel(HerdService.bcsLabel(herd.getBcs()));
+            latestGirth(row, herd, records.getOrDefault(herd.getId(), List.of()), today);
             rows.add(row);
+        }
+
+        // Base check by girth: the herd's other bases per cm2 of girth, times hers.
+        List<com.dairy.dto.HerdWeightOverviewRow> sized = rows.stream()
+                .filter(r -> r.getBaseMinWeightKg() != null && r.getGirthCm() != null && r.getGirthCm() > 0
+                        && r.getGirthPregnantDays() == null).toList();
+        for (com.dairy.dto.HerdWeightOverviewRow r : sized) {
+            List<double[]> others = new ArrayList<>();
+            for (com.dairy.dto.HerdWeightOverviewRow o : sized) {
+                if (o != r) others.add(new double[]{o.getBaseMinWeightKg(), o.getGirthCm()});
+            }
+            Double est = BaseCheck.girthEstimate(r.getGirthCm(), others);
+            if (est == null) continue;
+            r.setGirthBaseKg((double) Math.round(est));
+            r.setGirthCheck(BaseCheck.against(r.getBaseMinWeightKg(), est, est, BaseCheck.TOLERANCE).name());
         }
 
         // Cows in lactation order - freshest calver (fewest days in milk) first - then grown animals
@@ -198,10 +317,58 @@ public class HerdWeightService {
         return rows;
     }
 
+    /** Her base against her breed's range from the breed table (not for an unknown breed). See {@link BaseCheck}. */
+    private static void checkBreed(com.dairy.dto.HerdWeightOverviewRow row, Herd herd, double base,
+                                   com.dairy.model.Breed breed) {
+        boolean knownBreed = breed != null && breed.getName() != null && !"unknown".equalsIgnoreCase(breed.getName().trim())
+                && herd.getBreed() != null && !herd.getBreed().isBlank();
+        if (knownBreed && breed.getBelowAvgMax() != null && breed.getBelowAvgMax() > 0) {
+            double lo = breed.getBelowAvgMax();
+            double hi = breed.getAvgMax() != null && breed.getAvgMax() > lo ? breed.getAvgMax() : lo;
+            row.setBreedLowKg(lo);
+            row.setBreedHighKg(hi);
+            row.setBreedCheck(BaseCheck.against(base, lo, hi, BaseCheck.BREED_TOLERANCE).name());
+        }
+    }
+
+    /**
+     * Her latest heart girth (the newest weighing that has one, else the girth on her record), shown
+     * for every animal. A girth taken late in pregnancy is marked so the girth check leaves it out.
+     */
+    private static void latestGirth(com.dairy.dto.HerdWeightOverviewRow row, Herd herd,
+                                    List<HerdWeightRecord> records, LocalDate today) {
+        HerdWeightRecord girthRecord = null;
+        for (HerdWeightRecord w : records) {
+            if (w.getRecordDate() == null || w.getHeartGirthCm() == null || w.getHeartGirthCm() <= 0) continue;
+            if (girthRecord == null || w.getRecordDate().isAfter(girthRecord.getRecordDate())) girthRecord = w;
+        }
+        if (girthRecord != null) {
+            row.setGirthCm(girthRecord.getHeartGirthCm());
+            row.setGirthDate(girthRecord.getRecordDate());
+        } else if (herd.getHeartGirth() != null && herd.getHeartGirth() > 0) {
+            row.setGirthCm(herd.getHeartGirth());
+        }
+        if (row.getGirthCm() != null) {
+            Integer pregThen = WeightTarget.daysPregnantOn(herd.getPregnancyDaysPregnant(), row.getGirthDate(), today);
+            if (!BaseCheck.girthShowsFrame(pregThen)) row.setGirthPregnantDays(pregThen);
+        }
+    }
+
+    /** A weight record as a {@link WeightTarget.Weighing}; null when it has no date or weight. */
+    static WeightTarget.Weighing weighing(HerdWeightRecord r) {
+        if (r == null || r.getRecordDate() == null || r.getWeightKg() == null || r.getWeightKg() <= 0) return null;
+        boolean scale = r.getMeasurementMethod() != null && "SCALE".equals(r.getMeasurementMethod().name());
+        return new WeightTarget.Weighing(r.getRecordDate(), Math.round(r.getWeightKg()), scale);
+    }
+
     /** 0 = has a calving (days in milk), 1 = grown with no calving on record, 2 = calf or heifer. */
     static int overviewGroup(com.dairy.dto.HerdWeightOverviewRow r) {
-        if (r.getDim() != null) return 0;
-        String status = r.getAnimalStatus() == null ? "" : r.getAnimalStatus().trim().toUpperCase();
+        return roundGroup(r.getDim(), r.getAnimalStatus());
+    }
+
+    static int roundGroup(Integer dim, String animalStatus) {
+        if (dim != null) return 0;
+        String status = animalStatus == null ? "" : animalStatus.trim().toUpperCase();
         return "CALF".equals(status) || "HEIFER".equals(status) ? 2 : 1;
     }
 

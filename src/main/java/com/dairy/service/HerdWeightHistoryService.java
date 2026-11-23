@@ -64,7 +64,7 @@ public class HerdWeightHistoryService {
         List<HerdWeightHistory.Reading> readings = new ArrayList<>();
         HerdWeightRecord prev = null;
         for (HerdWeightRecord r : records) {
-            readings.add(reading(herd, breed, events, r, prev));
+            readings.add(reading(herd, breed, events, records, r, prev));
             prev = r;
         }
 
@@ -84,7 +84,7 @@ public class HerdWeightHistoryService {
     }
 
     private HerdWeightHistory.Reading reading(Herd herd, Breed breed, List<HerdEvent> events,
-                                              HerdWeightRecord r, HerdWeightRecord prev) {
+                                              List<HerdWeightRecord> all, HerdWeightRecord r, HerdWeightRecord prev) {
         LocalDate date = r.getRecordDate();
         double kg = Math.round(r.getWeightKg());
 
@@ -115,8 +115,22 @@ public class HerdWeightHistoryService {
         Integer ageMonths = herd.getBirthDate() != null && !herd.getBirthDate().isAfter(date)
                 ? (int) ChronoUnit.MONTHS.between(herd.getBirthDate(), date) : null;
 
+        // Her frame comes from the weighing that score was given against, as known then: weighings
+        // up to this one, or up to the score when it was given after this weighing.
+        WeightTarget.Weighing frame = null;
+        if (bcs != null && bcsDate != null) {
+            LocalDate knownBy = bcsDate.isAfter(date) ? bcsDate : date;
+            List<WeightTarget.Weighing> known = new ArrayList<>();
+            for (HerdWeightRecord w : all) {
+                if (w.getRecordDate().isAfter(knownBy)) continue;
+                WeightTarget.Weighing x = HerdWeightService.weighing(w);
+                if (x != null) known.add(x);
+            }
+            frame = WeightTarget.frameWeighing(known, bcsDate);
+        }
+        // Once grown she is held to her fixed base minimum (plus the calf that day), as now.
         WeightTarget.Result target = WeightTarget.of(breed, herd.getBirthDate(), status, lactations,
-                daysPregnant, kg, bcs, date, date);
+                daysPregnant, kg, bcs, date, frame, herd.getBaseMinWeightKg(), date);
 
         return new HerdWeightHistory.Reading(
                 r.getId(),

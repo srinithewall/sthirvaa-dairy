@@ -20,7 +20,7 @@ import { BcsBadge, BcsPickerModal, bcsTodayIso } from '@/components/BcsPicker';
 import { bullIdOf as bullIdFromDetails, notesOf, withBullId, PD_AFTER_AI_DAYS } from '@/lib/breeding';
 import Link from 'next/link';
 import { HEAT_STATUS, HeatPanel, heatSortKey } from '@/components/HeatCycle';
-import { summariseHeat } from '@/lib/heat';
+import { heatAgeFrom, inBreedingCycle, summariseHeat } from '@/lib/heat';
 
 /** Small amber tag for an animal still in quarantine after arrival; links to its onboarding checklist. */
 function QuarantineBadge({ herd, compact }: { herd: { id: number; onboardingDay?: number | null; quarantineDays?: number | null }; compact?: boolean }) {
@@ -1299,7 +1299,8 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
 
   // Current breeding cycle per animal: AI / PD events after the latest calving
   const rows = herds
-    .filter(h => h.status !== 'DISPOSED' && (h.animalType === 'COW' || h.animalType === 'BUFFALO'))
+    // Calves, and heifers until they are past 11 months, are not in the breeding cycle yet.
+    .filter(h => h.status !== 'DISPOSED' && (h.animalType === 'COW' || h.animalType === 'BUFFALO') && inBreedingCycle(h))
     .map(h => {
       const evs = events.filter(e => e.herdId === h.id);
       const lastCalving = evs.filter(e => e.eventType === 'CALF_DELIVERED')
@@ -1340,8 +1341,8 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
     .sort((a, b) => a.edd!.getTime() - b.edd!.getTime());
   const aiCows = rows.filter(r => r.latestAi && !r.pdDate)
     .sort((a, b) => a.pdDue!.getTime() - b.pdDue!.getTime());
-  // Heat cycle of every open cow (pregnant ones are under Deliveries); calves not yet cycling are left out.
-  const heatCows = rows.filter(r => r.h.animalStatus !== 'CALF')
+  // Heat cycle of every open cow (pregnant ones are under Deliveries).
+  const heatCows = rows
     .map(r => ({ h: r.h, s: summariseHeat(events.filter(e => e.herdId === r.h.id)) }))
     .filter(r => r.s.status !== 'PREGNANT')
     .sort((a, b) => heatSortKey(a.s) - heatSortKey(b.s));
@@ -1525,6 +1526,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
       {heatOpen && (
         <div onClick={e => e.stopPropagation()}>
           <HeatPanel herdId={heatOpen.h.id} name={heatOpen.h.animalName?.trim() || heatOpen.h.tagNumber} s={heatOpen.s}
+            minDate={heatAgeFrom(heatOpen.h.birthDate)}
             onClose={() => setHeatId(null)} onChanged={onEventsChanged} />
         </div>
       )}

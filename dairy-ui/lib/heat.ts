@@ -164,6 +164,42 @@ export function summariseHeat(events: HeatEventLike[], today = isoToday()): Heat
   return { ...base, nextExpected: next, daysToNext: d, missedCycles: missed, status, note };
 }
 
+/** Heifers come into the breeding cycle (heat watched, heats recorded) only past this age. */
+export const MIN_HEAT_AGE_MONTHS = 11;
+
+/** Date she turns {@link MIN_HEAT_AGE_MONTHS} months; null without a birth date. */
+export const heatAgeFrom = (birthDate?: string | null) => {
+  if (!birthDate) return null;
+  const d = new Date(toUtc(birthDate.slice(0, 10)));
+  d.setUTCMonth(d.getUTCMonth() + MIN_HEAT_AGE_MONTHS);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Age in whole months from the birth date, else from a typed age like "1y 3m" / "8m"; null if unknown. */
+export const ageMonths = (h: { birthDate?: string | null; age?: string | null }, today = isoToday()) => {
+  if (h.birthDate) {
+    const b = h.birthDate.slice(0, 10);
+    let m = (+today.slice(0, 4) - +b.slice(0, 4)) * 12 + (+today.slice(5, 7) - +b.slice(5, 7));
+    if (+today.slice(8, 10) < +b.slice(8, 10)) m--;
+    return m;
+  }
+  const y = h.age?.match(/(\d+)\s*y/i), mo = h.age?.match(/(\d+)\s*m/i);
+  return y || mo ? (y ? +y[1] : 0) * 12 + (mo ? +mo[1] : 0) : null;
+};
+
+/**
+ * In the breeding cycle: never a calf; a heifer (or any animal of known age) only once she is
+ * over {@link MIN_HEAT_AGE_MONTHS} months. A heifer of unknown age is left out.
+ */
+export const inBreedingCycle = (h: { animalStatus?: string | null; birthDate?: string | null; age?: string | null }, today = isoToday()) => {
+  if (h.animalStatus === 'CALF') return false;
+  const from = heatAgeFrom(h.birthDate);
+  if (from) return today > from;
+  // Typed age is whole months: "11m" counts as past 11 months.
+  const m = ageMonths(h, today);
+  return m == null ? h.animalStatus !== 'HEIFER' : m >= MIN_HEAT_AGE_MONTHS;
+};
+
 export const fmtDate = (iso: string) =>
   new Date(toUtc(iso)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 

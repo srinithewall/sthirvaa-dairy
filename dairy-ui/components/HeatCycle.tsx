@@ -61,8 +61,11 @@ function History({ s, onDelete }: { s: HeatSummary; onDelete: (e: HeatEventLike)
 }
 
 /** One cow's heat cycle: where she is, her history, and recording a new heat. */
-export function HeatPanel({ herdId, name, s, onClose, onChanged }: {
-  herdId: number; name: string; s: HeatSummary; onClose: () => void; onChanged: () => void;
+export function HeatPanel({ herdId, name, s, minDate, onClose, onChanged }: {
+  herdId: number; name: string; s: HeatSummary;
+  /** Earliest heat date: the day she turns 11 months, when her birth date is known. */
+  minDate?: string | null;
+  onClose: () => void; onChanged: () => void;
 }) {
   const { showToast, confirm } = useNotification();
   const [adding, setAdding] = useState(false);
@@ -127,7 +130,7 @@ export function HeatPanel({ herdId, name, s, onClose, onChanged }: {
           <form onSubmit={save} className="border border-rose-200 rounded-xl p-3 space-y-3">
             <label className="block">
               <span className="text-[11px] font-bold text-text3 uppercase tracking-wider">Heat date</span>
-              <input type="date" required max={isoToday()} value={date} onChange={e => setDate(e.target.value)}
+              <input type="date" required min={minDate ?? undefined} max={isoToday()} value={date} onChange={e => setDate(e.target.value)}
                 className="mt-1 w-full border border-border-custom rounded-lg px-3 py-2 text-[14px]" />
             </label>
             <div>

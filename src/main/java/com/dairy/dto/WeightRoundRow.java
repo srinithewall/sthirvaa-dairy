@@ -24,6 +24,10 @@ public class WeightRoundRow {
     private Double lastBodyLengthCm;
     private Integer daysSinceLastRecord;
     private Double lastWeightChangeKg;
+    /** SCALE or HEART_GIRTH_TAPE, for showing how the last reading was taken. */
+    private String lastMethod;
+    /** Days in milk since her last calving; null if she has not calved. Sets the round's order. */
+    private Integer dim;
 
     /** True when this animal already has a reading dated on the round's date. */
     private boolean measuredInRound;
@@ -39,6 +43,7 @@ public class WeightRoundRow {
         row.breed = herd.getBreed();
         row.animalStatus = herd.getAnimalStatus();
         row.imageUrl = herd.getImageUrl();
+        row.dim = herd.getDim();
 
         if (last != null) {
             row.lastWeightKg = last.getWeightKg();
@@ -46,6 +51,7 @@ public class WeightRoundRow {
             row.lastHeartGirthCm = last.getHeartGirthCm();
             row.lastBodyLengthCm = last.getBodyLengthCm();
             row.lastWeightChangeKg = last.getWeightChangeKg();
+            row.lastMethod = last.getMeasurementMethod() != null ? last.getMeasurementMethod().name() : null;
             if (last.getRecordDate() != null) {
                 row.daysSinceLastRecord = (int) java.time.temporal.ChronoUnit.DAYS
                         .between(last.getRecordDate(), roundDate);
@@ -54,6 +60,11 @@ public class WeightRoundRow {
         }
         return row;
     }
+
+    public String getLastMethod() { return lastMethod; }
+    public void setLastMethod(String lastMethod) { this.lastMethod = lastMethod; }
+    public Integer getDim() { return dim; }
+    public void setDim(Integer dim) { this.dim = dim; }
 
     public Long getHerdId() { return herdId; }
     public void setHerdId(Long herdId) { this.herdId = herdId; }

@@ -57,6 +57,76 @@ class WeightTargetTest {
     }
 
     @Test
+    void weightLostAfterTheScoreShowsAsAShortfallNotALowerMinimum() {
+        // Scored BCS 3 against a 550 kg weighing; three weeks later the scale reads 530 kg.
+        WeightTarget.Weighing scored = new WeightTarget.Weighing(today.minusDays(15), 550, true);
+        WeightTarget.Result r = WeightTarget.of(HF75, today.minusYears(5), "LACTATING", 3, null,
+                530.0, 3.0, today, scored, today);
+        assertThat(r.targetKg()).isEqualTo(550);
+        assertThat(r.targetKg() - 530).isEqualTo(20);
+        assertThat(r.basis()).isEqualTo("Her frame: 550 kg on 5 Nov at the ideal BCS 3 is her healthy weight");
+    }
+
+    @Test
+    void aBaseMinimumIsTheSameWhateverHerScore() {
+        for (double bcs : new double[]{1, 2, 2.5, 3, 4, 5}) {
+            WeightTarget.Result r = WeightTarget.of(HF75, today.minusYears(5), "LACTATING", 3, null,
+                    438.0, bcs, today, null, 470.0, today);
+            assertThat(r.targetKg()).as("BCS %s", bcs).isEqualTo(470);
+        }
+        WeightTarget.Result r = WeightTarget.of(HF75, today.minusYears(5), "LACTATING", 3, null, 438.0, 2.5, today, null, 470.0, today);
+        assertThat(r.basis()).isEqualTo("Her base minimum 470 kg");
+    }
+
+    @Test
+    void pregnancyIsAddedToTheBaseOneWeekAtATime() {
+        // Same week (days 182-188): same minimum. Next week: higher.
+        double wk26 = WeightTarget.of(HF75, today.minusYears(5), "LACTATING", 3, 182, 500.0, 3.0, today, null, 470.0, today).targetKg();
+        double wk26late = WeightTarget.of(HF75, today.minusYears(5), "LACTATING", 3, 188, 500.0, 3.0, today, null, 470.0, today).targetKg();
+        double wk27 = WeightTarget.of(HF75, today.minusYears(5), "LACTATING", 3, 189, 500.0, 3.0, today, null, 470.0, today).targetKg();
+        assertThat(wk26).isEqualTo(wk26late).isEqualTo(Math.round(470 + WeightTarget.gravidUterusKg(470, 182)));
+        assertThat(wk27).isGreaterThan(wk26);
+        // Near term the calf adds tens of kg
+        double term = WeightTarget.of(HF75, today.minusYears(5), "DRY", 3, 280, 500.0, 3.0, today, null, 470.0, today).targetKg();
+        assertThat(term - 470).isGreaterThan(40);
+    }
+
+    @Test
+    void youngStockIgnoreABaseAndFollowTheGrowthCurve() {
+        WeightTarget.Result r = WeightTarget.of(HC, today.minusMonths(14), "HEIFER", 0, null, 300.0, 3.0, today, null, 470.0, today);
+        assertThat(r.targetKg()).isEqualTo(Math.round(550 * WeightTarget.curveShare(java.time.temporal.ChronoUnit.DAYS.between(today.minusMonths(14), today))));
+    }
+
+    @Test
+    void theSundayCheckExpectsTheBaseMovedByHerScore() {
+        assertThat(WeightTarget.expectedAtBcs(470, 3, null)).isEqualTo(470);
+        assertThat(WeightTarget.expectedAtBcs(470, 2.5, null)).isCloseTo(470 * 0.9315, within(0.01));
+        assertThat(WeightTarget.expectedAtBcs(470, 4, null)).isCloseTo(470 * 1.137, within(0.01));
+        assertThat(WeightTarget.expectedAtBcs(470, 3, 252)).isCloseTo(470 + WeightTarget.gravidUterusKg(470, 252), within(0.01));
+    }
+
+    @Test
+    void theFrameWeighingIsTheScaleReadingNearestTheScore() {
+        LocalDate scored = LocalDate.of(2026, 10, 27);
+        WeightTarget.Weighing tapeBefore = new WeightTarget.Weighing(LocalDate.of(2026, 10, 18), 444, false);
+        WeightTarget.Weighing scaleAfter = new WeightTarget.Weighing(LocalDate.of(2026, 11, 8), 550, true);
+        WeightTarget.Weighing scaleLater = new WeightTarget.Weighing(LocalDate.of(2026, 11, 23), 530, true);
+        // A scale reading within the window beats a closer tape one; the nearest scale reading wins.
+        assertThat(WeightTarget.frameWeighing(java.util.List.of(tapeBefore, scaleAfter, scaleLater), scored)).isEqualTo(scaleAfter);
+        // Only tape near the score: the nearest tape reading.
+        assertThat(WeightTarget.frameWeighing(java.util.List.of(tapeBefore), scored)).isEqualTo(tapeBefore);
+        // Nothing within the window: the nearest weighing of all.
+        WeightTarget.Weighing far = new WeightTarget.Weighing(LocalDate.of(2026, 6, 1), 500, true);
+        WeightTarget.Weighing farther = new WeightTarget.Weighing(LocalDate.of(2026, 3, 1), 480, true);
+        assertThat(WeightTarget.frameWeighing(java.util.List.of(farther, far), scored)).isEqualTo(far);
+        // Equally near either side: the earlier one.
+        WeightTarget.Weighing before = new WeightTarget.Weighing(scored.minusDays(5), 500, true);
+        WeightTarget.Weighing after = new WeightTarget.Weighing(scored.plusDays(5), 505, true);
+        assertThat(WeightTarget.frameWeighing(java.util.List.of(after, before), scored)).isEqualTo(before);
+        assertThat(WeightTarget.frameWeighing(java.util.List.of(before), null)).isNull();
+    }
+
+    @Test
     void heifersKeepTheGrowthCurveAndOnlyAThinScoreRaisesIt() {
         // Good condition never lowers the curve: a heifer can be well covered and still small
         WeightTarget.Result fine = WeightTarget.of(HC, today.minusMonths(7), "HEIFER", 0, null, 120.0, 3.5, null, today);
@@ -107,20 +177,21 @@ class WeightTargetTest {
         assertThat(WeightTarget.gravidUterusKg(600, 280)).isCloseTo(0.06275 * 600 * 1.825, within(0.01));
         assertThat(WeightTarget.gravidUterusKg(600, null)).isZero();
 
-        double preg = WeightTarget.gravidUterusKg(550, 250);
-        WeightTarget.Result r = WeightTarget.of(HC, today.minusYears(4), "DRY", 3, 250, 600.0, 2.0, null, today);
+        // Day 255 counts as week 36 (day 252): the allowance steps up once a week
+        double preg = WeightTarget.gravidUterusKg(550, 252);
+        WeightTarget.Result r = WeightTarget.of(HC, today.minusYears(4), "DRY", 3, 255, 600.0, 2.0, null, today);
         assertThat(r.pregnancyKg()).isEqualTo(Math.round(preg));
         assertThat(r.breedTargetKg()).isEqualTo(Math.round(550 + preg));
         // only her own tissue is corrected for condition; the calf is added back as it is
         assertThat(r.frameTargetKg()).isEqualTo(Math.round((600 - preg) / 0.863 + preg));
-        assertThat(r.basis()).contains("pregnancy (day 250)");
+        assertThat(r.basis()).contains("pregnancy (week 36)");
     }
 
     @Test
     void theCalfIsTakenOutAtItsSizeOnTheWeighingDay() {
-        // Weighed 12 days ago at day 212; today she is at day 224
-        LocalDate weighed = today.minusDays(12);
-        double then = WeightTarget.gravidUterusKg(550, 212);
+        // Weighed 14 days ago at day 210 (week 30); today she is at day 224 (week 32)
+        LocalDate weighed = today.minusDays(14);
+        double then = WeightTarget.gravidUterusKg(550, 210);
         double now = WeightTarget.gravidUterusKg(550, 224);
         WeightTarget.Result r = WeightTarget.of(HC, today.minusYears(4), "DRY", 3, 224, 540.0, 2.0, weighed, today);
         assertThat(r.frameTargetKg()).isEqualTo(Math.round((540 - then) / 0.863 + now));

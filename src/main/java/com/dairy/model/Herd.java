@@ -101,6 +101,28 @@ public class Herd {
     public LocalDate getBcsDate() { return bcsDate; }
     public void setBcsDate(LocalDate bcsDate) { this.bcsDate = bcsDate; }
 
+    /**
+     * A grown cow's base minimum healthy weight: what she should weigh at BCS 3 when open. Fixed by
+     * her frame, so it does not move with her BCS; pregnancy is added on top week by week. The app
+     * suggests it once from a weighing and her BCS; after that only a person changes it.
+     */
+    @Column(name = "base_min_weight_kg")
+    private Double baseMinWeightKg;
+
+    @Column(name = "base_min_weight_date")
+    private LocalDate baseMinWeightDate;
+
+    /** true = entered by hand; false = the app's one-time suggestion. */
+    @Column(name = "base_min_weight_manual")
+    private Boolean baseMinWeightManual;
+
+    public Double getBaseMinWeightKg() { return baseMinWeightKg; }
+    public void setBaseMinWeightKg(Double baseMinWeightKg) { this.baseMinWeightKg = baseMinWeightKg; }
+    public LocalDate getBaseMinWeightDate() { return baseMinWeightDate; }
+    public void setBaseMinWeightDate(LocalDate baseMinWeightDate) { this.baseMinWeightDate = baseMinWeightDate; }
+    public Boolean getBaseMinWeightManual() { return baseMinWeightManual; }
+    public void setBaseMinWeightManual(Boolean baseMinWeightManual) { this.baseMinWeightManual = baseMinWeightManual; }
+
     // Computed / UI Fields
     @Transient
     private Double calculatedWeight;

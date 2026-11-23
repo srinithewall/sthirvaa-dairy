@@ -69,7 +69,6 @@ const fmtMonth = (d: Date) =>
   `${d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" })} '${String(d.getUTCFullYear()).slice(2)}`;
 const kg = (n: number) => `${Math.round(n).toLocaleString("en-IN")} kg`;
 const signed = (n: number, unit: string) => `${n > 0 ? "+" : n < 0 ? "−" : "±"}${Math.abs(Math.round(n)).toLocaleString("en-IN")} ${unit}`;
-const age = (m: number | null) => (m == null ? null : m < 24 ? `${m} mo` : `${Math.floor(m / 12)} y ${m % 12} mo`);
 
 /** Writes the BCS under each weighing that has one, so the chart reads without hovering. */
 const bcsLabels = {
@@ -289,18 +288,11 @@ export default function HerdWeightHistory({ herdId }: { herdId: number }) {
   return (
     <div className={`space-y-4 ${loading ? "opacity-60" : ""}`}>
       {summary ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-slate-200 p-3">
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Latest</div>
             <div className="text-xl font-bold text-slate-800 mt-1">{kg(summary.last.weightKg)}</div>
             <div className="text-[11px] text-slate-500">{fmtDay(summary.last.date)}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Since first weighing</div>
-            <div className={`text-xl font-bold mt-1 ${summary.totalKg < 0 ? "text-red-700" : "text-slate-800"}`}>
-              {readings.length > 1 ? signed(summary.totalKg, "kg") : "—"}
-            </div>
-            <div className="text-[11px] text-slate-500">{readings.length} weighing{readings.length === 1 ? "" : "s"} since {fmtDay(summary.first.date)}</div>
           </div>
           <div className="rounded-xl border border-slate-200 p-3">
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Average daily gain</div>
@@ -308,13 +300,6 @@ export default function HerdWeightHistory({ herdId }: { herdId: number }) {
               {summary.gain != null ? signed(summary.gain, "g/day") : "—"}
             </div>
             <div className="text-[11px] text-slate-500">{summary.days > 0 ? `over ${summary.days} days` : "needs two weighings"}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Against healthy minimum</div>
-            <div className={`text-xl font-bold mt-1 ${(summary.last.gapKg ?? 0) > 0 ? "text-red-700" : "text-green-700"}`}>
-              {summary.last.gapKg == null ? "—" : summary.last.gapKg > 0 ? `▼ ${kg(summary.last.gapKg)}` : "✓ Met"}
-            </div>
-            <div className="text-[11px] text-slate-500">at the latest weighing</div>
           </div>
         </div>
       ) : (
@@ -336,11 +321,11 @@ export default function HerdWeightHistory({ herdId }: { herdId: number }) {
               <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
                 <th className="px-2 py-2 font-bold">Date</th>
                 <th className="px-2 py-2 font-bold text-right">Weight</th>
+                <th className="px-2 py-2 font-bold text-right">Girth</th>
                 <th className="px-2 py-2 font-bold text-right">Change</th>
                 <th className="px-2 py-2 font-bold text-right">Daily gain</th>
                 <th className="px-2 py-2 font-bold text-right">Healthy minimum</th>
                 <th className="px-2 py-2 font-bold">BCS</th>
-                <th className="px-2 py-2 font-bold">Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -348,22 +333,17 @@ export default function HerdWeightHistory({ herdId }: { herdId: number }) {
                 <tr key={r.id} className="border-b border-slate-100 align-top">
                   <td className="px-2 py-2 whitespace-nowrap">
                     <div className="font-semibold text-slate-800">{fmtDay(r.date)}</div>
-                    <div className="text-[11px] text-slate-500">
-                      {[age(r.ageMonths), r.daysPregnant != null ? `${r.daysPregnant} d pregnant` : null].filter(Boolean).join(" · ")}
-                    </div>
                   </td>
                   <td className="px-2 py-2 text-right whitespace-nowrap">
                     <div className="font-semibold text-slate-800">{kg(r.weightKg)}</div>
-                    <div className="text-[11px] text-slate-500">
-                      {[r.method ? METHOD[r.method] ?? r.method : null, r.heartGirthCm ? `${Math.round(r.heartGirthCm)} cm girth` : null].filter(Boolean).join(", ")}
-                    </div>
+                    {r.method && <div className="text-[11px] text-slate-500">{METHOD[r.method] ?? r.method}</div>}
+                  </td>
+                  <td className="px-2 py-2 text-right whitespace-nowrap">
+                    {r.heartGirthCm ? <span className="font-semibold text-slate-800">{Math.round(r.heartGirthCm)} cm</span> : <span className="text-slate-400">—</span>}
                   </td>
                   <td className={`px-2 py-2 text-right whitespace-nowrap ${(r.changeKg ?? 0) < 0 ? "text-red-700 font-semibold" : "text-slate-700"}`}>
                     {r.changeKg != null ? (
-                      <>
-                        <div>{signed(r.changeKg, "kg")}</div>
-                        <div className="text-[11px] text-slate-500 font-normal">in {r.days} day{r.days === 1 ? "" : "s"}</div>
-                      </>
+                      <div>{signed(r.changeKg, "kg")}</div>
                     ) : <span className="text-slate-400">—</span>}
                   </td>
                   <td className={`px-2 py-2 text-right whitespace-nowrap ${(r.gainGPerDay ?? 0) < 0 ? "text-red-700 font-semibold" : "text-slate-700"}`}>
@@ -381,25 +361,15 @@ export default function HerdWeightHistory({ herdId }: { herdId: number }) {
                   </td>
                   <td className="px-2 py-2 whitespace-nowrap">
                     {r.bcs != null ? (
-                      <>
-                        <div className="text-slate-800">{r.bcs}</div>
-                        {r.bcsDate && r.bcsDate !== r.date && <div className="text-[11px] text-slate-500">scored {fmtDay(r.bcsDate)}</div>}
-                      </>
+                      <div className="text-slate-800">{r.bcs}</div>
                     ) : <span className="text-slate-400 text-xs">—</span>}
                   </td>
-                  <td className="px-2 py-2 text-slate-600 text-xs max-w-[16rem]">{r.notes || ""}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-
-      <p className="text-[11px] text-slate-500">
-        Points are each weighing (■ scale, ● tape), red where the animal was below that day&apos;s healthy minimum. The dashed line
-        is the healthy minimum for the animal as it was on each weighing day - its age, the BCS in force then, and its pregnancy
-        then - so it rises as a calf grows. Grey bars are the animal&apos;s own milk, average litres per milked day each month.
-      </p>
     </div>
   );
 }

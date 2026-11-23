@@ -4,8 +4,21 @@ import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import api from "@/lib/api";
-import { ArrowLeft, Check, RefreshCw, Play, X, TrendingDown, TrendingUp, Minus, Clock } from "lucide-react";
+import { ArrowLeft, Check, RefreshCw, Play, X, TrendingDown, TrendingUp, Minus, Clock, BarChart3, Pencil } from "lucide-react";
 import WeightUpdateModal, { AnimalWeightTarget } from "@/components/WeightUpdateModal";
+
+const shortDay = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+/** "22 Nov · 480 kg tape · girth 181 cm · +5 kg" - the animal's last reading at a glance. */
+function lastReading(row: any) {
+  if (!row.lastWeightKg) return null;
+  const parts = [
+    row.lastRecordDate ? shortDay(row.lastRecordDate) : null,
+    `${Math.round(row.lastWeightKg)} kg${row.lastMethod === "HEART_GIRTH_TAPE" ? " tape" : row.lastMethod === "SCALE" ? " scale" : ""}`,
+    row.lastHeartGirthCm ? `girth ${Math.round(row.lastHeartGirthCm)} cm` : null,
+  ];
+  return parts.filter(Boolean).join(" · ");
+}
 
 const localDate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -94,7 +107,16 @@ function WeightRoundInner() {
           <ArrowLeft size={16} /> Back to chores
         </button>
 
-        <h1 className="text-2xl font-bold text-text">Herd weight round</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold text-text">Herd weight round</h1>
+          <button
+            onClick={() => router.push("/reports")}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-brand bg-brand/10 hover:bg-brand/20 rounded-lg"
+            title="Herd weight & body condition, healthy minimums and every animal's history"
+          >
+            <BarChart3 size={14} /> Weight report
+          </button>
+        </div>
         <p className="text-sm text-text3 mt-1">
           {roundDate} &middot; {measuredCount} of {rows.length} animals measured
         </p>
@@ -125,11 +147,16 @@ function WeightRoundInner() {
                       {row.measuredInRound && <Check size={14} className="text-green-600 bg-green-100 rounded-full p-0.5" />}
                     </h3>
                     <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
-                      {[row.tagNumber, row.breed, row.animalStatus].filter(Boolean).join(" · ")}
+                      {[row.breed, row.animalStatus, row.dim != null ? `${row.dim} DIM` : null].filter(Boolean).join(" · ")}
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                      <span className="opacity-70">Last:</span>
-                      <span className="font-bold text-slate-700">{row.lastWeightKg ? `${row.lastWeightKg.toFixed(1)} kg` : "--"}</span>
+                    <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 flex-wrap">
+                      <span className="opacity-70">{row.measuredInRound ? "Recorded:" : "Last:"}</span>
+                      <span className="font-bold text-slate-700">{lastReading(row) ?? "not weighed yet"}</span>
+                      {row.lastWeightChangeKg != null && Math.round(row.lastWeightChangeKg) !== 0 && (
+                        <span className={`font-bold ${row.lastWeightChangeKg > 0 ? "text-green-700" : "text-red-700"}`}>
+                          {row.lastWeightChangeKg > 0 ? "+" : "−"}{Math.abs(Math.round(row.lastWeightChangeKg))} kg
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -137,11 +164,21 @@ function WeightRoundInner() {
                    <button onClick={() => toggleHistory(row.herdId)} className="p-2 text-slate-400 hover:text-brand bg-slate-50 hover:bg-brand/10 rounded-lg transition-colors" title="Weight History">
                      <Clock size={16} />
                    </button>
-                   {!row.measuredInRound && (
-                     <button onClick={() => handleStartSingle(row)} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors">
-                       Weigh
-                     </button>
-                   )}
+                   <button
+                     onClick={() => router.push(`/reports?herd=${row.herdId}&focus=history`)}
+                     className="p-2 text-slate-400 hover:text-brand bg-slate-50 hover:bg-brand/10 rounded-lg transition-colors"
+                     title="Weight report for this animal"
+                     aria-label={`Weight report for ${row.animalName || row.tagNumber || row.herdId}`}
+                   >
+                     <BarChart3 size={16} />
+                   </button>
+                   {/* Entering a day again corrects that day's reading, so a weighed animal can be edited. */}
+                   <button
+                     onClick={() => handleStartSingle(row)}
+                     className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors inline-flex items-center gap-1"
+                   >
+                     {row.measuredInRound ? <><Pencil size={12} /> Edit</> : "Weigh"}
+                   </button>
                 </div>
               </div>
             ))}

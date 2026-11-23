@@ -77,6 +77,12 @@ public class HerdController {
                         herd.setBcs(existing.getBcs());
                         herd.setBcsDate(existing.getBcsDate());
                     }
+                    // The edit form doesn't carry the base minimum weight; it is set from the weight report.
+                    if (herd.getBaseMinWeightKg() == null) {
+                        herd.setBaseMinWeightKg(existing.getBaseMinWeightKg());
+                        herd.setBaseMinWeightDate(existing.getBaseMinWeightDate());
+                        herd.setBaseMinWeightManual(existing.getBaseMinWeightManual());
+                    }
                     // Forms that don't carry the earlier-lactation count (poultry, older screens) keep it.
                     if (herd.getPreviousLactations() == null) herd.setPreviousLactations(existing.getPreviousLactations());
                     return ResponseEntity.ok(herdService.saveHerd(herd));
@@ -93,6 +99,24 @@ public class HerdController {
         return herdService.scoreBcs(id, bcs)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Autowired
+    private com.dairy.repo.HerdRepository herdRepository;
+
+    /**
+     * Sets a grown cow's base minimum healthy weight by hand ({"kg": 470}); {"kg": null} clears it so
+     * the app suggests one again from her next weighing and BCS.
+     */
+    @PatchMapping("/{id}/base-weight")
+    @PreAuthorize("@ss.can('HERDS')")
+    public ResponseEntity<?> updateBaseWeight(@PathVariable Long id, @RequestBody java.util.Map<String, Double> body) {
+        Double kg = body.get("kg");
+        if (kg != null && (kg < 30 || kg > 1500)) return ResponseEntity.badRequest().body("Base minimum must be between 30 and 1500 kg");
+        if (!herdRepository.existsById(id)) return ResponseEntity.notFound().build();
+        if (kg == null) herdRepository.setBaseMinWeight(id, null, null, null);
+        else herdRepository.setBaseMinWeight(id, (double) Math.round(kg), java.time.LocalDate.now(), true);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}")

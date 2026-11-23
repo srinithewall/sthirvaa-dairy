@@ -19,6 +19,8 @@ import { useNotification } from '@/components/NotificationContext';
 import { BcsBadge, BcsPickerModal, bcsTodayIso } from '@/components/BcsPicker';
 import { bullIdOf as bullIdFromDetails, notesOf, withBullId, PD_AFTER_AI_DAYS } from '@/lib/breeding';
 import Link from 'next/link';
+import { HEAT_STATUS, HeatPanel, heatSortKey } from '@/components/HeatCycle';
+import { summariseHeat } from '@/lib/heat';
 
 /** Small amber tag for an animal still in quarantine after arrival; links to its onboarding checklist. */
 function QuarantineBadge({ herd, compact }: { herd: { id: number; onboardingDay?: number | null; quarantineDays?: number | null }; compact?: boolean }) {
@@ -1154,6 +1156,7 @@ export default function HerdsPage() {
           events={allGlobalEvents}
           herds={herds}
           onAnimalClick={handleHerdClick}
+          onEventsChanged={() => api.get('/herds/events/all').then(r => setAllGlobalEvents(r.data || [])).catch(console.error)}
         />
       )}
 
@@ -1234,10 +1237,12 @@ function DisposedAnimalsModal({ isOpen, onClose, herds, onAnimalClick }: {
 }
 
 /* ─── Breeding Modal: upcoming deliveries + AI cows ─── */
-function BreedingModal({ onClose, events, herds, onAnimalClick }: {
-  onClose: () => void; events: HerdEvent[]; herds: Herd[]; onAnimalClick: (id: number) => void;
+function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged }: {
+  onClose: () => void; events: HerdEvent[]; herds: Herd[]; onAnimalClick: (id: number) => void; onEventsChanged: () => void;
 }) {
-  const [tab, setTab] = useState<'deliveries' | 'ai'>('deliveries');
+  const [tab, setTab] = useState<'deliveries' | 'ai' | 'heat'>('deliveries');
+  // Cow whose heat panel is open (by id, so it follows the reloaded events)
+  const [heatId, setHeatId] = useState<number | null>(null);
 
   const DAY = 86400000;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1335,6 +1340,16 @@ function BreedingModal({ onClose, events, herds, onAnimalClick }: {
     .sort((a, b) => a.edd!.getTime() - b.edd!.getTime());
   const aiCows = rows.filter(r => r.latestAi && !r.pdDate)
     .sort((a, b) => a.pdDue!.getTime() - b.pdDue!.getTime());
+  // Heat cycle of every open cow (pregnant ones are under Deliveries); calves not yet cycling are left out.
+  const heatCows = rows.filter(r => r.h.animalStatus !== 'CALF')
+    .map(r => ({ h: r.h, s: summariseHeat(events.filter(e => e.herdId === r.h.id)) }))
+    .filter(r => r.s.status !== 'PREGNANT')
+    .sort((a, b) => heatSortKey(a.s) - heatSortKey(b.s));
+  const heatOpen = heatId != null ? heatCows.find(r => r.h.id === heatId) ?? null : null;
+  const heatPill = (s: (typeof heatCows)[number]['s']) => (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${HEAT_STATUS[s.status].pill}`}>{HEAT_STATUS[s.status].label}</span>
+  );
+  const whenHeat = (d: number | null) => d == null ? '' : d === 0 ? 'today' : d > 0 ? `in ${d}d` : `${-d}d ago`;
 
   const Name = ({ h }: { h: Herd }) => (
     <div className="flex items-center gap-2.5 min-w-0">
@@ -1384,7 +1399,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick }: {
         </div>
 
         <div className="flex gap-1.5 px-4 py-2.5 border-b border-border-custom bg-surface/40 shrink-0">
-          {([['deliveries', 'Upcoming Deliveries', deliveries.length], ['ai', 'AI Cows', aiCows.length]] as const).map(([k, label, n]) => (
+          {([['deliveries', 'Upcoming Deliveries', deliveries.length], ['ai', 'AI Cows', aiCows.length], ['heat', 'Heat', heatCows.length]] as const).map(([k, label, n]) => (
             <button key={k} onClick={() => setTab(k)}
               className={`flex-1 md:flex-none px-3 py-2 md:py-1.5 rounded-lg text-[12px] font-bold whitespace-nowrap transition-all ${tab === k ? 'bg-brand text-white shadow-sm' : 'bg-white border border-border-custom text-text2 hover:text-brand'}`}>
               {k === 'deliveries' ? <><span className="hidden sm:inline">Upcoming </span>Deliveries</> : label} <span className="opacity-60">({n})</span>
@@ -1394,7 +1409,44 @@ function BreedingModal({ onClose, events, herds, onAnimalClick }: {
 
         {/* Phone: fills the screen and scrolls. Desktop: grows with the list, scrolls past 5 rows (57px rows + 36px header) */}
         <div className="flex-1 md:flex-none min-h-0 overflow-y-auto overscroll-contain md:max-h-[322px] pb-[env(safe-area-inset-bottom)]">
-          {tab === 'deliveries' ? (deliveries.length === 0 ? empty('No PD-confirmed animals.') : (
+          {tab === 'heat' ? (heatCows.length === 0 ? empty('No open cows.') : (
+            <>
+              <table className="hidden md:table w-full text-left">
+                <thead className="sticky top-0 bg-surface border-b border-border-custom">
+                  <tr><th className={th}>Cow</th><th className={th}>Last Heat</th><th className={th}>Next Heat</th><th className={`${th} text-right`}>Cycle</th><th className={th}></th></tr>
+                </thead>
+                <tbody className="divide-y divide-border-custom/50">
+                  {heatCows.map(r => (
+                    <tr key={r.h.id} onClick={() => setHeatId(r.h.id)} title={r.s.note} className="hover:bg-brand/5 cursor-pointer">
+                      <td className="py-2.5 px-4"><Name h={r.h} /></td>
+                      <td className="py-2.5 px-4 text-xs font-semibold text-text2 whitespace-nowrap">{r.s.lastHeat ? fmt(r.s.lastHeat.date) : '—'}</td>
+                      <td className="py-2.5 px-4 text-sm font-bold text-text whitespace-nowrap">
+                        {r.s.nextExpected ? <>{fmt(r.s.nextExpected)} <span className="text-[10px] text-text3 font-semibold">{whenHeat(r.s.daysToNext)}</span></> : '—'}
+                      </td>
+                      <td className="py-2.5 px-4 text-sm font-bold text-text text-right whitespace-nowrap">{r.s.cycleDays} <span className="text-[10px] text-text3 font-semibold">d</span></td>
+                      <td className="py-2.5 px-4 text-right">{heatPill(r.s)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="md:hidden divide-y divide-border-custom/60">
+                {heatCows.map(r => (
+                  <div key={r.h.id} onClick={() => setHeatId(r.h.id)} className="px-4 py-3.5 active:bg-brand/5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Name h={r.h} />
+                      {heatPill(r.s)}
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
+                      {stat('Last Heat', r.s.lastHeat ? fmt(r.s.lastHeat.date) : '—')}
+                      {stat('Next Heat', r.s.nextExpected ? fmt(r.s.nextExpected) : '—')}
+                      {stat('Cycle', `${r.s.cycleDays} d`)}
+                    </div>
+                    <div className="mt-1.5 text-[11px] text-text3">{r.s.note}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )) : tab === 'deliveries' ? (deliveries.length === 0 ? empty('No PD-confirmed animals.') : (
             <>
               <table className="hidden md:table w-full text-left">
                 <thead className="sticky top-0 bg-surface border-b border-border-custom">
@@ -1469,6 +1521,13 @@ function BreedingModal({ onClose, events, herds, onAnimalClick }: {
           ))}
         </div>
       </div>
+      {/* Clicks in the heat panel must not reach the Breeding backdrop, which closes it */}
+      {heatOpen && (
+        <div onClick={e => e.stopPropagation()}>
+          <HeatPanel herdId={heatOpen.h.id} name={heatOpen.h.animalName?.trim() || heatOpen.h.tagNumber} s={heatOpen.s}
+            onClose={() => setHeatId(null)} onChanged={onEventsChanged} />
+        </div>
+      )}
     </div>
   );
 }

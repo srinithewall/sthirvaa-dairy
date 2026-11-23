@@ -6,7 +6,7 @@ import api, { formatImageUrl } from '@/lib/api';
 import {
   Plus, X, Activity, Calendar, Trash2, Edit2, Archive, Clock,
   CheckCircle, AlertTriangle, Syringe, Baby, Droplets, Leaf,
-  ChevronRight, ShieldCheck, Heart, TrendingUp, AlarmClock,
+  ChevronRight, ChevronDown, ShieldCheck, Heart, TrendingUp, AlarmClock,
   PlusCircle, Info, ShieldAlert, AlertCircle, Egg, Bird, Flame
 } from 'lucide-react';
 import RegisterAnimalModal from '@/components/RegisterAnimalModal';
@@ -1243,6 +1243,16 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
   const [tab, setTab] = useState<'deliveries' | 'ai' | 'heat'>('deliveries');
   // Cow whose heat panel is open (by id, so it follows the reloaded events)
   const [heatId, setHeatId] = useState<number | null>(null);
+  /** Phone AI Cows / Heat cards: details stay folded until the cow is expanded */
+  const [aiOpen, setAiOpen] = useState<Set<number>>(new Set());
+  const toggleAi = (id: number) => setAiOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const expandBtn = (id: number) => (
+    <button onClick={ev => { ev.stopPropagation(); toggleAi(id); }} aria-expanded={aiOpen.has(id)}
+      aria-label={aiOpen.has(id) ? 'Hide details' : 'Show details'}
+      className="p-1.5 rounded-lg border border-border-custom text-text2 hover:text-brand shrink-0">
+      <ChevronDown size={14} className={`transition-transform ${aiOpen.has(id) ? 'rotate-180' : ''}`} />
+    </button>
+  );
 
   const DAY = 86400000;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1455,14 +1465,24 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                   <div key={r.h.id} onClick={() => setHeatId(r.h.id)} className="px-4 py-3.5 active:bg-brand/5">
                     <div className="flex items-center justify-between gap-2">
                       <Name h={r.h} />
-                      {heatPill(r.s)}
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex flex-col items-end gap-0.5">
+                          {heatPill(r.s)}
+                          <span className="text-[11px] font-bold text-text whitespace-nowrap">
+                            {r.s.nextExpected ? <>Next {fmt(r.s.nextExpected)}</> : '—'}
+                          </span>
+                        </div>
+                        {expandBtn(r.h.id)}
+                      </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
-                      {stat('Last Heat', r.s.lastHeat ? fmt(r.s.lastHeat.date) : '—')}
-                      {stat('Next Heat', r.s.nextExpected ? fmt(r.s.nextExpected) : '—')}
-                      {stat('Cycle', `${r.s.cycleDays} d`)}
-                    </div>
-                    <div className="mt-1.5 text-[11px] text-text3">{r.s.note}</div>
+                    {aiOpen.has(r.h.id) && (<>
+                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
+                        {stat('Last Heat', r.s.lastHeat ? fmt(r.s.lastHeat.date) : '—')}
+                        {stat('Next Heat', r.s.nextExpected ? fmt(r.s.nextExpected) : '—')}
+                        {stat('Cycle', `${r.s.cycleDays} d`)}
+                      </div>
+                      <div className="mt-1.5 text-[11px] text-text3">{r.s.note}</div>
+                    </>)}
                   </div>
                 ))}
               </div>
@@ -1534,17 +1554,25 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                   <div key={r.h.id} className="px-4 py-3.5">
                     <div className="flex items-center justify-between gap-2">
                       <button onClick={() => open(r.h.id)} title="Open her page" className="text-left hover:opacity-80"><Name h={r.h} /></button>
-                      {dueBadge(daysBetween(today, r.pdDue!), 'PD')}
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex flex-col items-end gap-0.5">
+                          {dueBadge(daysBetween(today, r.pdDue!), 'PD')}
+                          <span className="text-[11px] font-bold text-text whitespace-nowrap">{fmt(r.pdDue!)}</span>
+                        </div>
+                        {expandBtn(r.h.id)}
+                      </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
-                      {stat('AI Date', fmt(r.latestAi!.eventDate))}
-                      {stat('Bull ID', bullCell(r.latestAi!))}
-                      {stat('PD Due', fmt(r.pdDue!))}
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5 text-[11px] text-text3">Return heat {fmt(returnHeat(r).ret)} {returnHeat(r).badge}</span>
-                      {heatSeenBtn(r)}
-                    </div>
+                    {aiOpen.has(r.h.id) && (<>
+                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
+                        {stat('AI Date', fmt(r.latestAi!.eventDate))}
+                        {stat('Bull ID', bullCell(r.latestAi!))}
+                        {stat('PD Due', fmt(r.pdDue!))}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-[11px] text-text3">Return heat {fmt(returnHeat(r).ret)} {returnHeat(r).badge}</span>
+                        {heatSeenBtn(r)}
+                      </div>
+                    </>)}
                   </div>
                 ))}
               </div>

@@ -30,7 +30,7 @@ export default function LactationTab({ report }: { report: EffReport }) {
   const { milkRate, rules } = report;
   const [open, setOpen] = useState<number | null>(null);
   const cows = report.cows.filter(c => c.lactation)
-    .sort((a, b) => (b.lactation!.possible?.efficiency ?? -1) - (a.lactation!.possible?.efficiency ?? -1));
+    .sort((a, b) => (a.dim ?? Infinity) - (b.dim ?? Infinity)); // days in milk, freshest calver first
 
   return (
     <div className="space-y-3">

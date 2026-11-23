@@ -6,6 +6,12 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.Period;
 
+/**
+ * A cow's daily milk potential (lactation average) if she is kept healthy at her ideal weight: her breed's figure
+ * (genetics) adjusted for age and lactation number. Her current weight is deliberately left out -
+ * the gap between this and what she gives is what keeping her healthy is worth. Where she is in her
+ * lactation (days in milk) is applied by the Efficiency report along the lactation curve.
+ */
 @Service
 public class MilkPotentialService {
 
@@ -24,9 +30,9 @@ public class MilkPotentialService {
         String breed = herd.getBreed() != null ? herd.getBreed().toUpperCase() : "UNKNOWN";
         double breedBase = getBreedBase(breed);
         
-        double ageFactor = getAgeFactor(herd.getBirthDate());
+        // Lactation number already says how mature she is; age stands in only when it is unknown.
+        double ageFactor = lactationNumber > 0 ? 1.0 : getAgeFactor(herd.getBirthDate());
         double lactationFactor = getLactationFactor(lactationNumber);
-        double bodyConditionFactor = getBodyConditionFactor(herd.getCalculatedWeight(), breed);
 
         double confidenceScore = 0.0;
         if (herd.getBreed() != null) confidenceScore += 0.25;
@@ -39,7 +45,7 @@ public class MilkPotentialService {
         else if (confidenceScore >= 0.5) confidence = "Medium";
         else if (confidenceScore == 0.0) return new MilkPotentialResult(null, "Insufficient Data");
 
-        double potential = breedBase * ageFactor * lactationFactor * bodyConditionFactor;
+        double potential = breedBase * ageFactor * lactationFactor;
 
         return new MilkPotentialResult((int) Math.round(potential), confidence);
     }
@@ -91,22 +97,6 @@ public class MilkPotentialService {
         if (lactation == 4) return 1.00;
         if (lactation >= 5) return 0.90;
         return 1.00; // Fallback if 0 (e.g. unknown)
-    }
-
-    private double getBodyConditionFactor(Double weight, String breed) {
-        if (weight == null || weight <= 0) return 1.00; // Fallback
-        
-        // Expected weight per breed (approx)
-        double expectedWeight = 400.0;
-        if (breed.contains("HF") || breed.contains("HOLSTEIN")) expectedWeight = 550.0;
-        else if (breed.contains("JERSEY")) expectedWeight = 400.0;
-        
-        double ratio = weight / expectedWeight;
-        
-        if (ratio < 0.80) return 0.85; // Underweight penalizes potential
-        if (ratio < 0.90) return 0.95; 
-        if (ratio <= 1.15) return 1.05; // Good/optimal weight boosts potential slightly!
-        return 0.95; // Overweight slightly penalizes potential
     }
 
     public static class MilkPotentialResult {

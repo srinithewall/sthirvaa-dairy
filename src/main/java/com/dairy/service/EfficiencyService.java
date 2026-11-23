@@ -61,6 +61,33 @@ public class EfficiencyService {
     private MilkRecordRepository milkRecordRepository;
 
     @Autowired
+    private com.dairy.repo.HerdRepository herdRepository;
+
+    /**
+     * Stores a cow's milk potential from the target the farm sets for today: today's figure divided by
+     * where she is on her lactation curve and her pregnancy, so it keeps moving with both. Null clears it.
+     */
+    public boolean setTarget(Long herdId, Double todayLitres) {
+        Optional<Herd> found = herdRepository.findById(herdId);
+        if (found.isEmpty()) return false;
+        if (todayLitres == null) {
+            herdRepository.setMilkPotential(herdId, null);
+            return true;
+        }
+        LocalDate today = LocalDate.now();
+        BreedingCycle cycle = BreedingCycle.of(eventRepository.findByHerdIdOrderByEventDateDesc(herdId), today);
+        Integer dim = cycle.lastCalving() != null ? (int) ChronoUnit.DAYS.between(cycle.lastCalving(), today) : null;
+        Integer daysPregnant = cycle.pregnant() ? (int) ChronoUnit.DAYS.between(cycle.conception(), today) : null;
+        herdRepository.setMilkPotential(herdId, Math.round(potentialFor(todayLitres, dim, daysPregnant) * 10) / 10.0);
+        return true;
+    }
+
+    /** The lactation-average potential that gives this target today. */
+    static double potentialFor(double todayLitres, Integer dim, Integer daysPregnant) {
+        return todayLitres / (curve(dim) * pregnancy(daysPregnant));
+    }
+
+    @Autowired
     private AmcsCollectionRepository amcsRepository;
 
     public Map<String, Object> report() {
@@ -89,13 +116,15 @@ public class EfficiencyService {
         for (Breed b : breedRepository.findAll()) {
             if (b.getName() != null) breeds.put(b.getName().trim().toLowerCase(), b);
         }
+        // The farm's own breeding record: how long cows take to conceive and how long they stay dry.
+        FarmCycle farm = farmCycle(herds, eventsByHerd, dailyByHerd, today);
         List<Map<String, Object>> cows = new ArrayList<>();
         for (Herd h : herds) {
             List<HerdEvent> events = eventsByHerd.getOrDefault(h.getId(), List.of());
             BreedingCycle cycle = BreedingCycle.of(events, today);
             boolean inMilkOrDry = "LACTATING".equals(h.getAnimalStatus()) || "DRY".equals(h.getAnimalStatus());
             if (cycle.lastCalving() == null && !inMilkOrDry) continue; // calves and heifers
-            cows.add(cowRow(h, events, cycle, dailyByHerd.getOrDefault(h.getId(), new TreeMap<>()), today, breeds));
+            cows.add(cowRow(h, events, cycle, dailyByHerd.getOrDefault(h.getId(), new TreeMap<>()), today, breeds, farm));
         }
 
         Map<String, Object> out = new LinkedHashMap<>();
@@ -103,19 +132,26 @@ public class EfficiencyService {
         out.put("milkRate", round(amcsRate != null ? amcsRate : DEFAULT_MILK_RATE, 2));
         out.put("milkRateSource", amcsRate != null ? "AMCS" : "DEFAULT");
         out.put("rules", Map.of("targetDaysOpen", TARGET_DAYS_OPEN, "gestationDays", GESTATION_DAYS,
-                "calvingInterval", CALVING_INTERVAL, "lactationDays", LACTATION_DAYS));
+                "calvingInterval", CALVING_INTERVAL, "lactationDays", LACTATION_DAYS,
+                "farmDaysOpen", farm.daysOpen(), "farmDryDays", farm.dryDays(),
+                "farmCycleDays", farm.daysOpen() + GESTATION_DAYS));
         out.put("milkPerDay", milkPerDay(today));
         out.put("cows", cows);
         return out;
     }
 
     private Map<String, Object> cowRow(Herd h, List<HerdEvent> events, BreedingCycle cycle,
-                                       TreeMap<LocalDate, Double> daily, LocalDate today, Map<String, Breed> breeds) {
+                                       TreeMap<LocalDate, Double> daily, LocalDate today, Map<String, Breed> breeds,
+                                       FarmCycle farm) {
         boolean dry = "DRY".equals(h.getAnimalStatus());
         LocalDate calving = cycle.lastCalving();
         Integer dim = calving != null ? (int) ChronoUnit.DAYS.between(calving, today) : null;
         double avg30 = h.getAvgMilk30Days() != null ? h.getAvgMilk30Days() : 0.0;
-        Integer target = h.getMilkPotential() != null && h.getMilkPotential() > 0 ? h.getMilkPotential() : null;
+        // Her potential kept healthy - set by the farm, else breed/age/lactation; today's target follows
+        // her lactation curve and pregnancy.
+        boolean targetSet = h.getMilkPotentialSet() != null && h.getMilkPotentialSet() > 0;
+        Double target = targetSet ? h.getMilkPotentialSet()
+                : h.getMilkPotential() != null && h.getMilkPotential() > 0 ? Double.valueOf(h.getMilkPotential()) : null;
 
         SortedMap<LocalDate, Double> current = calving != null ? daily.tailMap(calving) : daily;
         int recordedDays = current.size();
@@ -136,14 +172,20 @@ public class EfficiencyService {
         Map<String, Object> lact = calving == null ? null
                 : lactation(calving, dim, dry, target, avg30, current, recordedDays, recordedLitres, recordedAvg);
         row.put("reproduction", repro);
-        row.put("milkTarget", dry || target == null ? null : milkTarget(avg30, target));
+        Map<String, Object> mt = dry || target == null ? null
+                : milkTarget(lastDays(daily, today, AVG_DAYS), target, dim, h.getPregnancyDaysPregnant());
+        if (mt != null) mt.put("targetSet", targetSet);
+        row.put("milkTarget", mt);
         if (lact != null) lact.put("possible", possible(h, breeds, ((Number) lact.get("projected")).doubleValue()));
         row.put("lactation", lact);
+        // Her own interval once she is bred; until then, as long as cows on this farm take to conceive.
+        int interval = repro.get("calvingInterval") != null ? (Integer) repro.get("calvingInterval")
+                : Math.max(dim != null ? dim : 0, farm.daysOpen()) + GESTATION_DAYS;
         row.put("cycleAverage", lact == null ? null
-                : cycleAverage(events, daily, today, ((Number) lact.get("projected")).doubleValue(),
-                        repro.get("calvingInterval") != null ? (Integer) repro.get("calvingInterval") : CALVING_INTERVAL));
+                : cycleAverage(events, daily, today, ((Number) lact.get("projected")).doubleValue(), interval,
+                        dry, farm.dryDays()));
         row.put("history", history(events, daily, today, h.getPreviousLactations() != null ? h.getPreviousLactations() : 0));
-        row.put("flags", flags(events, cycle, daily, target, today));
+        row.put("flags", flags(events, cycle, daily, target != null ? (int) Math.round(target) : null, today));
         return row;
     }
 
@@ -226,15 +268,72 @@ public class EfficiencyService {
         }
     }
 
+    /** How long cows on this farm take to conceive after calving, and how long they stay dry. */
+    record FarmCycle(int daysOpen, int dryDays, int daysOpenCows, int dryCycles) {}
+
+    /**
+     * The farm's own averages. Days open: completed calving intervals less gestation, pregnant cows'
+     * days from calving to the AI that held, and cows still open past the target - counted at their
+     * days so far, as they are at least that late. Dry days: each completed cycle's dry-off (the dry
+     * event, else the day after its last milk record) to the next calving. Without records, the
+     * targets ({@value #TARGET_DAYS_OPEN} days open, {@value #DRY_PERIOD_DAYS} dry days) stand in.
+     */
+    static FarmCycle farmCycle(List<Herd> herds, Map<Long, List<HerdEvent>> eventsByHerd,
+                               Map<Long, TreeMap<LocalDate, Double>> dailyByHerd, LocalDate today) {
+        List<Integer> open = new ArrayList<>();
+        List<Integer> dryDays = new ArrayList<>();
+        for (Herd h : herds) {
+            List<HerdEvent> events = eventsByHerd.getOrDefault(h.getId(), List.of());
+            TreeMap<LocalDate, Double> daily = dailyByHerd.getOrDefault(h.getId(), new TreeMap<>());
+            TreeSet<LocalDate> calvings = calvingDates(events, today);
+            for (LocalDate from : calvings) {
+                LocalDate next = calvings.higher(from);
+                if (next == null) break;
+                int interval = (int) ChronoUnit.DAYS.between(from, next);
+                if (interval >= 300 && interval <= 800) open.add(interval - GESTATION_DAYS);
+                LocalDate dryStart = events.stream()
+                        .filter(e -> "DRY_PERIOD_STARTED".equalsIgnoreCase(e.getEventType()) && e.getEventDate() != null
+                                && e.getEventDate().isAfter(from) && e.getEventDate().isBefore(next))
+                        .map(HerdEvent::getEventDate).max(LocalDate::compareTo)
+                        .orElseGet(() -> {
+                            SortedMap<LocalDate, Double> part = daily.subMap(from, next);
+                            return part.isEmpty() ? null : part.lastKey().plusDays(1);
+                        });
+                if (dryStart != null) {
+                    int d = (int) ChronoUnit.DAYS.between(dryStart, next);
+                    if (d >= 15 && d <= 200) dryDays.add(d);
+                }
+            }
+            BreedingCycle cycle = BreedingCycle.of(events, today);
+            LocalDate calving = cycle.lastCalving();
+            if (calving != null) {
+                if (cycle.pregnant() && cycle.conception().isAfter(calving)) {
+                    open.add((int) ChronoUnit.DAYS.between(calving, cycle.conception()));
+                } else if (!cycle.pregnant()) {
+                    int dim = (int) ChronoUnit.DAYS.between(calving, today);
+                    if (dim > TARGET_DAYS_OPEN) open.add(dim);
+                }
+            }
+        }
+        int daysOpen = open.isEmpty() ? TARGET_DAYS_OPEN
+                : (int) Math.round(open.stream().mapToInt(Integer::intValue).average().orElse(TARGET_DAYS_OPEN));
+        int dry = dryDays.isEmpty() ? DRY_PERIOD_DAYS
+                : (int) Math.round(dryDays.stream().mapToInt(Integer::intValue).average().orElse(DRY_PERIOD_DAYS));
+        return new FarmCycle(Math.max(daysOpen, 45), dry, open.size(), dryDays.size());
+    }
+
     /**
      * Milk a day over whole calving cycles, dry days included: every completed cycle with milk
      * recorded from calving (within 10 days), plus the current one projected (305-day yield over its
      * calving interval). Cycles recorded only in part are left out rather than understating the cow.
      */
     private Map<String, Object> cycleAverage(List<HerdEvent> events, TreeMap<LocalDate, Double> daily, LocalDate today,
-                                             double projectedLitres, int currentInterval) {
+                                             double projectedLitres, int currentInterval, boolean dry, int dryDays) {
         TreeSet<LocalDate> calvings = calvingDates(events, today);
-        double litres = projectedLitres;
+        // A cow still milking is milked until the farm's usual dry period before her next calving:
+        // a long interval means more (lower-yield) days at the end, not a fixed 305.
+        double litres = dry ? projectedLitres
+                : projectedLitres * shapeSum(1, Math.max(1, currentInterval - dryDays)) / shapeSum(1, LACTATION_DAYS);
         long days = currentInterval;
         int complete = 0;
         for (LocalDate from : calvings) {
@@ -263,16 +362,62 @@ public class EfficiencyService {
         return calvings;
     }
 
-    private Map<String, Object> milkTarget(double avg30, int target) {
+    /** Day of lactation the curve peaks on (Wood's curve, b/c). */
+    static final int PEAK_DIM = 50;
+
+    /** "Avg / day" on the milk target is her last week, so it shows how she is doing now. */
+    static final int AVG_DAYS = 7;
+
+    /**
+     * Her daily potential on this day of lactation, as a multiple of her lactation average, along the
+     * standard lactation curve: below 1 in the first days, about 1.26 at the peak (day 50), below 1
+     * late in lactation. Averages 1 over 305 days.
+     */
+    static double curve(Integer dim) {
+        if (dim == null) return 1.0;
+        return AssetValuationService.lactationShapeUncapped(Math.max(1, dim));
+    }
+
+    /** Pregnancy starts to cut milk around this day of gestation... */
+    static final int PREGNANCY_EFFECT_FROM = 120;
+    /** ...and takes about this share off by this day (a cow is usually dried off soon after). */
+    static final int PREGNANCY_EFFECT_FULL = 240;
+    static final double PREGNANCY_EFFECT_MAX = 0.15;
+
+    /**
+     * Share of her yield left as pregnancy advances: none taken until about 4 months, then rising
+     * steadily to about 15% by 8 months, as the calf draws on her.
+     */
+    static double pregnancy(Integer daysPregnant) {
+        if (daysPregnant == null || daysPregnant <= PREGNANCY_EFFECT_FROM) return 1.0;
+        double t = Math.min(1.0, (daysPregnant - PREGNANCY_EFFECT_FROM) / (double) (PREGNANCY_EFFECT_FULL - PREGNANCY_EFFECT_FROM));
+        return 1.0 - PREGNANCY_EFFECT_MAX * t;
+    }
+
+    /** Average litres a day over the days recorded in the last {@code days} days up to today; 0 with none. */
+    static double lastDays(SortedMap<LocalDate, Double> daily, LocalDate today, int days) {
+        SortedMap<LocalDate, Double> week = daily.subMap(today.minusDays(days - 1L), today.plusDays(1));
+        return week.isEmpty() ? 0.0 : week.values().stream().mapToDouble(Double::doubleValue).sum() / week.size();
+    }
+
+    /**
+     * Today's target: her potential kept healthy (breed, age, lactation - a lactation-average daily
+     * figure) carried along the lactation curve to her days in milk. What she gives below it is milk
+     * that keeping her healthy can gain.
+     */
+    static Map<String, Object> milkTarget(double avg, double potential, Integer dim, Integer daysPregnant) {
+        double today = potential * curve(dim) * pregnancy(daysPregnant);
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("avgPerDay", round(avg30, 2));
-        m.put("targetPerDay", target);
-        m.put("efficiency", round(100.0 * avg30 / target, 1));
-        m.put("lostPerDay", round(Math.max(0, target - avg30), 2));
+        m.put("avgPerDay", round(avg, 2));
+        m.put("avgDays", AVG_DAYS);
+        m.put("peakPerDay", round(potential * curve(PEAK_DIM), 1));
+        m.put("targetPerDay", round(today, 1));
+        m.put("efficiency", round(100.0 * avg / today, 1));
+        m.put("lostPerDay", round(Math.max(0, today - avg), 2));
         return m;
     }
 
-    private Map<String, Object> lactation(LocalDate calving, int dim, boolean dry, Integer target, double avg30,
+    private Map<String, Object> lactation(LocalDate calving, int dim, boolean dry, Double target, double avg30,
                                           SortedMap<LocalDate, Double> current, int recordedDays,
                                           double recordedLitres, double recordedAvg) {
         Map<String, Object> l = new LinkedHashMap<>();
@@ -292,11 +437,16 @@ public class EfficiencyService {
         double projected = ((Number) l.get("projected")).doubleValue();
 
         if (target != null) {
-            double recordedTarget = (double) target * recordedDays;
+            // Her potential carried along the lactation curve, day by day.
+            double recordedTarget = 0;
+            for (LocalDate d : current.keySet()) {
+                recordedTarget += target * curve((int) ChronoUnit.DAYS.between(calving, d) + 1);
+            }
+            double estimate = target * shapeSum(1, LACTATION_DAYS);
             l.put("recordedTarget", round(recordedTarget, 0));
             l.put("achieved", recordedTarget > 0 ? round(100.0 * recordedLitres / recordedTarget, 1) : null);
-            l.put("estimate", target * LACTATION_DAYS);
-            l.put("projectedPct", round(100.0 * projected / (target * LACTATION_DAYS), 1));
+            l.put("estimate", round(estimate, 0));
+            l.put("projectedPct", round(100.0 * projected / estimate, 1));
         }
         return l;
     }

@@ -21,6 +21,12 @@ public interface HerdRepository extends JpaRepository<Herd, Long> {
     @Query("update Herd h set h.baseMinWeightKg = :kg, h.baseMinWeightDate = :on, h.baseMinWeightManual = :manual where h.id = :id")
     int setBaseMinWeight(@Param("id") Long id, @Param("kg") Double kg, @Param("on") LocalDate on, @Param("manual") Boolean manual);
 
+    /** Sets (or with null clears) the milk potential set by hand; touches nothing else on her record. */
+    @Modifying
+    @Transactional
+    @Query("update Herd h set h.milkPotentialSet = :litres where h.id = :id")
+    int setMilkPotential(@Param("id") Long id, @Param("litres") Double litres);
+
     /** The app's one-time suggestion: written only while she has no base minimum yet. */
     @Modifying
     @Transactional

@@ -10,12 +10,21 @@ export const TONE: Record<Tone, { bar: string; pill: string; text: string }> = {
   poor: { bar: 'bg-danger', pill: 'bg-[#FDEAEA] text-danger', text: 'text-danger' },
 };
 
-export function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'good' | 'fair' | 'poor' }) {
+export function Kpi({ label, value, sub, tone, info }: { label: string; value: string; sub?: string; tone?: 'good' | 'fair' | 'poor'; info?: string }) {
+  // ⓘ opens on tap - hover tooltips don't work on phones.
+  const [open, setOpen] = React.useState(false);
   return (
     <div className="bg-white rounded-radius-custom-lg border border-border-custom p-3 sm:p-4 min-w-0">
-      <div className="text-[11px] font-bold text-text3 uppercase tracking-wider">{label}</div>
+      <div className="text-[11px] font-bold text-text3 uppercase tracking-wider flex items-center gap-1">
+        {label}
+        {info && (
+          <button type="button" onClick={() => setOpen(o => !o)} title={info} aria-label={`About ${label}`}
+            className="normal-case text-[12px] leading-none text-text3 hover:text-text">ⓘ</button>
+        )}
+      </div>
       <div className={`text-[20px] sm:text-[22px] font-black mt-1 ${tone ? TONE[tone].text : 'text-text'}`}>{value}</div>
       {sub && <div className="text-[12px] text-text3 mt-0.5">{sub}</div>}
+      {info && open && <div className="text-[12px] text-text mt-1">{info}</div>}
     </div>
   );
 }

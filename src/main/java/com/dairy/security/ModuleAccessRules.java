@@ -35,6 +35,7 @@ public final class ModuleAccessRules {
         rule("/api/onboarding", Set.of("HERDS", "ACTIVITIES"), Set.of("HERDS", "ACTIVITIES")),
         rule("/api/emergency-contacts", Set.of("HERDS", "ACTIVITIES"), Set.of("HERDS")),
         rule("/api/semen-catalog", Set.of("HERDS"), Set.of("HERDS")),
+        rule("/api/sires", Set.of("HERDS"), Set.of("HERDS")),
         rule("/api/breeds", Set.of("HERDS", "INVENTORY", "FEEDS"), Set.of("HERDS", "INVENTORY")),
         rule("/api/assets", Set.of("INVENTORY", "HERDS"), Set.of("INVENTORY", "HERDS")),
 

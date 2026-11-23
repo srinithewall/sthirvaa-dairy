@@ -6,7 +6,7 @@ import api, { formatImageUrl } from '@/lib/api';
 import {
   Plus, X, Activity, Calendar, Trash2, Edit2, Archive, Clock,
   CheckCircle, AlertTriangle, Syringe, Baby, Droplets, Leaf,
-  ChevronRight, ShieldCheck, Heart, TrendingUp, AlarmClock,
+  ChevronRight, ChevronDown, ShieldCheck, Heart, TrendingUp, AlarmClock,
   PlusCircle, Info, ShieldAlert, AlertCircle, Egg, Bird, Flame
 } from 'lucide-react';
 import RegisterAnimalModal from '@/components/RegisterAnimalModal';
@@ -20,6 +20,7 @@ import { BcsBadge, BcsPickerModal, bcsTodayIso } from '@/components/BcsPicker';
 import { bullIdOf as bullIdFromDetails, notesOf, withBullId, PD_AFTER_AI_DAYS } from '@/lib/breeding';
 import Link from 'next/link';
 import { HEAT_STATUS, HeatPanel, heatSortKey } from '@/components/HeatCycle';
+import type { WorkspaceTab } from '@/components/AnimalWorkspace';
 import { HEAT_EVENT, HEAT_WINDOW_DAYS, addDays, heatAgeFrom, inBreedingCycle, summariseHeat } from '@/lib/heat';
 
 /** Small amber tag for an animal still in quarantine after arrival; links to its onboarding checklist. */
@@ -138,6 +139,8 @@ export default function HerdsPage() {
   const [allGlobalEvents, setAllGlobalEvents] = useState<HerdEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'breeding' | 'health' | 'history' | 'details'>('overview');
+  // Tab the animal workspace opens on.
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('overview');
 
   // Add Event Modal
   const [showAddEventModal, setShowAddEventModal] = useState(false);
@@ -231,11 +234,13 @@ export default function HerdsPage() {
     return 'bg-[#BDE0FE]';
   };
 
-  const handleHerdClick = async (id: number) => {
+  /** Opens an animal's page; `tab` picks the workspace tab it opens on (e.g. 'breeding' = AI Service). */
+  const handleHerdClick = async (id: number, tab: WorkspaceTab = 'overview') => {
     try {
       const res = await api.get(`/herds/${id}`);
       setSelectedHerd(res.data);
       setActiveTab('overview');
+      setWorkspaceTab(tab);
       setShowModal(true);
       setLoadingEvents(true);
       const eventsRes = await api.get(`/herds/${id}/events`);
@@ -732,6 +737,7 @@ export default function HerdsPage() {
       ) : showModal && selectedHerd ? (
         <AnimalWorkspace
           herd={selectedHerd}
+          initialTab={workspaceTab}
           events={events}
           loadingEvents={loadingEvents}
           userRole={userRole}
@@ -1238,11 +1244,21 @@ function DisposedAnimalsModal({ isOpen, onClose, herds, onAnimalClick }: {
 
 /* ─── Breeding Modal: upcoming deliveries + AI cows ─── */
 function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged }: {
-  onClose: () => void; events: HerdEvent[]; herds: Herd[]; onAnimalClick: (id: number) => void; onEventsChanged: () => void;
+  onClose: () => void; events: HerdEvent[]; herds: Herd[]; onAnimalClick: (id: number, tab?: WorkspaceTab) => void; onEventsChanged: () => void;
 }) {
   const [tab, setTab] = useState<'deliveries' | 'ai' | 'heat'>('deliveries');
   // Cow whose heat panel is open (by id, so it follows the reloaded events)
   const [heatId, setHeatId] = useState<number | null>(null);
+  /** Phone AI Cows / Heat cards: details stay folded until the cow is expanded */
+  const [aiOpen, setAiOpen] = useState<Set<number>>(new Set());
+  const toggleAi = (id: number) => setAiOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const expandBtn = (id: number) => (
+    <button onClick={ev => { ev.stopPropagation(); toggleAi(id); }} aria-expanded={aiOpen.has(id)}
+      aria-label={aiOpen.has(id) ? 'Hide details' : 'Show details'}
+      className="p-1.5 rounded-lg border border-border-custom text-text2 hover:text-brand shrink-0">
+      <ChevronDown size={14} className={`transition-transform ${aiOpen.has(id) ? 'rotate-180' : ''}`} />
+    </button>
+  );
 
   const DAY = 86400000;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1397,6 +1413,14 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
     </div>
   );
   const open = (id: number) => { onAnimalClick(id); onClose(); };
+  /** Her AI Service tab: bull, mother and expected-daughter analysis. */
+  const aiBtn = (r: (typeof rows)[number]) => (
+    <button onClick={ev => { ev.stopPropagation(); onAnimalClick(r.h.id, 'breeding'); onClose(); }}
+      title="AI Service: bull, mother and expected daughter"
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-brand text-white hover:bg-brand-dark text-[11px] font-bold whitespace-nowrap">
+      <Syringe size={12} /> AI
+    </button>
+  );
   const th = 'py-2.5 px-4 text-[10px] font-black text-text3 uppercase tracking-wider whitespace-nowrap';
   const empty = (msg: string) => <div className="py-16 text-center text-text3 italic text-sm">{msg}</div>;
 
@@ -1404,7 +1428,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
     // Phone: full screen. Desktop: centred dialog that grows with its rows.
     <div className="fixed inset-0 z-[2000] bg-white md:bg-black/75 md:backdrop-blur-sm flex md:items-center md:justify-center md:p-6" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-white w-full h-full md:h-auto md:max-w-3xl md:max-h-[88vh] md:rounded-2xl md:shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-200">
+        className="bg-white w-full h-full md:h-auto md:max-w-4xl md:max-h-[88vh] md:rounded-2xl md:shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-200">
         <div className="px-4 md:px-5 py-3.5 md:py-4 pt-[max(0.875rem,env(safe-area-inset-top))] flex items-center justify-between shrink-0"
              style={{ background: 'linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 100%)' }}>
           <div className="flex items-center gap-3">
@@ -1455,14 +1479,24 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                   <div key={r.h.id} onClick={() => setHeatId(r.h.id)} className="px-4 py-3.5 active:bg-brand/5">
                     <div className="flex items-center justify-between gap-2">
                       <Name h={r.h} />
-                      {heatPill(r.s)}
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex flex-col items-end gap-0.5">
+                          {heatPill(r.s)}
+                          <span className="text-[11px] font-bold text-text whitespace-nowrap">
+                            {r.s.nextExpected ? <>Next {fmt(r.s.nextExpected)}</> : '—'}
+                          </span>
+                        </div>
+                        {expandBtn(r.h.id)}
+                      </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
-                      {stat('Last Heat', r.s.lastHeat ? fmt(r.s.lastHeat.date) : '—')}
-                      {stat('Next Heat', r.s.nextExpected ? fmt(r.s.nextExpected) : '—')}
-                      {stat('Cycle', `${r.s.cycleDays} d`)}
-                    </div>
-                    <div className="mt-1.5 text-[11px] text-text3">{r.s.note}</div>
+                    {aiOpen.has(r.h.id) && (<>
+                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
+                        {stat('Last Heat', r.s.lastHeat ? fmt(r.s.lastHeat.date) : '—')}
+                        {stat('Next Heat', r.s.nextExpected ? fmt(r.s.nextExpected) : '—')}
+                        {stat('Cycle', `${r.s.cycleDays} d`)}
+                      </div>
+                      <div className="mt-1.5 text-[11px] text-text3">{r.s.note}</div>
+                    </>)}
                   </div>
                 ))}
               </div>
@@ -1471,7 +1505,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
             <>
               <table className="hidden md:table w-full text-left">
                 <thead className="sticky top-0 bg-surface border-b border-border-custom">
-                  <tr><th className={th}>Cow</th><th className={th}>AI Date</th><th className={th}>Bull ID</th><th className={`${th} text-right`}>Gestation</th><th className={th}>EDD</th><th className={th}></th></tr>
+                  <tr><th className={th}>Cow</th><th className={th}>AI Date</th><th className={th}>Bull ID</th><th className={`${th} text-right`}>Gestation</th><th className={th}>EDD</th><th className={th}></th><th className={th}></th></tr>
                 </thead>
                 <tbody className="divide-y divide-border-custom/50">
                   {deliveries.map(r => (
@@ -1482,6 +1516,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                       <td className="py-2.5 px-4 text-sm font-bold text-text text-right whitespace-nowrap">{r.gestationDays} <span className="text-[10px] text-text3 font-semibold">/ {r.gestationLen} d</span></td>
                       <td className="py-2.5 px-4 text-sm font-bold text-text whitespace-nowrap">{fmt(r.edd!)}</td>
                       <td className="py-2.5 px-4 text-right">{dueBadge(r.daysToEdd, 'Calving')}</td>
+                      <td className="py-2.5 px-4 text-right">{aiBtn(r)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1491,7 +1526,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                   <div key={r.h.id} onClick={() => open(r.h.id)} className="px-4 py-3.5 active:bg-brand/5">
                     <div className="flex items-center justify-between gap-2">
                       <Name h={r.h} />
-                      {dueBadge(r.daysToEdd, 'Calving')}
+                      <div className="flex items-center gap-2">{dueBadge(r.daysToEdd, 'Calving')}{aiBtn(r)}</div>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
                       {stat('Gestation', `${r.gestationDays} / ${r.gestationLen}`)}
@@ -1524,7 +1559,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                       </td>
                       <td className="py-2.5 px-4 text-sm font-bold text-text whitespace-nowrap">{fmt(r.pdDue!)}</td>
                       <td className="py-2.5 px-4 text-right">{dueBadge(daysBetween(today, r.pdDue!), 'PD')}</td>
-                      <td className="py-2.5 px-4 text-right">{heatSeenBtn(r)}</td>
+                      <td className="py-2.5 px-4 text-right"><div className="flex items-center justify-end gap-2">{aiBtn(r)}{heatSeenBtn(r)}</div></td>
                     </tr>
                   ))}
                 </tbody>
@@ -1534,17 +1569,25 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                   <div key={r.h.id} className="px-4 py-3.5">
                     <div className="flex items-center justify-between gap-2">
                       <button onClick={() => open(r.h.id)} title="Open her page" className="text-left hover:opacity-80"><Name h={r.h} /></button>
-                      {dueBadge(daysBetween(today, r.pdDue!), 'PD')}
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex flex-col items-end gap-0.5">
+                          {dueBadge(daysBetween(today, r.pdDue!), 'PD')}
+                          <span className="text-[11px] font-bold text-text whitespace-nowrap">{fmt(r.pdDue!)}</span>
+                        </div>
+                        {expandBtn(r.h.id)}
+                      </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
-                      {stat('AI Date', fmt(r.latestAi!.eventDate))}
-                      {stat('Bull ID', bullCell(r.latestAi!))}
-                      {stat('PD Due', fmt(r.pdDue!))}
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5 text-[11px] text-text3">Return heat {fmt(returnHeat(r).ret)} {returnHeat(r).badge}</span>
-                      {heatSeenBtn(r)}
-                    </div>
+                    {aiOpen.has(r.h.id) && (<>
+                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
+                        {stat('AI Date', fmt(r.latestAi!.eventDate))}
+                        {stat('Bull ID', bullCell(r.latestAi!))}
+                        {stat('PD Due', fmt(r.pdDue!))}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-[11px] text-text3">Return heat {fmt(returnHeat(r).ret)} {returnHeat(r).badge}</span>
+                        <div className="flex items-center gap-2">{aiBtn(r)}{heatSeenBtn(r)}</div>
+                      </div>
+                    </>)}
                   </div>
                 ))}
               </div>

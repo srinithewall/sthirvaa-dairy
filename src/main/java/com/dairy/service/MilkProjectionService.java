@@ -314,6 +314,11 @@ public class MilkProjectionService {
         return out;
     }
 
+    /** Average the farm was paid per litre (this month, else last month, else the last year); 0 if nothing sold. */
+    public double paidPricePerLitre() {
+        return realisedPrice(LocalDate.now()).rate();
+    }
+
     /** Average paid per litre over a period, and the period it came from. */
     private record Price(double rate, double litres, LocalDate from, LocalDate to, String period) {}
 

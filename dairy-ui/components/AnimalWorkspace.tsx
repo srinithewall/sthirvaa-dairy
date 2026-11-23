@@ -5,7 +5,7 @@ import {
   ArrowLeft, Edit2, Syringe, Heart, Baby, Leaf,
   Droplets, ShieldCheck, Bug, Pill, Activity, Microscope, Clock,
   AlertTriangle, CheckCircle2, XCircle, Plus, Trash2, MoreVertical,
-  AlertCircle, Phone, Star, ChevronRight, Info, Home, ImageIcon, CheckCircle, Zap, Film
+  AlertCircle, Phone, Star, ChevronRight, Info, Home, ImageIcon, CheckCircle, Zap, Film, Sparkles, Search, X
 } from 'lucide-react';
 import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
@@ -13,8 +13,10 @@ import WeightTracker from '@/components/WeightTracker';
 import { bullIdOf, notesOf, withBullId } from '@/lib/breeding';
 import { BcsTrendCard } from '@/components/BcsPicker';
 import { CallButton } from '@/components/EmergencyContacts';
+import SireAnalysisCard, { SireDatalist } from '@/components/SireAnalysisCard';
 
 /* ─── Types ─────────────────────────────────────── */
+export type WorkspaceTab = 'overview'|'breeding'|'health'|'history'|'details'|'weight';
 interface Herd {
   id: number; tagNumber: string; animalType: string; animalName: string;
   breed: string; milkType: string; healthStatus: string; source: string;
@@ -36,6 +38,8 @@ interface Props {
   onEventUpdated?: (e: HerdEvent) => void;
   /** Saves a BCS reading (null removes today's) and reloads the animal. */
   onBcsScored?: (bcs: number | null) => Promise<void>;
+  /** Tab to open on, e.g. 'breeding' (AI Service) from the Breeding window. */
+  initialTab?: WorkspaceTab;
 }
 
 /* ─── Semen Catalog ──────────────────────────────
@@ -659,7 +663,7 @@ function EditEventModal({ event, onClose, onSaved }: { event: HerdEvent; onClose
           {isAi && (
             <div>
               <label className={label}>Bull ID</label>
-              <input type="text" value={bullId} onChange={e=>setBullId(e.target.value)} placeholder="e.g. HF-2204"
+              <input type="text" list="sire-bulls" value={bullId} onChange={e=>setBullId(e.target.value)} placeholder="e.g. HF-40421"
                 className={`${input} placeholder:text-slate-300`}/>
             </div>
           )}
@@ -1038,8 +1042,8 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
           {type === 'SEMEN_GIVEN' && (
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Bull ID</label>
-              <input type="text" value={bullId} onChange={e=>setBullId(e.target.value)}
-                placeholder="e.g. HF-2204"
+              <input type="text" list="sire-bulls" value={bullId} onChange={e=>setBullId(e.target.value)}
+                placeholder="e.g. HF-40421"
                 className="w-full px-3 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-[12px] font-bold text-slate-800 focus:outline-none focus:border-brand placeholder:text-slate-300"/>
             </div>
           )}
@@ -1107,12 +1111,17 @@ function AddEventModal({ herd, prefill, onClose, onSaved }: {
 /* ─── MAIN COMPONENT ─────────────────────────────── */
 export default function AnimalWorkspace({
   herd, events, loadingEvents, userRole, failedImages,
-  onBack, onEdit, onDelete, onEventAdded, onEventDeleted, onImageError, onEventUpdated, onBcsScored,
+  onBack, onEdit, onDelete, onEventAdded, onEventDeleted, onImageError, onEventUpdated, onBcsScored, initialTab,
 }: Props) {
   const [editingEvent, setEditingEvent] = useState<HerdEvent | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview'|'breeding'|'health'|'history'|'details'|'weight'>('overview');
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(initialTab ?? 'overview');
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showSemenSelection, setShowSemenSelection] = useState(false);
+  const [showRecommend, setShowRecommend] = useState(false);
+  // Header "Analyse": preview another bull's sire analysis on the AI Service tab.
+  const [showAnalyse, setShowAnalyse] = useState(false);
+  const [analyseQuery, setAnalyseQuery] = useState('');
+  const [sirePreview, setSirePreview] = useState('');
   const [prefillType, setPrefillType] = useState<string|undefined>();
   const [selectedSemen, setSelectedSemen] = useState<SemenEntry | null>(null);
   const [dbCatalog, setDbCatalog] = useState<SemenEntry[]>([]);
@@ -1256,6 +1265,11 @@ export default function AnimalWorkspace({
       .catch(()=>setDbCatalog([]))
       .finally(()=>setCatalogLoading(false));
   },[herd.animalType]);
+
+  /** Changes whenever an AI, PD or calving record is added, edited or removed. */
+  const aiRefreshKey = useMemo(()=>events
+    .filter(e=>['SEMEN_GIVEN','PREGNANCY_CONFIRMED','PREGNANCY_NEGATIVE','CALF_DELIVERED','LACTATION_STARTED'].includes(e.eventType))
+    .map(e=>`${e.id}:${e.eventDate}:${e.details??''}`).join('|'),[events]);
 
   const recommendedOrder = useMemo(()=>getRecommendations(herd),[herd]);
   const sortedCatalog = useMemo(()=>{
@@ -1438,6 +1452,7 @@ export default function AnimalWorkspace({
     /* ─── RENDER ───────────────────────────────────── */
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      <SireDatalist />
 
       {/* ══ WHITE HEADER ══ */}
       <div className="bg-white border-b border-slate-200 shadow-sm relative z-30">
@@ -1524,6 +1539,47 @@ export default function AnimalWorkspace({
 
           {/* Actions & Gallery outside */}
           <div className="flex items-center gap-1.5">
+            {/* Sire analysis: try a bull, or open the semen recommendations */}
+            <div className="relative">
+              <button
+                onClick={() => { setActiveTab('breeding'); setShowAnalyse(v => !v); }}
+                className={`flex items-center gap-1.5 h-8 px-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-wide transition-all shadow-sm ${showAnalyse ? 'bg-[#064e3b] border-[#064e3b] text-white' : 'border-emerald-200 bg-emerald-50 text-[#064e3b] hover:bg-emerald-100'}`}
+                title="Analyse a bull for this cow"
+              >
+                <Sparkles size={14}/><span className="hidden sm:inline">Analyse</span>
+              </button>
+              {showAnalyse && (<>
+                <div className="fixed inset-0 z-[40]" onClick={() => setShowAnalyse(false)}/>
+                <form
+                  onSubmit={e => { e.preventDefault(); if (analyseQuery.trim()) { setSirePreview(analyseQuery.trim()); setShowAnalyse(false); } }}
+                  className="absolute right-0 top-10 z-[41] w-[300px] bg-white rounded-2xl border border-slate-200 shadow-xl p-3 animate-in fade-in zoom-in-95 duration-150"
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">Expected daughter with another bull</div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1 min-w-0">
+                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"/>
+                      <input autoFocus list="sire-bulls" value={analyseQuery} onChange={e => setAnalyseQuery(e.target.value)}
+                        placeholder="e.g. HF-40423 or Castro"
+                        className="w-full pl-8 pr-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500"/>
+                    </div>
+                    <button type="submit" className="px-3 py-2 rounded-xl bg-[#064e3b] text-white text-[11px] font-bold uppercase hover:bg-[#064e3b]/90">Go</button>
+                  </div>
+                  {sirePreview && (
+                    <button type="button" onClick={() => { setSirePreview(''); setAnalyseQuery(''); setShowAnalyse(false); }}
+                      className="mt-2 flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:underline">
+                      <X size={12}/> Back to the AI bull
+                    </button>
+                  )}
+                </form>
+              </>)}
+            </div>
+            <button
+              onClick={() => { setActiveTab('breeding'); setShowRecommend(true); }}
+              className="flex items-center gap-1.5 h-8 px-2.5 rounded-xl bg-amber-400 text-amber-950 text-[11px] font-bold uppercase tracking-wide hover:bg-amber-300 transition-all shadow-sm"
+              title="Semen options ranked for this cow"
+            >
+              <Star size={13} className="fill-amber-950"/><span className="hidden sm:inline">Recommendation</span>
+            </button>
             <button
               onClick={() => setShowGallery(true)}
               className="flex items-center justify-center w-8 h-8 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
@@ -1614,195 +1670,220 @@ export default function AnimalWorkspace({
         {/* ─── AI BREEDING SERVICE ─── */}
         {activeTab==='breeding' && (
           <div className="animate-in fade-in duration-200 pb-8">
-            {/* Loading */}
-            {catalogLoading && (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"/>
-                <span className="text-[12px] font-bold text-slate-400">Loading AI Recommendations…</span>
-              </div>
-            )}
-
-            {!catalogLoading && sortedCatalog.length > 0 && (() => {
-              const best = sortedCatalog[0];
-              const others = sortedCatalog.slice(1);
-              const bens = Array.isArray(best.benefits) ? best.benefits as string[] : (best.benefits as string).split(',').map(b=>b.trim());
-
-              const strawMap: Record<string,string> = {
-                '#3B82F6':'/semen/straw-blue.png','#F59E0B':'/semen/straw-yellow.png',
-                '#EF4444':'/semen/straw-red.png','#8B5CF6':'/semen/straw-purple.png',
-                '#10B981':'/semen/straw-green.png','#0EA5E9':'/semen/straw-blue.png',
-                '#F97316':'/semen/straw-yellow.png',
-              };
-              const getStraw = (s: SemenEntry) => s.strawImage || strawMap[s.colorHex] || '/semen/straw-blue.png';
-
-              const calfMap: Record<string,string> = {
-                'hf-elite':'/semen/calf-hf.png','hf-power':'/semen/calf-hf.png',
-                'jersey-fat':'/semen/calf-jersey.png','gir-a2':'/semen/calf-gir.png',
-                'sahiwal-pure':'/semen/calf-sahiwal.png',
-              };
-              const getCalf = (s: SemenEntry) => s.calfImage || calfMap[s.id] || '/semen/calf-hf.png';
-
-              return (
-                <div className="flex flex-col lg:grid lg:grid-cols-5 gap-6 p-4 max-w-6xl mx-auto bg-white">
-                  
-                  {/* ═══ LEFT COL: AI RECOMMENDATION ═══ */}
-                  <div className="lg:col-span-3 bg-[#f8fbf9] border border-[#eef2f0] rounded-2xl p-5 shadow-sm">
-                    <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-emerald-50 mb-6 shadow-sm">
-                      <span className="text-[14px]">✨</span>
-                      <span className="text-[12px] font-bold text-[#064e3b] uppercase tracking-wider">AI Recommendation for {herd.animalName}</span>
+            {/* Bull pedigree + this cow + farm records → expected daughter. Re-runs whenever an AI/PD record changes. */}
+            <div className="p-4 max-w-6xl mx-auto">
+              <SireAnalysisCard herdId={herd.id} refreshKey={aiRefreshKey} preview={sirePreview}
+                onPreview={b => { setSirePreview(b); setAnalyseQuery(b); }}
+                onClearPreview={() => { setSirePreview(''); setAnalyseQuery(''); }} />
+            </div>
+            {/* Semen recommendations: opened from the Recommendation button on the Sire Analysis card */}
+            {showRecommend && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2500] flex items-end sm:items-center justify-center p-0 sm:p-4"
+                onClick={() => setShowRecommend(false)}>
+                <div className="bg-white w-full max-w-6xl max-h-[92vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                  onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between px-5 py-3.5 bg-[#064e3b] flex-shrink-0">
+                    <div>
+                      <h3 className="text-[15px] font-bold text-white">AI Recommendation for {herd.animalName}</h3>
+                      <p className="text-[10px] text-white/60 font-semibold">Semen options ranked for her breed</p>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                      <div className="flex flex-col justify-center">
-                        <div className="flex items-center gap-3 mb-2">
-                           <h2 className="text-[32px] font-bold text-[#064e3b] leading-none">{best.breedName}</h2>
-                           <div className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-slate-100 shadow-sm" title="Semen Straw Color Code">
-                              <img src={getStraw(best)} alt={best.colorLabel} className="h-4 object-contain"/>
-                              <span className="text-[9px] font-bold" style={{color: best.colorHex}}>{best.colorLabel}</span>
-                           </div>
-                        </div>
-                        <div className="mb-6 flex justify-between items-center">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-[#059669] px-3 py-1 rounded-full uppercase tracking-wide shadow-sm">
-                            <Star size={12} className="fill-white"/> Best Match
-                          </span>
-                          <label className="flex items-center gap-2 cursor-pointer px-2.5 py-1 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-slate-300 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={compareIds.includes(best.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  if (compareIds.length >= 4) { showToast('You can compare a maximum of 4 options.', 'warning'); return; }
-                                  setCompareIds(prev => [...prev, best.id]);
-                                } else {
-                                  setCompareIds(prev => prev.filter(id => id !== best.id));
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-slate-300 text-[#064e3b] focus:ring-[#064e3b] cursor-pointer"
-                            />
-                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none">Compare</span>
-                          </label>
-                        </div>
-
-                        <p className="text-[14px] font-bold text-slate-800 mb-3">Why this is best for {herd.animalName}?</p>
-                        <div className="space-y-2.5">
-                          {bens.map(b => (
-                            <div key={b} className="flex items-start gap-2.5">
-                              <div className="mt-0.5 rounded-full bg-emerald-100 p-0.5 text-emerald-600 flex-shrink-0">
-                                <CheckCircle size={14} strokeWidth={3}/>
-                              </div>
-                              <span className="text-[13px] font-semibold text-[#334155] leading-tight">{b}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="relative rounded-2xl overflow-hidden bg-emerald-50 h-64 md:h-auto border border-emerald-100">
-                        <img
-                          src={getCalf(best)}
-                          alt={`${best.breedName} expected daughter`}
-                          className="w-full h-full object-cover object-center"
-                          onError={e => { (e.target as HTMLImageElement).src='/semen/calf-hf.png'; }}
-                        />
-                        <div className="absolute top-3 left-0 right-0 flex justify-center">
-                          <span className="text-[10px] font-bold text-[#064e3b] bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full uppercase tracking-wide shadow-sm">
-                            Expected Daughter
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-3 mb-6">
-                      {[
-                        { icon:'♀', label:'Female Calf', value:`${best.femaleCalfPct}%`, color:'text-rose-500' },
-                        { icon:<Droplets size={16}/>, label:'Expected Milk', value:best.milkPotential, color:'text-sky-500' },
-                        { icon:'💧', label:'Fat %', value:best.fat, color:'text-amber-500' },
-                        { icon:'⚖️', label:'Adult Weight', value:'500 kg+', color:'text-emerald-600' },
-                      ].map(stat => (
-                        <div key={stat.label} className="bg-white rounded-xl p-3 flex flex-col items-center justify-center border border-[#eef2f0] shadow-sm">
-                          <div className={`text-[18px] mb-1.5 ${stat.color}`}>{stat.icon}</div>
-                          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">{stat.label}</div>
-                          <div className="text-[16px] font-bold text-[#0f172a]">{stat.value}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-3 mb-4">
-                      <button
-                        onClick={() => setSelectedSemen(best)}
-                        className="flex-1 py-4 rounded-xl font-bold text-[15px] uppercase tracking-wide text-[#064e3b] border-2 border-[#064e3b] hover:bg-emerald-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        onClick={() => openAction('SEMEN_GIVEN')}
-                        className="flex-1 py-4 rounded-xl font-bold text-[15px] uppercase tracking-wide text-white shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 bg-[#064e3b] hover:bg-[#064e3b]/90"
-                      >
-                        Proceed <ChevronRight size={18}/>
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => setShowCompare(true)}
-                      className="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 hover:border-brand hover:text-brand font-bold text-[11px] uppercase tracking-wide transition-all"
-                    >
-                      Compare All Options ({sortedCatalog.length})
-                    </button>
+                    <button onClick={() => setShowRecommend(false)} title="Close"
+                      className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center"><XCircle size={18}/></button>
                   </div>
+                  <div className="overflow-y-auto">
+                  {/* Loading */}
+                  {catalogLoading && (
+                    <div className="flex flex-col items-center justify-center py-20 gap-3">
+                      <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"/>
+                      <span className="text-[12px] font-bold text-slate-400">Loading AI Recommendations…</span>
+                    </div>
+                  )}
 
-                  {/* ═══ RIGHT COL ═══ */}
-                  <div className="lg:col-span-2 flex flex-col gap-4">
-                    <div className="bg-[#f8fbf9] border border-[#eef2f0] rounded-2xl p-4 shadow-sm">
-                      <h3 className="text-[11px] font-bold text-[#064e3b] uppercase tracking-wide mb-3">Other Options</h3>
-                      <div className="space-y-3">
-                        {others.slice(0,4).map((s,idx) => {
-                          return (
-                            <div key={s.id} className="bg-white rounded-xl p-3 border border-[#eef2f0] shadow-sm flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{backgroundColor:`${s.colorHex}20`}}>
-                                <span className="text-[14px]">💉</span>
+                  {!catalogLoading && sortedCatalog.length > 0 && (() => {
+                    const best = sortedCatalog[0];
+                    const others = sortedCatalog.slice(1);
+                    const bens = Array.isArray(best.benefits) ? best.benefits as string[] : (best.benefits as string).split(',').map(b=>b.trim());
+
+                    const strawMap: Record<string,string> = {
+                      '#3B82F6':'/semen/straw-blue.png','#F59E0B':'/semen/straw-yellow.png',
+                      '#EF4444':'/semen/straw-red.png','#8B5CF6':'/semen/straw-purple.png',
+                      '#10B981':'/semen/straw-green.png','#0EA5E9':'/semen/straw-blue.png',
+                      '#F97316':'/semen/straw-yellow.png',
+                    };
+                    const getStraw = (s: SemenEntry) => s.strawImage || strawMap[s.colorHex] || '/semen/straw-blue.png';
+
+                    const calfMap: Record<string,string> = {
+                      'hf-elite':'/semen/calf-hf.png','hf-power':'/semen/calf-hf.png',
+                      'jersey-fat':'/semen/calf-jersey.png','gir-a2':'/semen/calf-gir.png',
+                      'sahiwal-pure':'/semen/calf-sahiwal.png',
+                    };
+                    const getCalf = (s: SemenEntry) => s.calfImage || calfMap[s.id] || '/semen/calf-hf.png';
+
+                    return (
+                      <div className="flex flex-col lg:grid lg:grid-cols-5 gap-6 p-4 max-w-6xl mx-auto bg-white">
+                  
+                        {/* ═══ LEFT COL: AI RECOMMENDATION ═══ */}
+                        <div className="lg:col-span-3 bg-[#f8fbf9] border border-[#eef2f0] rounded-2xl p-5 shadow-sm">
+                          <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-emerald-50 mb-6 shadow-sm">
+                            <span className="text-[14px]">✨</span>
+                            <span className="text-[12px] font-bold text-[#064e3b] uppercase tracking-wider">AI Recommendation for {herd.animalName}</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div className="flex flex-col justify-center">
+                              <div className="flex items-center gap-3 mb-2">
+                                 <h2 className="text-[32px] font-bold text-[#064e3b] leading-none">{best.breedName}</h2>
+                                 <div className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-slate-100 shadow-sm" title="Semen Straw Color Code">
+                                    <img src={getStraw(best)} alt={best.colorLabel} className="h-4 object-contain"/>
+                                    <span className="text-[9px] font-bold" style={{color: best.colorHex}}>{best.colorLabel}</span>
+                                 </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-[12px] font-bold text-slate-800 truncate">{s.breedName}</div>
-                                <div className="text-[10px] text-slate-400 font-bold">{s.milkPotential} · ₹{Math.round(s.price)}</div>
+                              <div className="mb-6 flex justify-between items-center">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-[#059669] px-3 py-1 rounded-full uppercase tracking-wide shadow-sm">
+                                  <Star size={12} className="fill-white"/> Best Match
+                                </span>
+                                <label className="flex items-center gap-2 cursor-pointer px-2.5 py-1 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-slate-300 transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={compareIds.includes(best.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        if (compareIds.length >= 4) { showToast('You can compare a maximum of 4 options.', 'warning'); return; }
+                                        setCompareIds(prev => [...prev, best.id]);
+                                      } else {
+                                        setCompareIds(prev => prev.filter(id => id !== best.id));
+                                      }
+                                    }}
+                                    className="w-4 h-4 rounded border-slate-300 text-[#064e3b] focus:ring-[#064e3b] cursor-pointer"
+                                  />
+                                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none">Compare</span>
+                                </label>
                               </div>
-                              <div className="flex gap-1.5 flex-shrink-0">
-                                <button onClick={() => setSelectedSemen(s)} className="px-2 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold hover:bg-slate-50 transition-all">View</button>
-                                <button onClick={() => openAction('SEMEN_GIVEN')} className="px-2 py-1.5 bg-brand text-white rounded-lg text-[10px] font-bold hover:bg-brand-dark transition-all">Book</button>
+
+                              <p className="text-[14px] font-bold text-slate-800 mb-3">Why this is best for {herd.animalName}?</p>
+                              <div className="space-y-2.5">
+                                {bens.map(b => (
+                                  <div key={b} className="flex items-start gap-2.5">
+                                    <div className="mt-0.5 rounded-full bg-emerald-100 p-0.5 text-emerald-600 flex-shrink-0">
+                                      <CheckCircle size={14} strokeWidth={3}/>
+                                    </div>
+                                    <span className="text-[13px] font-semibold text-[#334155] leading-tight">{b}</span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                      {others.length > 4 && (
-                        <button onClick={() => setShowSemenSelection(true)} className="mt-3 w-full text-[11px] font-bold text-brand uppercase tracking-wide hover:underline">
-                          View all {sortedCatalog.length} options →
-                        </button>
-                      )}
-                    </div>
 
-                    {/* Breeding stats */}
-                    <div className="bg-[#f8fbf9] border border-[#eef2f0] rounded-2xl p-4 shadow-sm">
-                      <h3 className="text-[11px] font-bold text-[#064e3b] uppercase tracking-wide mb-3">Breeding History</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          { label: 'Total AI', value: events.filter(e => e.eventType==='SEMEN_GIVEN').length, color: 'text-violet-700', bg: 'bg-violet-50' },
-                          { label: 'Confirmed PD', value: events.filter(e => e.eventType==='PREGNANCY_CONFIRMED').length, color: 'text-pink-700', bg: 'bg-pink-50' },
-                          { label: 'Calvings', value: reproStats.calvingCount, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-                          { label: 'Parity', value: ordinal(herd.lactationNumber ?? reproStats.calvingCount), color: 'text-amber-700', bg: 'bg-amber-50' },
-                        ].map(s => (
-                          <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center border border-transparent`}>
-                            <div className={`text-[20px] font-bold ${s.color}`}>{s.value}</div>
-                            <div className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{s.label}</div>
+                            <div className="relative rounded-2xl overflow-hidden bg-emerald-50 h-64 md:h-auto border border-emerald-100">
+                              <img
+                                src={getCalf(best)}
+                                alt={`${best.breedName} expected daughter`}
+                                className="w-full h-full object-cover object-center"
+                                onError={e => { (e.target as HTMLImageElement).src='/semen/calf-hf.png'; }}
+                              />
+                              <div className="absolute top-3 left-0 right-0 flex justify-center">
+                                <span className="text-[10px] font-bold text-[#064e3b] bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full uppercase tracking-wide shadow-sm">
+                                  Expected Daughter
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        ))}
+
+                          <div className="grid grid-cols-4 gap-3 mb-6">
+                            {[
+                              { icon:'♀', label:'Female Calf', value:`${best.femaleCalfPct}%`, color:'text-rose-500' },
+                              { icon:<Droplets size={16}/>, label:'Expected Milk', value:best.milkPotential, color:'text-sky-500' },
+                              { icon:'💧', label:'Fat %', value:best.fat, color:'text-amber-500' },
+                              { icon:'⚖️', label:'Adult Weight', value:'500 kg+', color:'text-emerald-600' },
+                            ].map(stat => (
+                              <div key={stat.label} className="bg-white rounded-xl p-3 flex flex-col items-center justify-center border border-[#eef2f0] shadow-sm">
+                                <div className={`text-[18px] mb-1.5 ${stat.color}`}>{stat.icon}</div>
+                                <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">{stat.label}</div>
+                                <div className="text-[16px] font-bold text-[#0f172a]">{stat.value}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-3 mb-4">
+                            <button
+                              onClick={() => setSelectedSemen(best)}
+                              className="flex-1 py-4 rounded-xl font-bold text-[15px] uppercase tracking-wide text-[#064e3b] border-2 border-[#064e3b] hover:bg-emerald-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            >
+                              View Details
+                            </button>
+                            <button
+                              onClick={() => openAction('SEMEN_GIVEN')}
+                              className="flex-1 py-4 rounded-xl font-bold text-[15px] uppercase tracking-wide text-white shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 bg-[#064e3b] hover:bg-[#064e3b]/90"
+                            >
+                              Proceed <ChevronRight size={18}/>
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => setShowCompare(true)}
+                            className="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 hover:border-brand hover:text-brand font-bold text-[11px] uppercase tracking-wide transition-all"
+                          >
+                            Compare All Options ({sortedCatalog.length})
+                          </button>
+                        </div>
+
+                        {/* ═══ RIGHT COL ═══ */}
+                        <div className="lg:col-span-2 flex flex-col gap-4">
+                          <div className="bg-[#f8fbf9] border border-[#eef2f0] rounded-2xl p-4 shadow-sm">
+                            <h3 className="text-[11px] font-bold text-[#064e3b] uppercase tracking-wide mb-3">Other Options</h3>
+                            <div className="space-y-3">
+                              {others.slice(0,4).map((s,idx) => {
+                                return (
+                                  <div key={s.id} className="bg-white rounded-xl p-3 border border-[#eef2f0] shadow-sm flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{backgroundColor:`${s.colorHex}20`}}>
+                                      <span className="text-[14px]">💉</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[12px] font-bold text-slate-800 truncate">{s.breedName}</div>
+                                      <div className="text-[10px] text-slate-400 font-bold">{s.milkPotential} · ₹{Math.round(s.price)}</div>
+                                    </div>
+                                    <div className="flex gap-1.5 flex-shrink-0">
+                                      <button onClick={() => setSelectedSemen(s)} className="px-2 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold hover:bg-slate-50 transition-all">View</button>
+                                      <button onClick={() => openAction('SEMEN_GIVEN')} className="px-2 py-1.5 bg-brand text-white rounded-lg text-[10px] font-bold hover:bg-brand-dark transition-all">Book</button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {others.length > 4 && (
+                              <button onClick={() => setShowSemenSelection(true)} className="mt-3 w-full text-[11px] font-bold text-brand uppercase tracking-wide hover:underline">
+                                View all {sortedCatalog.length} options →
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Breeding stats */}
+                          <div className="bg-[#f8fbf9] border border-[#eef2f0] rounded-2xl p-4 shadow-sm">
+                            <h3 className="text-[11px] font-bold text-[#064e3b] uppercase tracking-wide mb-3">Breeding History</h3>
+                            <div className="grid grid-cols-2 gap-3">
+                              {[
+                                { label: 'Total AI', value: events.filter(e => e.eventType==='SEMEN_GIVEN').length, color: 'text-violet-700', bg: 'bg-violet-50' },
+                                { label: 'Confirmed PD', value: events.filter(e => e.eventType==='PREGNANCY_CONFIRMED').length, color: 'text-pink-700', bg: 'bg-pink-50' },
+                                { label: 'Calvings', value: reproStats.calvingCount, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+                                { label: 'Parity', value: ordinal(herd.lactationNumber ?? reproStats.calvingCount), color: 'text-amber-700', bg: 'bg-amber-50' },
+                              ].map(s => (
+                                <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center border border-transparent`}>
+                                  <div className={`text-[20px] font-bold ${s.color}`}>{s.value}</div>
+                                  <div className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{s.label}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    );
+                  })()}
+
+                  {!catalogLoading && sortedCatalog.length === 0 && (
+                    <div className="text-center py-16 text-slate-400 font-bold">No semen catalog available for this animal type.</div>
+                  )}
                   </div>
                 </div>
-              );
-            })()}
-
-            {!catalogLoading && sortedCatalog.length === 0 && (
-              <div className="text-center py-16 text-slate-400 font-bold">No semen catalog available for this animal type.</div>
+              </div>
             )}
           </div>
         )}

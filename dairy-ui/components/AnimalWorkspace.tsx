@@ -300,6 +300,7 @@ const EV: Record<string, { icon: React.ElementType; color: string; bg: string; l
   DEWORMING_DONE:       { icon: Bug,         color: 'text-orange-700',  bg: 'bg-orange-100',  label: 'Dewormed',            emoji: '✅' },
   PREGNANCY_CHECK_DUE:  { icon: Microscope,  color: 'text-indigo-700',  bg: 'bg-indigo-100',  label: 'PD Check',            emoji: '🔬' },
   TREATMENT:            { icon: Pill,        color: 'text-red-700',     bg: 'bg-red-100',     label: 'Treatment',           emoji: '💊' },
+  HEAT_OBSERVED:        { icon: Activity,    color: 'text-rose-700',    bg: 'bg-rose-100',    label: 'Heat Observed',       emoji: '🔥' },
   BCS_SCORED:           { icon: Activity,    color: 'text-lime-700',    bg: 'bg-lime-100',    label: 'Body Condition',      emoji: '📏' },
   DEWORMED:             { icon: Bug,         color: 'text-orange-700',  bg: 'bg-orange-100',  label: 'Dewormed',            emoji: '✅' },
   QUARANTINE_STARTED:   { icon: Home,        color: 'text-amber-700',   bg: 'bg-amber-100',   label: 'Arrived · Quarantine', emoji: '🚚' },

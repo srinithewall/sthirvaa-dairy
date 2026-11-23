@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf, Landmark, Gauge, Flame } from 'lucide-react';
+import { LayoutDashboard, Bell, Layout, Droplets, ShoppingCart, DollarSign, Package, Package2, Users, LogOut, Settings, ClipboardList, FileText, X, Info, GitCommit, Camera, Calendar, Leaf, Landmark, Gauge } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api, { formatImageUrl } from '@/lib/api';
@@ -32,7 +32,6 @@ const sidebarItems: SidebarSection[] = [
   ]},
   { group: 'Farm Management', items: [
     { name: 'Herd Management', icon: Layout, path: '/herds', module: 'HERDS' },
-    { name: 'Heat Cycles', icon: Flame, path: '/heat', module: 'HERDS' },
     { name: 'Milk Production', icon: Droplets, path: '/production', module: 'PRODUCTION' },
     { name: 'Feed Management', icon: Leaf, path: '/feeds', module: 'FEEDS' },
     { name: 'Farm Chores', icon: ClipboardList, path: '/activities', module: 'ACTIVITIES' }

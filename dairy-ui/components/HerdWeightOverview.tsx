@@ -20,7 +20,7 @@ import { BCS_LEVELS } from "@/components/BcsPicker";
 ChartJS.register(BarController, LineController, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend);
 
 /** One animal from GET /reports/herd-weights (HerdWeightOverviewRow). */
-type Row = {
+export type Row = {
   herdId: number;
   tagNumber: string | null;
   animalName: string | null;
@@ -99,7 +99,7 @@ const METHOD: Record<string, string> = { SCALE: "Scale", HEART_GIRTH_TAPE: "Tape
 const kg = (n: number) => `${Math.round(n).toLocaleString("en-IN")} kg`;
 const day = (d: string | null) =>
   d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
-const nameOf = (r: Row) => r.animalName || r.tagNumber || `#${r.herdId}`;
+export const nameOf = (r: Row) => r.animalName || r.tagNumber || `#${r.herdId}`;
 const age = (m: number | null) => (m == null ? "" : m < 24 ? `${m} mo` : `${Math.floor(m / 12)} y ${m % 12} mo`);
 
 function bcsStyle(bcs: number | null) {
@@ -138,14 +138,24 @@ const aboveKg = (r: Row) =>
 const byFrame = (r: Row) => !!r.targetBasis?.startsWith("Her frame");
 const range = (r: Row) => kg(r.targetWeightKg!);
 
-export default function HerdWeightOverview() {
+type Props = {
+  /** Animal whose weight history is open below; its bar and row are highlighted. */
+  selectedId?: number | null;
+  /** Clicking a bar or a table row picks that animal. */
+  onSelect?: (herdId: number) => void;
+  /** The rows once loaded, in chart order, so the page can build its picker from them. */
+  onRows?: (rows: Row[]) => void;
+};
+
+export default function HerdWeightOverview({ selectedId, onSelect, onRows }: Props = {}) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     api.get("/reports/herd-weights")
-      .then(res => setRows(res.data))
+      .then(res => { setRows(res.data); onRows?.(res.data); })
       .catch(() => setError("Could not load herd weights."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Chart only the animals that have both a weight and a target; the table lists everyone.
@@ -244,6 +254,13 @@ export default function HerdWeightOverview() {
     maintainAspectRatio: false,
     layout: { padding: { top: 6 } },
     interaction: { mode: "index", intersect: false },
+    onClick: (_e: any, els: any[]) => {
+      const r = els[0] ? charted[els[0].index] : null;
+      if (r && onSelect) onSelect(r.herdId);
+    },
+    onHover: (e: any, els: any[]) => {
+      if (onSelect && e.native?.target) e.native.target.style.cursor = els.length ? "pointer" : "default";
+    },
     plugins: {
       legend: { position: "top", align: "start", labels: { color: INK_2, usePointStyle: true, boxWidth: 10, font: { size: 12 } } },
       tooltip: {
@@ -255,7 +272,17 @@ export default function HerdWeightOverview() {
       },
     },
     scales: {
-      x: { stacked: true, grid: { display: false }, ticks: { color: INK_2, font: { size: 11 }, autoSkip: false, maxRotation: 60 } },
+      x: {
+        stacked: true,
+        grid: { display: false },
+        ticks: {
+          autoSkip: false,
+          maxRotation: 60,
+          // The animal whose history is open below reads in bold.
+          color: (c: any) => (charted[c.index]?.herdId === selectedId ? INK : INK_2),
+          font: (c: any) => ({ size: 11, weight: charted[c.index]?.herdId === selectedId ? "bold" : "normal" }),
+        },
+      },
       y: {
         stacked: true,
         beginAtZero: true,
@@ -323,6 +350,7 @@ export default function HerdWeightOverview() {
         <h2 className="font-bold text-slate-700">Herd Weight &amp; Body Condition</h2>
         <p className="text-xs text-slate-500 mt-0.5">
           Each animal&apos;s latest weight against the weight it should be at for its breed and age, with its latest BCS.
+          {onSelect && " Click an animal to see its weight history below."}
         </p>
       </div>
 
@@ -380,7 +408,11 @@ export default function HerdWeightOverview() {
                 {rows.map(r => {
                   const s = bcsStyle(r.bcs);
                   return (
-                    <tr key={r.herdId} className="border-b border-slate-100 align-top">
+                    <tr
+                      key={r.herdId}
+                      onClick={onSelect ? () => onSelect(r.herdId) : undefined}
+                      className={`border-b border-slate-100 align-top ${onSelect ? "cursor-pointer hover:bg-slate-50" : ""} ${r.herdId === selectedId ? "bg-blue-50/60" : ""}`}
+                    >
                       <td className="px-2 py-2">
                         <div className="font-semibold text-slate-800">{nameOf(r)}</div>
                         <div className="text-[11px] text-slate-500">{[r.breed, age(r.ageMonths), r.animalStatus?.toLowerCase(), r.dim != null ? `${r.dim} DIM` : null].filter(Boolean).join(" · ")}</div>

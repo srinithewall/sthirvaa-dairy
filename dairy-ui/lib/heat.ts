@@ -112,9 +112,18 @@ export function summariseHeat(events: HeatEventLike[], today = isoToday()): Heat
 
   const base = { history, lastHeat, cycleDays, ownCycle, lastCalving, missedCycles: 0 };
 
-  // Pregnant: PD positive after her last heat (and after calving).
-  if (lastPdPos && (!lastCalving || lastPdPos > lastCalving) && (!lastHeat || lastPdPos >= lastHeat.date)) {
-    return { ...base, nextExpected: null, daysToNext: null, status: 'PREGNANT', note: `PD positive on ${fmtDate(lastPdPos)}` };
+  const afterCalving = (d: string | null) => d != null && (!lastCalving || d > lastCalving) ? d : null;
+  const pdPos = afterCalving(lastPdPos);
+  const pdNeg = afterCalving(latest(['PREGNANCY_NEGATIVE']));
+
+  // Pregnant: PD positive after her last heat, not overturned by a later PD negative (pregnancy lost).
+  if (pdPos && (!lastHeat || pdPos >= lastHeat.date) && (!pdNeg || pdNeg < pdPos)) {
+    return { ...base, nextExpected: null, daysToNext: null, status: 'PREGNANT', note: `PD positive on ${fmtDate(pdPos)}` };
+  }
+
+  // Found open by a PD negative with no heat since: her next heat is one cycle on from the check.
+  if (pdNeg && (!lastHeat || pdNeg > lastHeat.date)) {
+    return { ...base, ...openCycle(pdNeg, cycleDays, today, `PD negative on ${fmtDate(pdNeg)}`) };
   }
 
   if (!lastHeat) {
@@ -152,16 +161,25 @@ export function summariseHeat(events: HeatEventLike[], today = isoToday()): Heat
       note: `No return heat since AI ${since} days ago · likely pregnant, PD ${daysBetween(today, pd) > 0 ? `due ${fmtDate(pd)}` : 'overdue'}` };
   }
 
-  // Open: roll the expected date forward past heats that went unrecorded.
-  let next = addDays(lastHeat.date, cycleDays), missed = 0;
+  return { ...base, ...openCycle(lastHeat.date, cycleDays, today, null) };
+}
+
+/**
+ * Open cow: next heat one cycle after {@code from}, rolled forward past heats that went unrecorded.
+ * {@code from} is her last heat, or a PD negative ({@code label}) when no heat has been seen since.
+ */
+function openCycle(from: string, cycleDays: number, today: string, label: string | null) {
+  const since = daysBetween(from, today);
+  let next = addDays(from, cycleDays), missed = 0;
   while (daysBetween(next, today) > HEAT_WINDOW_DAYS) { next = addDays(next, cycleDays); missed++; }
   const d = daysBetween(today, next);
   const status: HeatStatus = Math.abs(d) <= HEAT_WINDOW_DAYS ? 'IN_HEAT' : missed > 0 ? 'MISSED' : d <= 7 ? 'DUE_SOON' : 'UPCOMING';
   const note = missed > 0
-    ? `${missed} expected heat${missed > 1 ? 's' : ''} not recorded since ${fmtDate(lastHeat.date)}`
-    : status === 'IN_HEAT' ? 'In her heat window now · watch and inseminate'
+    ? `${missed} expected heat${missed > 1 ? 's' : ''} not recorded since ${fmtDate(from)}`
+    : status === 'IN_HEAT' ? `${label ? label + ' · ' : ''}In her heat window now · watch and inseminate`
+    : label ? `${label} · next heat expected ${fmtDate(next)}`
     : `Day ${since} of her ${cycleDays}-day cycle`;
-  return { ...base, nextExpected: next, daysToNext: d, missedCycles: missed, status, note };
+  return { nextExpected: next as string | null, daysToNext: d as number | null, missedCycles: missed, status, note };
 }
 
 /** Heifers come into the breeding cycle (heat watched, heats recorded) only past this age. */

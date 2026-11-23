@@ -7,7 +7,7 @@ import {
   Plus, X, Activity, Calendar, Trash2, Edit2, Archive, Clock,
   CheckCircle, AlertTriangle, Syringe, Baby, Droplets, Leaf,
   ChevronRight, ShieldCheck, Heart, TrendingUp, AlarmClock,
-  PlusCircle, Info, ShieldAlert, AlertCircle, Egg, Bird
+  PlusCircle, Info, ShieldAlert, AlertCircle, Egg, Bird, Flame
 } from 'lucide-react';
 import RegisterAnimalModal from '@/components/RegisterAnimalModal';
 import AnimalWorkspace from '@/components/AnimalWorkspace';
@@ -20,7 +20,7 @@ import { BcsBadge, BcsPickerModal, bcsTodayIso } from '@/components/BcsPicker';
 import { bullIdOf as bullIdFromDetails, notesOf, withBullId, PD_AFTER_AI_DAYS } from '@/lib/breeding';
 import Link from 'next/link';
 import { HEAT_STATUS, HeatPanel, heatSortKey } from '@/components/HeatCycle';
-import { heatAgeFrom, inBreedingCycle, summariseHeat } from '@/lib/heat';
+import { HEAT_EVENT, HEAT_WINDOW_DAYS, addDays, heatAgeFrom, inBreedingCycle, summariseHeat } from '@/lib/heat';
 
 /** Small amber tag for an animal still in quarantine after arrival; links to its onboarding checklist. */
 function QuarantineBadge({ herd, compact }: { herd: { id: number; onboardingDay?: number | null; quarantineDays?: number | null }; compact?: boolean }) {
@@ -1315,7 +1315,9 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
       const lastPdDate = cycle.filter(e => e.eventType === 'PREGNANCY_CONFIRMED')
         .map(e => e.eventDate.slice(0, 10)).sort().pop() ?? null;
       const pdDate = lastPdDate && negDate && lastPdDate <= negDate ? null : lastPdDate;
-      const latestAi = ais[0] && !(negDate && ais[0].eventDate.slice(0, 10) < negDate) ? ais[0] : null;
+      // A heat seen after the AI means it failed: she is open again (Heat tab), not awaiting PD.
+      const heatAfter = (ai: HerdEvent) => cycle.some(e => e.eventType === HEAT_EVENT && e.eventDate.slice(0, 10) > ai.eventDate.slice(0, 10));
+      const latestAi = ais[0] && !(negDate && ais[0].eventDate.slice(0, 10) < negDate) && !heatAfter(ais[0]) ? ais[0] : null;
       // PD due: a PD check scheduled on/after the latest AI, else AI + PD_AFTER_AI_DAYS
       let pdDue: Date | null = null;
       if (latestAi) {
@@ -1333,7 +1335,8 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
         gestationDays = daysBetween(ai, today);
         daysToEdd = daysBetween(today, edd);
       }
-      return { h, latestAi, pdDue, pdDate, conceivingAi, edd, gestationDays, gestationLen, daysToEdd };
+      const heat = summariseHeat(evs);
+      return { h, latestAi, pdDue, pdDate, conceivingAi, edd, gestationDays, gestationLen, daysToEdd, heat };
     });
 
   // What needs attention first goes on top: the nearest calving, and the nearest (or overdue) PD check.
@@ -1341,12 +1344,29 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
     .sort((a, b) => a.edd!.getTime() - b.edd!.getTime());
   const aiCows = rows.filter(r => r.latestAi && !r.pdDate)
     .sort((a, b) => a.pdDue!.getTime() - b.pdDue!.getTime());
-  // Heat cycle of every open cow (pregnant ones are under Deliveries).
-  const heatCows = rows
-    .map(r => ({ h: r.h, s: summariseHeat(events.filter(e => e.herdId === r.h.id)) }))
+  // Heat cycle of every open cow. Pregnant ones are under Deliveries; inseminated ones are watched
+  // for a return heat under AI Cows.
+  const heatCows = rows.filter(r => !aiCows.includes(r))
+    .map(r => ({ h: r.h, s: r.heat }))
     .filter(r => r.s.status !== 'PREGNANT')
     .sort((a, b) => heatSortKey(a.s) - heatSortKey(b.s));
-  const heatOpen = heatId != null ? heatCows.find(r => r.h.id === heatId) ?? null : null;
+  const heatRow = heatId != null ? rows.find(r => r.h.id === heatId) ?? null : null;
+  const heatOpen = heatRow ? { h: heatRow.h, s: heatRow.heat } : null;
+  /** Return heat after AI: expected one cycle on; a heat then means the AI failed. */
+  const returnHeat = (r: (typeof rows)[number]) => {
+    const ret = addDays(r.latestAi!.eventDate.slice(0, 10), r.heat.cycleDays);
+    const d = daysBetween(today, toDate(ret));
+    const [text, cls] = d > HEAT_WINDOW_DAYS ? [`Watch in ${d}d`, 'bg-slate-100 text-slate-600']
+      : d >= -HEAT_WINDOW_DAYS ? ['Watch for heat now', 'bg-rose-100 text-rose-700']
+      : ['No return heat', 'bg-green-100 text-green-700'];
+    return { ret, badge: <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${cls}`}>{text}</span> };
+  };
+  const heatSeenBtn = (r: (typeof rows)[number]) => (
+    <button onClick={ev => { ev.stopPropagation(); setHeatId(r.h.id); }} title="Heat seen after AI? Record it"
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 text-[11px] font-bold whitespace-nowrap">
+      <Flame size={12} /> Heat seen
+    </button>
+  );
   const heatPill = (s: (typeof heatCows)[number]['s']) => (
     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${HEAT_STATUS[s.status].pill}`}>{HEAT_STATUS[s.status].label}</span>
   );
@@ -1489,7 +1509,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
             <>
               <table className="hidden md:table w-full text-left">
                 <thead className="sticky top-0 bg-surface border-b border-border-custom">
-                  <tr><th className={th}>Cow</th><th className={th}>AI Date</th><th className={th}>Bull ID</th><th className={th}>PD Due</th><th className={th}></th></tr>
+                  <tr><th className={th}>Cow</th><th className={th}>AI Date</th><th className={th}>Bull ID</th><th className={th}>Return Heat</th><th className={th}>PD Due</th><th className={th}></th><th className={th}></th></tr>
                 </thead>
                 <tbody className="divide-y divide-border-custom/50">
                   {aiCows.map(r => (
@@ -1497,8 +1517,13 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                       <td className="py-2.5 px-4"><Name h={r.h} /></td>
                       <td className="py-2.5 px-4 text-xs font-semibold text-text2 whitespace-nowrap">{fmt(r.latestAi!.eventDate)}</td>
                       <td className="py-2.5 px-4 text-xs font-bold text-text font-mono whitespace-nowrap">{bullCell(r.latestAi!)}</td>
+                      <td className="py-2.5 px-4 whitespace-nowrap">
+                        <div className="text-xs font-semibold text-text2">{fmt(returnHeat(r).ret)}</div>
+                        {returnHeat(r).badge}
+                      </td>
                       <td className="py-2.5 px-4 text-sm font-bold text-text whitespace-nowrap">{fmt(r.pdDue!)}</td>
                       <td className="py-2.5 px-4 text-right">{dueBadge(daysBetween(today, r.pdDue!), 'PD')}</td>
+                      <td className="py-2.5 px-4 text-right">{heatSeenBtn(r)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1514,6 +1539,10 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                       {stat('AI Date', fmt(r.latestAi!.eventDate))}
                       {stat('Bull ID', bullCell(r.latestAi!))}
                       {stat('PD Due', fmt(r.pdDue!))}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-[11px] text-text3">Return heat {fmt(returnHeat(r).ret)} {returnHeat(r).badge}</span>
+                      {heatSeenBtn(r)}
                     </div>
                   </div>
                 ))}

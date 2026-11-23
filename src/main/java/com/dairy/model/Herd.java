@@ -120,6 +120,17 @@ public class Herd {
     public void setBaseMinWeightKg(Double baseMinWeightKg) { this.baseMinWeightKg = baseMinWeightKg; }
     public LocalDate getBaseMinWeightDate() { return baseMinWeightDate; }
     public void setBaseMinWeightDate(LocalDate baseMinWeightDate) { this.baseMinWeightDate = baseMinWeightDate; }
+    /**
+     * Her milk potential (litres a day, averaged over a lactation) set by hand from the farm's own
+     * judgement of her genetics; null = the breed/age/lactation estimate. Today's target follows it
+     * along her lactation curve.
+     */
+    @Column(name = "milk_potential_set")
+    private Double milkPotentialSet;
+
+    public Double getMilkPotentialSet() { return milkPotentialSet; }
+    public void setMilkPotentialSet(Double milkPotentialSet) { this.milkPotentialSet = milkPotentialSet; }
+
     public Boolean getBaseMinWeightManual() { return baseMinWeightManual; }
     public void setBaseMinWeightManual(Boolean baseMinWeightManual) { this.baseMinWeightManual = baseMinWeightManual; }
 

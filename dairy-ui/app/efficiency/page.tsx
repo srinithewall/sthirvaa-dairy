@@ -45,7 +45,7 @@ function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTota
           tone={s.repro.efficiency != null ? toneOf(s.repro.efficiency) : undefined} />
         <Kpi label="Milk target efficiency" value={s.milk.efficiency != null ? `${Math.round(s.milk.efficiency)}%` : '—'}
           sub={`${litres(s.milk.avg, 1)} of ${litres(s.milk.target)} a day`} tone={s.milk.efficiency != null ? toneOf(s.milk.efficiency) : undefined} />
-        <Kpi label="Milk per day · full cycle" value={litres(s.milk.cyclePerDay, 1)}
+        <Kpi label="Avg milk per day · 365 day cycle" value={litres(s.milk.cyclePerDay, 1)}
           sub={`dry days included${report.milkPerDay.last7Avg != null ? ` · last ${report.milkPerDay.days} days ${litres(report.milkPerDay.last7Avg, 1)}` : ''}`} />
         <Kpi label="Total expenses" value={expenseTotal != null ? rupees(expenseTotal) : '…'} sub="all time, incl. unaccounted" />
       </KpiRow>
@@ -88,8 +88,11 @@ function EfficiencyPage() {
   const [expenseTotal, setExpenseTotal] = useState<number | null>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const loadReport = () =>
     api.get('/reports/efficiency').then(r => setReport(r.data)).catch(() => setError("Couldn't load the efficiency report. Try again."));
+
+  useEffect(() => {
+    loadReport();
     const today = new Date().toISOString().slice(0, 10);
     // Same figure as the Expenses tab opens on: all time, unaccounted expenses included.
     api.get('/reports/costs', { params: { from: '2000-01-01', to: today, segment: 'ALL', includeUnaccounted: true } })
@@ -125,7 +128,7 @@ function EfficiencyPage() {
           : error ? <div className="py-16 text-center text-danger text-[13px]">{error}</div>
           : !report ? <div className="py-16 text-center text-text3 text-[13px]">Loading…</div>
           : tab === 'reproduction' ? <ReproductionTab report={report} />
-          : tab === 'milk' ? <MilkTargetTab report={report} />
+          : tab === 'milk' ? <MilkTargetTab report={report} onChanged={loadReport} />
           : tab === 'lactation' ? <LactationTab report={report} />
           : <Overview report={report} expenseTotal={expenseTotal} go={go} />}
       </div>

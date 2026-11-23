@@ -83,6 +83,8 @@ public class HerdController {
                         herd.setBaseMinWeightDate(existing.getBaseMinWeightDate());
                         herd.setBaseMinWeightManual(existing.getBaseMinWeightManual());
                     }
+                    // Nor the milk potential set from the Efficiency report.
+                    if (herd.getMilkPotentialSet() == null) herd.setMilkPotentialSet(existing.getMilkPotentialSet());
                     // Forms that don't carry the earlier-lactation count (poultry, older screens) keep it.
                     if (herd.getPreviousLactations() == null) herd.setPreviousLactations(existing.getPreviousLactations());
                     return ResponseEntity.ok(herdService.saveHerd(herd));

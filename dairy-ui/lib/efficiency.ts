@@ -26,7 +26,7 @@ export interface Reproduction {
   dryPeriodDays?: number;
 }
 
-export interface MilkTarget { avgPerDay: number; targetPerDay: number; efficiency: number; lostPerDay: number }
+export interface MilkTarget { avgPerDay: number; targetPerDay: number; efficiency: number; lostPerDay: number; targetSet?: boolean }
 
 export interface Lactation {
   from: string;
@@ -70,7 +70,8 @@ export interface EffReport {
   asOf: string;
   milkRate: number;
   milkRateSource: 'AMCS' | 'DEFAULT';
-  rules: { targetDaysOpen: number; gestationDays: number; calvingInterval: number; lactationDays: number };
+  rules: { targetDaysOpen: number; gestationDays: number; calvingInterval: number; lactationDays: number;
+    farmDaysOpen?: number; farmDryDays?: number; farmCycleDays?: number };
   milkPerDay: { last7Avg: number | null; days: number; latestDate: string | null; latestTotal: number | null };
   cows: EffCow[];
 }

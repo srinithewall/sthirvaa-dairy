@@ -1512,9 +1512,10 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
                   <tr><th className={th}>Cow</th><th className={th}>AI Date</th><th className={th}>Bull ID</th><th className={th}>Return Heat</th><th className={th}>PD Due</th><th className={th}></th><th className={th}></th></tr>
                 </thead>
                 <tbody className="divide-y divide-border-custom/50">
+                  {/* Only the name opens her page: the row holds the bull ID and Heat seen controls */}
                   {aiCows.map(r => (
-                    <tr key={r.h.id} onClick={() => open(r.h.id)} className="hover:bg-brand/5 cursor-pointer">
-                      <td className="py-2.5 px-4"><Name h={r.h} /></td>
+                    <tr key={r.h.id}>
+                      <td className="py-2.5 px-4"><button onClick={() => open(r.h.id)} title="Open her page" className="text-left hover:opacity-80"><Name h={r.h} /></button></td>
                       <td className="py-2.5 px-4 text-xs font-semibold text-text2 whitespace-nowrap">{fmt(r.latestAi!.eventDate)}</td>
                       <td className="py-2.5 px-4 text-xs font-bold text-text font-mono whitespace-nowrap">{bullCell(r.latestAi!)}</td>
                       <td className="py-2.5 px-4 whitespace-nowrap">
@@ -1530,9 +1531,9 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
               </table>
               <div className="md:hidden divide-y divide-border-custom/60">
                 {aiCows.map(r => (
-                  <div key={r.h.id} onClick={() => open(r.h.id)} className="px-4 py-3.5 active:bg-brand/5">
+                  <div key={r.h.id} className="px-4 py-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <Name h={r.h} />
+                      <button onClick={() => open(r.h.id)} title="Open her page" className="text-left hover:opacity-80"><Name h={r.h} /></button>
                       {dueBadge(daysBetween(today, r.pdDue!), 'PD')}
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">

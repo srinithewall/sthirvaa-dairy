@@ -79,8 +79,8 @@ export default function MilkTargetTab({ report, onChanged }: { report: EffReport
         <Kpi label="Herd efficiency" value={s.efficiency != null ? `${Math.round(s.efficiency)}%` : '—'}
           sub={`${litres(s.avg, 1)} of ${litres(s.target)} a day`} tone={s.efficiency != null ? toneOf(s.efficiency) : undefined} />
         <Kpi label="Can gain per cow" value={`${litres(s.lostPerCowPerDay, 1)} / day`} sub={`${rupees(s.lostPerCowPerDay * 30 * milkRate)} a month`} />
-        <Kpi label="Herd can gain" value={rupees(s.lostPerDay * 30 * milkRate)} sub={`${litres(s.lostPerDay * 30)} a month`} tone={s.lostPerDay > 0 ? 'poor' : undefined}
-          info={`${rupees(milkRate)} avg per litre × ${litres(s.lostPerDay * 30)} a month`} />
+        <Kpi label="Herd can gain" value={`${litres(s.lostPerDay * 30)} / month`} sub={`${litres(s.lostPerDay, 1)} a day`}
+          tone={s.lostPerDay > 0 ? 'poor' : undefined} />
       </KpiRow>
 
       <Card>

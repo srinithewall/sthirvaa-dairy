@@ -2,10 +2,10 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Gauge, AlertTriangle, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { Gauge, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { EffReport, litres, monthsDays, rupees, summarise, toneOf } from '@/lib/efficiency';
+import { EffReport, litres, rupees, summarise, toneOf } from '@/lib/efficiency';
 import { Card, Kpi, KpiRow } from '@/components/efficiency/ui';
 import ReproductionTab from '@/components/efficiency/ReproductionTab';
 import MilkTargetTab from '@/components/efficiency/MilkTargetTab';
@@ -25,19 +25,11 @@ const TABS = [
 ] as const;
 type TabKey = typeof TABS[number]['key'];
 
-function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTotal: number | null; go: (t: TabKey) => void }) {
+function Overview({ report, expenseTotal }: { report: EffReport; expenseTotal: number | null }) {
   const s = summarise(report);
   const flagged = report.cows.filter(c => c.flags.length > 0);
-  const low = report.cows.filter(c => c.yieldCheck).sort((a, b) => a.yieldCheck!.pct - b.yieldCheck!.pct);
-  const rows: { tab: TabKey; title: string; line: string }[] = [
-    { tab: 'reproduction', title: 'Reproduction', line: s.repro.cows
-        ? `${monthsDays(s.repro.avgDaysOpen)} open on average (target ${monthsDays(report.rules.targetDaysOpen)}) · ${litres(s.repro.milkLost)} of milk a year lost to late calving`
-        : 'No cows to score yet' },
-    { tab: 'milk', title: 'Milk target', line: `${litres(s.milk.lostPerDay, 1)} a day below target · ${rupees(s.milk.lostPerDay * 30 * report.milkRate)} a month` },
-    { tab: 'lactation', title: 'Lactation', line: s.lactation.farmScore != null
-        ? `Farm efficiency score ${Math.round(s.lactation.farmScore)}% · on course for ${litres(s.lactation.possibleProjected)} of ${litres(s.lactation.possible)} possible for these breeds`
-        : 'No lactations to score yet' },
-  ];
+  // Lowest share of target first.
+  const milkCows = report.cows.filter(c => c.yieldCheck).sort((a, b) => a.yieldCheck!.pct - b.yieldCheck!.pct);
   return (
     <div className="space-y-3">
       <KpiRow>
@@ -51,32 +43,23 @@ function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTota
         <Kpi label="Total expenses" value={expenseTotal != null ? rupees(expenseTotal) : '…'} sub="all time, incl. unaccounted" />
       </KpiRow>
 
-      <Card className="divide-y divide-border-custom">
-        {rows.map(r => (
-          <button key={r.tab} type="button" onClick={() => go(r.tab)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface2">
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-black text-text">{r.title}</div>
-              <div className="text-[12px] text-text3">{r.line}</div>
-            </div>
-            <ChevronRight size={16} className="text-text3 flex-shrink-0" />
-          </button>
-        ))}
-      </Card>
-
-      {low.length > 0 && (
+      {milkCows.length > 0 && (
         <Card className="p-4">
-          <div className="text-[13px] font-black text-text flex items-center gap-2 mb-3">
-            <TrendingDown size={16} className="text-warn" /> Under target · last 7 days
+          <div className="flex items-center gap-3 mb-3 text-[11px] font-bold text-text3 uppercase tracking-wide">
+            <div className="flex-1 text-[13px] font-black text-text normal-case tracking-normal flex items-center gap-2">
+              <Gauge size={16} className="text-brand" /> Milk vs target · last 7 days
+            </div>
+            <div className="w-28 text-right">Avg / target</div>
+            <div className="w-20 text-right">vs 2 wk</div>
           </div>
           <div className="space-y-2.5">
-            {low.map(c => {
+            {milkCows.map(c => {
               const y = c.yieldCheck!;
               return (
                 <div key={c.id} className="flex items-center gap-3 text-[12px]">
                   <div className="w-24 font-bold text-text truncate">{c.name}</div>
                   <div className="flex-1 h-2 rounded-full bg-surface2 overflow-hidden">
-                    <div className={`h-full rounded-full ${y.rising ? 'bg-brand' : 'bg-warn'}`} style={{ width: `${Math.min(100, y.pct)}%` }} />
+                    <div className={`h-full rounded-full ${y.pct >= 90 ? 'bg-green-300' : 'bg-orange-400'}`} style={{ width: `${Math.min(100, y.pct)}%` }} />
                   </div>
                   <div className="w-28 text-right font-bold text-text2 tabular-nums">{litres(y.last7, 1)} / {litres(y.target)}</div>
                   <div className={`w-20 text-right font-black tabular-nums flex items-center justify-end gap-0.5 ${y.change == null ? 'text-text3' : y.change > 0 ? 'text-brand' : y.change < 0 ? 'text-danger' : 'text-text3'}`}
@@ -157,7 +140,7 @@ function EfficiencyPage() {
           : tab === 'reproduction' ? <ReproductionTab report={report} />
           : tab === 'milk' ? <MilkTargetTab report={report} onChanged={loadReport} />
           : tab === 'lactation' ? <LactationTab report={report} />
-          : <Overview report={report} expenseTotal={expenseTotal} go={go} />}
+          : <Overview report={report} expenseTotal={expenseTotal} />}
       </div>
     </AppLayout>
   );

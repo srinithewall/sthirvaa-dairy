@@ -558,11 +558,10 @@ public class EfficiencyService {
     }
 
     /**
-     * A cow giving well under today's target (her lactation-curve target, the one the Milk target tab
-     * shows): her last 7 days against it, and the change from the 7 days two weeks earlier, so a
-     * cow climbing back reads as recovering. Read
-     * fresh from the milk records every time; old lows before the farm knew her do not count.
-     * Null when she is near target or has no recent records.
+     * A milking cow against today's target (her lactation-curve target, the one the Milk target tab
+     * shows): her last 7 complete days against it, and the change from the 7 days two weeks earlier,
+     * so a cow climbing back reads as recovering. Read fresh from the milk records every time.
+     * Null when she has no target or too few recent records.
      */
     static Map<String, Object> yieldCheck(TreeMap<LocalDate, Double> daily, Double target, LocalDate today) {
         if (target == null || target <= 0) return null;
@@ -571,7 +570,6 @@ public class EfficiencyService {
         int recentDays = daily.subMap(end.minusDays(AVG_DAYS - 1L), end.plusDays(1)).size();
         if (recentDays < 3) return null;
         double last7 = lastDays(daily, end, AVG_DAYS);
-        if (last7 >= 0.7 * target) return null;
         double before = lastDays(daily, end.minusDays(14), AVG_DAYS);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("last7", round(last7, 1));

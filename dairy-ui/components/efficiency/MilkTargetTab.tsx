@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import api from '@/lib/api';
-import { EffCow, EffReport, litres, rupees, summarise, toneOf } from '@/lib/efficiency';
+import { EffCow, EffReport, litres, summarise, toneOf } from '@/lib/efficiency';
 import { Card, Kpi, KpiRow, PctBar, Sub, TableWrap, TD, TH } from './ui';
 
 type SortKey = 'dim' | 'avg' | 'target' | 'efficiency';
@@ -55,7 +55,7 @@ function TargetCell({ c, onChanged }: { c: EffCow; onChanged: () => void }) {
 
 export default function MilkTargetTab({ report, onChanged }: { report: EffReport; onChanged: () => void }) {
   const s = summarise(report).milk;
-  const { milkRate, rules } = report;
+  const { rules } = report;
   // Days in milk first (same order as the other screens); a column header sorts by it, again to flip.
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'dim', desc: false });
   const cows = report.cows.filter(c => c.milkTarget).sort((a, b) => {
@@ -78,7 +78,7 @@ export default function MilkTargetTab({ report, onChanged }: { report: EffReport
           sub={rules.farmCycleDays ? `calving every ${rules.farmCycleDays} days · ${rules.farmDryDays} dry days` : `${s.cycleCows} cows, dry days included`} />
         <Kpi label="Herd efficiency" value={s.efficiency != null ? `${Math.round(s.efficiency)}%` : '—'}
           sub={`${litres(s.avg, 1)} of ${litres(s.target)} a day`} tone={s.efficiency != null ? toneOf(s.efficiency) : undefined} />
-        <Kpi label="Can gain per cow" value={`${litres(s.lostPerCowPerDay, 1)} / day`} sub={`${rupees(s.lostPerCowPerDay * 30 * milkRate)} a month`} />
+        <Kpi label="Can gain per cow" value={`${litres(s.lostPerCowPerDay, 1)} / day`} sub={`${litres(s.lostPerCowPerDay * 30)} a month`} />
         <Kpi label="Herd can gain" value={`${litres(s.lostPerDay * 30)} / month`} sub={`${litres(s.lostPerDay, 1)} a day`}
           tone={s.lostPerDay > 0 ? 'poor' : undefined} />
       </KpiRow>
@@ -100,7 +100,7 @@ export default function MilkTargetTab({ report, onChanged }: { report: EffReport
                   <td className={TD}>{litres(m.avgPerDay, 1)}</td>
                   <td className={TD}><TargetCell c={c} onChanged={onChanged} /></td>
                   <td className={TD}><PctBar pct={m.efficiency} /></td>
-                  <td className={`${TD} text-right`}>{litres(m.lostPerDay, 1)} / day<Sub>{rupees(m.lostPerDay * 30 * milkRate)} / month</Sub></td>
+                  <td className={`${TD} text-right`}>{litres(m.lostPerDay, 1)} / day<Sub>{litres(m.lostPerDay * 30)} / month</Sub></td>
                 </tr>
               );
             })}
@@ -108,7 +108,7 @@ export default function MilkTargetTab({ report, onChanged }: { report: EffReport
               <tr className="font-black">
                 <td className={TD}>Total</td><td className={TD}>{litres(s.avg, 1)}</td><td className={TD}>{litres(s.target)}</td>
                 <td className={TD}>{s.efficiency != null && <PctBar pct={s.efficiency} />}</td>
-                <td className={`${TD} text-right`}>{litres(s.lostPerDay, 1)} / day<Sub>{rupees(s.lostPerDay * 30 * milkRate)} / month</Sub></td>
+                <td className={`${TD} text-right`}>{litres(s.lostPerDay, 1)} / day<Sub>{litres(s.lostPerDay * 30)} / month</Sub></td>
               </tr>
             )}
           </tbody>

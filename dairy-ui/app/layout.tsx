@@ -13,7 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "STHIRVAA FARMS",
+  // Local dev server gets its own tab title so it isn't mistaken for the live site.
+  title: process.env.NODE_ENV === "development" ? "LOCALHOST" : "STHIRVAA FARMS",
   description: "Pure Quality · Rooted in Trust",
   icons: {
     icon: "/favicon.svg",

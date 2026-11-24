@@ -45,3 +45,6 @@ yarn-error.log*
 
 # AMCS sync credentials (never commit)
 tools/amcs-sync/credentials.json
+
+# Production database dumps: real farm data and login hashes, never commit
+db backups/

@@ -106,6 +106,9 @@ public class EfficiencyService {
                 eventsByHerd.computeIfAbsent(e.getHerdId(), k -> new ArrayList<>()).add(e);
             }
             for (Object[] row : milkRecordRepository.sumDailyByHerdIdsSince(ids, LocalDate.of(2000, 1, 1))) {
+                // Complete days only: today is usually half entered (or not yet), so every figure
+                // below - averages, lactation totals, projections - runs to yesterday.
+                if (!((LocalDate) row[1]).isBefore(today)) continue;
                 double litres = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
                 dailyByHerd.computeIfAbsent((Long) row[0], k -> new TreeMap<>()).merge((LocalDate) row[1], litres, Double::sum);
             }
@@ -173,7 +176,7 @@ public class EfficiencyService {
                 : lactation(calving, dim, dry, target, avg30, current, recordedDays, recordedLitres, recordedAvg);
         row.put("reproduction", repro);
         Map<String, Object> mt = dry || target == null ? null
-                : milkTarget(lastDays(daily, today, AVG_DAYS), target, dim, h.getPregnancyDaysPregnant());
+                : milkTarget(lastDays(daily, today.minusDays(1), AVG_DAYS), target, dim, h.getPregnancyDaysPregnant());
         if (mt != null) mt.put("targetSet", targetSet);
         row.put("milkTarget", mt);
         if (lact != null) lact.put("possible", possible(h, breeds, ((Number) lact.get("projected")).doubleValue()));
@@ -563,7 +566,7 @@ public class EfficiencyService {
      */
     static Map<String, Object> yieldCheck(TreeMap<LocalDate, Double> daily, Double target, LocalDate today) {
         if (target == null || target <= 0) return null;
-        // Complete days only: today is usually still half entered, so the window ends yesterday.
+        // Complete days only: the window ends yesterday.
         LocalDate end = today.minusDays(1);
         int recentDays = daily.subMap(end.minusDays(AVG_DAYS - 1L), end.plusDays(1)).size();
         if (recentDays < 3) return null;

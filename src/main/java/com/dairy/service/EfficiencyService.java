@@ -563,11 +563,13 @@ public class EfficiencyService {
      */
     static Map<String, Object> yieldCheck(TreeMap<LocalDate, Double> daily, Double target, LocalDate today) {
         if (target == null || target <= 0) return null;
-        int recentDays = daily.subMap(today.minusDays(AVG_DAYS - 1L), today.plusDays(1)).size();
+        // Complete days only: today is usually still half entered, so the window ends yesterday.
+        LocalDate end = today.minusDays(1);
+        int recentDays = daily.subMap(end.minusDays(AVG_DAYS - 1L), end.plusDays(1)).size();
         if (recentDays < 3) return null;
-        double last7 = lastDays(daily, today, AVG_DAYS);
+        double last7 = lastDays(daily, end, AVG_DAYS);
         if (last7 >= 0.7 * target) return null;
-        double before = lastDays(daily, today.minusDays(14), AVG_DAYS);
+        double before = lastDays(daily, end.minusDays(14), AVG_DAYS);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("last7", round(last7, 1));
         m.put("before", before > 0 ? round(before, 1) : null);

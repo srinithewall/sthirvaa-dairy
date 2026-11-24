@@ -199,6 +199,19 @@ class AssetValuationServiceTest {
     }
 
     @Test
+    void pdNegativeCancelsAnEarlierPdPositive() {
+        // Same heifer as nineMonthPregnantHeiferIsNearOneLakh, but the PD was later found negative:
+        // she is valued as an open heifer, even with the stale PREGNANT status still on the record
+        Herd h = herd("PREGNANT", 25, 0);
+        Asset a = value(h, asset(null, null),
+                event("SEMEN_GIVEN", today.minusDays(90)),
+                event("PREGNANCY_CONFIRMED", today.minusDays(30)),
+                event("PREGNANCY_NEGATIVE", today.minusDays(5)));
+        assertThat(a.getSuggestedValue()).isEqualTo(57500);
+        assertThat(a.getValuationFactors()).noneMatch(f -> f.contains("pregnant"));
+    }
+
+    @Test
     void dryCowWithNoMilkRecordsGetsNoMilkFactor() {
         Herd h = herd("DRY", 49, 1);
         Asset a = value(h, asset(null, null), event("CALF_DELIVERED", today.minusDays(389)));

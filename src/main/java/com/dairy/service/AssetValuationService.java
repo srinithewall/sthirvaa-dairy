@@ -189,14 +189,17 @@ public class AssetValuationService {
 
         // Pregnancy: confirmed after the last calving, or the status says so
         LocalDate lastCalving = latest(events, "CALF_DELIVERED", null);
-        LocalDate lastPd = latest(events, "PREGNANCY_CONFIRMED", lastCalving);
-        boolean pregnant = !calf && (lastPd != null || "PREGNANT".equals(status));
+        // A negative PD voids the AI and any PD recorded on or before it
+        LocalDate lastNeg = latest(events, "PREGNANCY_NEGATIVE", lastCalving);
+        LocalDate cycleStart = lastNeg != null ? lastNeg : lastCalving;
+        LocalDate lastPd = latest(events, "PREGNANCY_CONFIRMED", cycleStart);
+        boolean pregnant = !calf && (lastPd != null || ("PREGNANT".equals(status) && lastNeg == null));
         long pregDays = 0;
         double gestFrac = 0;
         boolean aiKnown = true;
         if (pregnant) {
-            LocalDate lastAi = latest(events, "SEMEN_GIVEN", lastCalving);
-            if (lastAi == null) lastAi = latest(events, "AI_DONE", lastCalving);
+            LocalDate lastAi = latest(events, "SEMEN_GIVEN", cycleStart);
+            if (lastAi == null) lastAi = latest(events, "AI_DONE", cycleStart);
             int gestation = "BUFFALO".equals(upper(herd.getAnimalType())) ? GESTATION_BUFFALO : GESTATION_COW;
             aiKnown = lastAi != null;
             pregDays = aiKnown ? ChronoUnit.DAYS.between(lastAi, today) : 60;

@@ -651,7 +651,8 @@ export default function HerdsPage() {
     let wColor = 'bg-gray-100 text-gray-600';
     
     if (weightStatus === 'Very Low' || weightStatus === 'Low' || weightStatus === 'Underweight') wColor = 'bg-orange-100 text-orange-700';
-    else if (weightStatus === 'Below Avg' || weightStatus === 'Avg' || weightStatus === 'Healthy' || weightStatus === 'Above Avg') wColor = 'bg-green-100 text-green-700';
+    else if (weightStatus === 'Below Avg') wColor = 'bg-amber-100 text-amber-700';
+    else if (weightStatus === 'Avg' || weightStatus === 'Healthy' || weightStatus === 'Above Avg') wColor = 'bg-green-100 text-green-700';
     else if (weightStatus === 'Slightly Overweight' || weightStatus === 'Overweight') wColor = 'bg-red-100 text-red-700';
     else if (item.healthStatus && item.healthStatus.toUpperCase() !== 'HEALTHY') {
       wColor = 'bg-red-100 text-red-700';

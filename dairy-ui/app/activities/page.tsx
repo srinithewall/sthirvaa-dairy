@@ -364,7 +364,7 @@ function ActivitiesPageInner() {
                             <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700">{t.category}</span>
                             {t.reminderEnabled && (
                               <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700">
-                                Reminds every {t.reminderIntervalHours || 2}h
+                                Reminds every {t.reminderIntervalHours || 5}h
                               </span>
                             )}
                           </div>

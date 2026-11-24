@@ -147,17 +147,21 @@ public class PushNotificationService {
             logger.error("Failed to send push notification to " + username, e);
         }
     }
+    /**
+     * A heads-up, once a day, for animal reminders falling due tomorrow. Reminders due today or
+     * overdue are pushed three times a day by the "Animal health reminders" chore instead.
+     */
     public void checkAndSendEventReminders() {
         logger.info("Executing scheduled event reminders check...");
 
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
-        LocalDate tomorrow = today.plusDays(1);
+        LocalDate tomorrow = LocalDate.now(ZoneId.of("Asia/Kolkata")).plusDays(1);
+        List<HerdEvent> eventsDueTomorrow = herdEventRepository.findByEventDate(tomorrow).stream()
+                .filter(e -> e.getEventType() != null
+                        && AnimalReminderService.DONE_BY_REMINDER.containsKey(e.getEventType().toUpperCase()))
+                .toList();
 
-        List<HerdEvent> eventsDueToday = herdEventRepository.findByEventDate(today);
-        List<HerdEvent> eventsDueTomorrow = herdEventRepository.findByEventDate(tomorrow);
-
-        if (eventsDueToday.isEmpty() && eventsDueTomorrow.isEmpty()) {
-            logger.info("No events due today or tomorrow. No event reminders to send.");
+        if (eventsDueTomorrow.isEmpty()) {
+            logger.info("No animal reminders due tomorrow. No event reminders to send.");
             return;
         }
 
@@ -171,12 +175,6 @@ public class PushNotificationService {
             String token = user.getFcmToken();
             if (token == null || token.trim().isEmpty()) {
                 continue;
-            }
-
-            for (HerdEvent event : eventsDueToday) {
-                String title = "🔔 Due Today: " + event.getTitle();
-                String message = "Event '" + event.getTitle() + "' is due today for animal.";
-                sendMobilePush(token, title, message, user.getUsername());
             }
 
             for (HerdEvent event : eventsDueTomorrow) {

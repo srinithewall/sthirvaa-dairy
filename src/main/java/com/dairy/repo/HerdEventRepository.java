@@ -15,6 +15,8 @@ public interface HerdEventRepository extends JpaRepository<HerdEvent, Long> {
     List<HerdEvent> findByEventDate(java.time.LocalDate eventDate);
     List<HerdEvent> findAllByOrderByEventDateDesc();
     List<HerdEvent> findByEventTypeAndEventDateBetween(String eventType, java.time.LocalDate start, java.time.LocalDate end);
+    /** Reminders (by type) dated on or before a day - the open animal reminders before filtering. */
+    List<HerdEvent> findByEventTypeInAndEventDateLessThanEqual(Collection<String> eventTypes, java.time.LocalDate date);
     long countByHerdIdAndEventType(Long herdId, String eventType);
 
     @org.springframework.transaction.annotation.Transactional

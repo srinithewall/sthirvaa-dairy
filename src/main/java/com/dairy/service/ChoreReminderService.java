@@ -40,10 +40,10 @@ public class ChoreReminderService {
     private static final List<ActivityStatus> OPEN_STATUSES =
             Arrays.asList(ActivityStatus.PENDING, ActivityStatus.OVERDUE);
 
-    private static final int DEFAULT_INTERVAL_HOURS = 2;
-    private static final int DEFAULT_MAX_PER_DAY = 6;
-    private static final LocalTime DEFAULT_WINDOW_START = LocalTime.of(6, 0);
-    private static final LocalTime DEFAULT_WINDOW_END = LocalTime.of(20, 0);
+    private static final int DEFAULT_INTERVAL_HOURS = SystemRoutineInitializer.REMINDER_INTERVAL_HOURS;
+    private static final int DEFAULT_MAX_PER_DAY = SystemRoutineInitializer.REMINDER_MAX_PER_DAY;
+    private static final LocalTime DEFAULT_WINDOW_START = SystemRoutineInitializer.REMINDER_START;
+    private static final LocalTime DEFAULT_WINDOW_END = SystemRoutineInitializer.REMINDER_END;
 
     @Autowired
     private FarmActivityService activityService;
@@ -84,7 +84,7 @@ public class ChoreReminderService {
 
         List<User> staffUsers = staffUsersWithTokens();
         if (staffUsers.isEmpty()) {
-            logger.debug("No STAFF users with an FCM token; skipping chore reminders.");
+            logger.debug("No staff or admin users with an FCM token; skipping chore reminders.");
             return;
         }
 
@@ -277,23 +277,38 @@ public class ChoreReminderService {
         return log.getReminderCount() == null ? 0 : log.getReminderCount();
     }
 
-    /** Reminders go to staff only - an assigned chore to that person, an unassigned one to all. */
-    private List<User> recipientsFor(FarmActivityLog log, List<User> staffUsers) {
-        if (log.getAssignedStaffId() == null) return staffUsers;
-
-        List<User> assigned = new ArrayList<>();
-        for (User user : staffUsers) {
-            if (log.getAssignedStaffId().equals(user.getStaffId())) {
-                assigned.add(user);
-            }
+    /**
+     * An assigned chore goes to that staff member, an unassigned one to all staff. Admins with the
+     * app installed get every chore too.
+     */
+    private List<User> recipientsFor(FarmActivityLog log, List<User> users) {
+        List<User> staff = new ArrayList<>();
+        List<User> admins = new ArrayList<>();
+        for (User user : users) {
+            if (user.getRole() == Role.ADMIN) admins.add(user); else staff.add(user);
         }
-        // An assignee who cannot be reached should not silence the chore for everyone else.
-        return assigned.isEmpty() ? staffUsers : assigned;
+
+        List<User> chosen = staff;
+        if (log.getAssignedStaffId() != null) {
+            List<User> assigned = new ArrayList<>();
+            for (User user : staff) {
+                if (log.getAssignedStaffId().equals(user.getStaffId())) assigned.add(user);
+            }
+            // An assignee who cannot be reached should not silence the chore for everyone else.
+            if (!assigned.isEmpty()) chosen = assigned;
+        }
+
+        List<User> result = new ArrayList<>(chosen);
+        for (User admin : admins) {
+            boolean sameDevice = result.stream().anyMatch(u -> admin.getFcmToken().equals(u.getFcmToken()));
+            if (!sameDevice) result.add(admin);
+        }
+        return result;
     }
 
     private List<User> staffUsersWithTokens() {
         List<User> result = new ArrayList<>();
-        for (User user : userRepository.findByRoleIn(Arrays.asList(Role.STAFF))) {
+        for (User user : userRepository.findByRoleIn(Arrays.asList(Role.STAFF, Role.ADMIN))) {
             String token = user.getFcmToken();
             if (token != null && !token.trim().isEmpty()) {
                 result.add(user);

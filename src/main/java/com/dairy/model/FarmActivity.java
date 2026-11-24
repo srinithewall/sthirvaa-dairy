@@ -69,16 +69,16 @@ public class FarmActivity {
     private Boolean reminderEnabled = false;
 
     @Column(name = "reminder_interval_hours")
-    private Integer reminderIntervalHours = 2;
+    private Integer reminderIntervalHours = 5;
 
     @Column(name = "reminder_start_time")
-    private LocalTime reminderStartTime = LocalTime.of(6, 0);
+    private LocalTime reminderStartTime = LocalTime.of(8, 0);
 
     @Column(name = "reminder_end_time")
-    private LocalTime reminderEndTime = LocalTime.of(20, 0);
+    private LocalTime reminderEndTime = LocalTime.of(18, 0);
 
     @Column(name = "reminder_max_per_day")
-    private Integer reminderMaxPerDay = 6;
+    private Integer reminderMaxPerDay = 3;
 
     @Column(name = "is_active")
     private Boolean isActive = true;

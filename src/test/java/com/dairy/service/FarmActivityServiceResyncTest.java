@@ -159,10 +159,10 @@ class FarmActivityServiceResyncTest {
 
         service.resyncOpenLogs(activity, TODAY);
 
-        ArgumentCaptor<List<FarmActivityLog>> captor = ArgumentCaptor.forClass(List.class);
-        verify(logRepository).saveAll(captor.capture());
-        List<FarmActivityLog> created = captor.getValue();
-        assertEquals(1, created.size());
-        assertTrue(created.get(0).getDueDate().isEqual(TODAY));
+        // New occurrences are saved one at a time, so a duplicate from another backend is skipped
+        // without losing the rest.
+        ArgumentCaptor<FarmActivityLog> captor = ArgumentCaptor.forClass(FarmActivityLog.class);
+        verify(logRepository).save(captor.capture());
+        assertTrue(captor.getValue().getDueDate().isEqual(TODAY));
     }
 }

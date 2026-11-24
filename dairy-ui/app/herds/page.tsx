@@ -17,6 +17,7 @@ import { BATCH_TYPES, batchType, isPoultryType, liveBirds } from '@/lib/poultry'
 import { DIM_STAGES, DIM_GRADIENT, dimStage } from '@/lib/dimStages';
 import { useNotification } from '@/components/NotificationContext';
 import { BcsBadge, BcsPickerModal, bcsTodayIso } from '@/components/BcsPicker';
+import { HealthHeart, healthInfo } from '@/components/HealthHeart';
 import { bullIdOf as bullIdFromDetails, notesOf, withBullId, PD_AFTER_AI_DAYS } from '@/lib/breeding';
 import Link from 'next/link';
 import { HEAT_STATUS, HeatPanel, heatSortKey } from '@/components/HeatCycle';
@@ -129,6 +130,15 @@ export default function HerdsPage() {
   // Table view on phones: one group of figures at a time instead of a 15-column sideways scroll.
   const [phoneGroup, setPhoneGroup] = useState<PhoneGroup>('milk');
   const [bcsTarget, setBcsTarget] = useState<Herd | null>(null);
+  // Latest weight and healthy minimum per animal, for the health heart (underweight = cracked).
+  const [weightTargets, setWeightTargets] = useState<Record<number, { kg: number | null; target: number | null }>>({});
+  useEffect(() => {
+    api.get('/reports/herd-weights').then(res => {
+      const map: Record<number, { kg: number | null; target: number | null }> = {};
+      for (const r of res.data ?? []) map[r.herdId] = { kg: r.currentWeightKg ?? null, target: r.targetWeightKg ?? null };
+      setWeightTargets(map);
+    }).catch(() => {});
+  }, []);
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showBreedingModal, setShowBreedingModal] = useState(false);
@@ -176,6 +186,16 @@ export default function HerdsPage() {
   }, [eventType]);
 
   useEffect(() => { fetchHerds(); }, []);
+
+  // ?herdId=12&tab=health opens that animal on that tab (links from chores and reminders).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const id = Number(q.get('herdId'));
+    const tabs: WorkspaceTab[] = ['overview', 'breeding', 'health', 'history', 'details', 'weight'];
+    const tab = tabs.find(t => t === q.get('tab')) ?? 'overview';
+    if (id > 0) handleHerdClick(id, tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchHerds = async () => {
     try {
@@ -537,6 +557,20 @@ export default function HerdsPage() {
 
   let activeHerds = herds.filter(h => h.status !== 'DISPOSED');
 
+  // Default order = the cards: milking cows by DIM, then other cows, then calves/heifers oldest
+  // first, then buffalo and the rest. A column sort in the table overrides it.
+  const cardGroup = (h: Herd) =>
+    h.animalType !== 'COW' ? (h.animalType === 'BUFFALO' ? 3 : 4)
+      : h.animalStatus === 'LACTATING' ? 0 : isYoungStock(h) ? 2 : 1;
+  const byCardOrder = (a: Herd, b: Herd) => {
+    const g = cardGroup(a) - cardGroup(b);
+    if (g !== 0) return g;
+    if (cardGroup(a) === 0) return byDimAsc(a, b);
+    if (cardGroup(a) === 2) return byAgeDesc(a, b);
+    return 0;
+  };
+  if (!sortColumn) activeHerds.sort(byCardOrder);
+
   // Sorting Logic
   if (sortColumn) {
     activeHerds.sort((a, b) => {
@@ -709,8 +743,15 @@ export default function HerdsPage() {
         ) },
       ];
       case 'health': return [
+        { label: 'Health', width: 'w-[36px]', render: f => {
+          const w = weightTargets[f.item.id];
+          const h = healthInfo(f.item.healthStatus, f.item.bcs, w?.kg, w?.target);
+          const tip = h.level > 0 && w?.kg != null && w?.target != null && f.item.healthStatus?.toUpperCase() === 'HEALTHY'
+            ? `${h.label}: ${Math.round(w.kg)} of ${Math.round(w.target)} kg, BCS ${f.item.bcs}` : h.label;
+          return <span title={tip} aria-label={h.label} className={`inline-flex ${h.color}`}><HealthHeart level={h.level} size={18}/></span>;
+        } },
         { label: 'Dewormed', width: 'w-[78px]', render: f => <span className="text-xs">{f.latestDeworm}</span> },
-        { label: 'Due', width: 'w-[92px]', render: f => f.dewormDue
+        { label: 'Due', width: 'w-[74px]', render: f => f.dewormDue
           ? <span className={`inline-block px-1.5 py-0.5 rounded-md text-[10px] font-bold leading-tight ${f.dewormDue.cls}`}>{f.dewormDue.text}</span> : dash },
       ];
       case 'next': return [
@@ -853,10 +894,20 @@ export default function HerdsPage() {
               ))}
             </div>
             {(() => {
-              const cows = activeHerds.filter(h => h.animalType === 'COW');
+              // Milk and Breeding skip calves/heifers under 12 months: nothing to show for them yet.
+              const underYear = (h: Herd) => {
+                if (h.animalStatus !== 'CALF' && h.animalStatus !== 'HEIFER') return false;
+                if (!h.birthDate) return false;
+                const b = new Date(h.birthDate), t = new Date();
+                let months = (t.getFullYear() - b.getFullYear()) * 12 + (t.getMonth() - b.getMonth());
+                if (t.getDate() < b.getDate()) months--;
+                return months < 12;
+              };
+              const cows = activeHerds.filter(h => h.animalType === 'COW'
+                && !((phoneGroup === 'milk' || phoneGroup === 'breeding') && underYear(h)));
               const cols = phoneColumns(phoneGroup);
               return (
-                <div className="bg-white border border-border-custom rounded-xl shadow-sm overflow-hidden">
+                <div className="-mx-2 bg-white border border-border-custom rounded-xl shadow-sm overflow-hidden">
                   <div className="flex items-center gap-2 px-3 py-2 bg-surface border-b border-border-custom text-[10px] font-black text-text3 uppercase tracking-wider">
                     <span className="flex-1">Name</span>
                     {cols.map(c => (
@@ -1416,7 +1467,7 @@ function BreedingModal({ onClose, events, herds, onAnimalClick, onEventsChanged 
   /** Her AI Service tab: bull, mother and expected-daughter analysis. */
   const aiBtn = (r: (typeof rows)[number]) => (
     <button onClick={ev => { ev.stopPropagation(); onAnimalClick(r.h.id, 'breeding'); onClose(); }}
-      title="AI Service: bull, mother and expected daughter"
+      title="AI: bull, mother and expected daughter"
       className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-brand text-white hover:bg-brand-dark text-[11px] font-bold whitespace-nowrap">
       <Syringe size={12} /> AI
     </button>

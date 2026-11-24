@@ -31,6 +31,22 @@ public class SystemRoutineInitializer implements CommandLineRunner {
     public static final String ANIMAL_ONBOARDING_KEY = "ANIMAL_ONBOARDING";
     public static final String ANIMAL_ONBOARDING_ROUTE = "/activities/onboarding";
 
+    public static final String ANIMAL_REMINDERS_KEY = "ANIMAL_REMINDERS";
+    public static final String ANIMAL_REMINDERS_ROUTE = "/activities/animal-reminders";
+
+    /** Every chore reminds three times a day: 8 am, 1 pm and 6 pm. */
+    public static final int REMINDER_INTERVAL_HOURS = 5;
+    public static final int REMINDER_MAX_PER_DAY = 3;
+    public static final LocalTime REMINDER_START = LocalTime.of(8, 0);
+    public static final LocalTime REMINDER_END = LocalTime.of(18, 0);
+
+    /**
+     * False on a local backend (SCHEDULER_ENABLED=false). It shares the production database, so a
+     * routine seeded from here would be picked up by the deployed server before its page exists.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.scheduler.enabled:true}")
+    private boolean schedulerEnabled;
+
     @Autowired
     private FarmActivityRepository activityRepository;
 
@@ -39,6 +55,46 @@ public class SystemRoutineInitializer implements CommandLineRunner {
         seedHerdWeightRoutine();
         seedHerdDewormingRoutine();
         seedAnimalOnboardingRoutine();
+        if (schedulerEnabled) seedAnimalRemindersRoutine();
+    }
+
+    /**
+     * A daily chore for reminders set on animals (vaccination, deworming, PD check, AI) that have
+     * fallen due. It closes itself when none is open (see AnimalRemindersCompletionCheck).
+     */
+    private void seedAnimalRemindersRoutine() {
+        Optional<FarmActivity> existing = activityRepository.findBySystemKey(ANIMAL_REMINDERS_KEY);
+        if (existing.isPresent()) {
+            FarmActivity routine = existing.get();
+            if (!ANIMAL_REMINDERS_ROUTE.equals(routine.getActionRoute())) {
+                routine.setActionRoute(ANIMAL_REMINDERS_ROUTE);
+                activityRepository.save(routine);
+            }
+            return;
+        }
+
+        FarmActivity routine = new FarmActivity();
+        routine.setSystemKey(ANIMAL_REMINDERS_KEY);
+        routine.setTitle("Animal health reminders");
+        routine.setDescription("Vaccinations, dewormings, PD checks and AIs scheduled on animals that are due.");
+        routine.setCategory(ActivityCategory.HERD_CHECK);
+        routine.setFrequency(ActivityFrequency.DAILY);
+        routine.setDueTime(REMINDER_START);
+        routine.setActionRoute(ANIMAL_REMINDERS_ROUTE);
+        applyThreeADay(routine);
+        routine.setIsActive(true);
+
+        activityRepository.save(routine);
+        logger.info("Seeded system routine {}.", ANIMAL_REMINDERS_KEY);
+    }
+
+    /** Reminds at 8 am, 1 pm and 6 pm. */
+    static void applyThreeADay(FarmActivity routine) {
+        routine.setReminderEnabled(true);
+        routine.setReminderIntervalHours(REMINDER_INTERVAL_HOURS);
+        routine.setReminderStartTime(REMINDER_START);
+        routine.setReminderEndTime(REMINDER_END);
+        routine.setReminderMaxPerDay(REMINDER_MAX_PER_DAY);
     }
 
     /**
@@ -62,13 +118,9 @@ public class SystemRoutineInitializer implements CommandLineRunner {
         routine.setDescription("Quarantine care for newly arrived animals: vet check, deworming, feed change-over, vaccination.");
         routine.setCategory(ActivityCategory.HERD_CHECK);
         routine.setFrequency(ActivityFrequency.DAILY);
-        routine.setDueTime(LocalTime.of(9, 0));
+        routine.setDueTime(LocalTime.of(8, 0));
         routine.setActionRoute(ANIMAL_ONBOARDING_ROUTE);
-        routine.setReminderEnabled(true);
-        routine.setReminderIntervalHours(4);
-        routine.setReminderStartTime(LocalTime.of(8, 0));
-        routine.setReminderEndTime(LocalTime.of(18, 0));
-        routine.setReminderMaxPerDay(3);
+        applyThreeADay(routine);
         routine.setIsActive(true);
 
         activityRepository.save(routine);
@@ -98,11 +150,7 @@ public class SystemRoutineInitializer implements CommandLineRunner {
         routine.setFrequency(ActivityFrequency.DAILY);
         routine.setDueTime(LocalTime.of(8, 0));
         routine.setActionRoute(HERD_DEWORMING_ROUTE);
-        routine.setReminderEnabled(true);
-        routine.setReminderIntervalHours(4);
-        routine.setReminderStartTime(LocalTime.of(7, 0));
-        routine.setReminderEndTime(LocalTime.of(18, 0));
-        routine.setReminderMaxPerDay(3);
+        applyThreeADay(routine);
         routine.setIsActive(true);
 
         activityRepository.save(routine);
@@ -130,11 +178,7 @@ public class SystemRoutineInitializer implements CommandLineRunner {
         routine.setDaysOfMonth(ActivityScheduleResolver.DEFAULT_BI_WEEKLY_DAYS);
         routine.setDueTime(LocalTime.of(8, 0));
         routine.setActionRoute(HERD_WEIGHT_ROUTE);
-        routine.setReminderEnabled(true);
-        routine.setReminderIntervalHours(2);
-        routine.setReminderStartTime(LocalTime.of(6, 0));
-        routine.setReminderEndTime(LocalTime.of(20, 0));
-        routine.setReminderMaxPerDay(6);
+        applyThreeADay(routine);
         routine.setIsActive(true);
 
         activityRepository.save(routine);

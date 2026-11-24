@@ -83,10 +83,10 @@ export default function RoutineForm({ routine, isAdmin, onClose, onSaved }: Prop
   );
 
   const [reminderEnabled, setReminderEnabled] = useState(routine?.reminderEnabled ?? false);
-  const [reminderIntervalHours, setReminderIntervalHours] = useState(String(routine?.reminderIntervalHours ?? 2));
-  const [reminderStartTime, setReminderStartTime] = useState(toTimeInput(routine?.reminderStartTime) || "06:00");
-  const [reminderEndTime, setReminderEndTime] = useState(toTimeInput(routine?.reminderEndTime) || "20:00");
-  const [reminderMaxPerDay, setReminderMaxPerDay] = useState(String(routine?.reminderMaxPerDay ?? 6));
+  const [reminderIntervalHours, setReminderIntervalHours] = useState(String(routine?.reminderIntervalHours ?? 5));
+  const [reminderStartTime, setReminderStartTime] = useState(toTimeInput(routine?.reminderStartTime) || "08:00");
+  const [reminderEndTime, setReminderEndTime] = useState(toTimeInput(routine?.reminderEndTime) || "18:00");
+  const [reminderMaxPerDay, setReminderMaxPerDay] = useState(String(routine?.reminderMaxPerDay ?? 3));
 
   useEffect(() => {
     api.get("/staff").then(res => setStaff(res.data || [])).catch(() => {});
@@ -131,10 +131,10 @@ export default function RoutineForm({ routine, isAdmin, onClose, onSaved }: Prop
       dueTime: fromTimeInput(dueTime),
       defaultAssignedStaffId: assignedStaffId ? parseInt(assignedStaffId, 10) : null,
       reminderEnabled,
-      reminderIntervalHours: parseInt(reminderIntervalHours, 10) || 2,
+      reminderIntervalHours: parseInt(reminderIntervalHours, 10) || 5,
       reminderStartTime: fromTimeInput(reminderStartTime),
       reminderEndTime: fromTimeInput(reminderEndTime),
-      reminderMaxPerDay: parseInt(reminderMaxPerDay, 10) || 6,
+      reminderMaxPerDay: parseInt(reminderMaxPerDay, 10) || 3,
       isActive: routine?.isActive ?? true,
     };
 

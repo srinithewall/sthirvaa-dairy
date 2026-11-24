@@ -5,7 +5,8 @@ import {
   ArrowLeft, Edit2, Syringe, Heart, Baby, Leaf,
   Droplets, ShieldCheck, Bug, Pill, Activity, Microscope, Clock,
   AlertTriangle, CheckCircle2, XCircle, Plus, Trash2, MoreVertical,
-  AlertCircle, Phone, Star, ChevronRight, Info, Home, ImageIcon, CheckCircle, Zap, Film, Sparkles, Search, X
+  AlertCircle, Phone, Star, ChevronRight, Info, Home, ImageIcon, CheckCircle, Zap, Film, Sparkles, Search, X,
+  Milk, MilkOff
 } from 'lucide-react';
 import api, { formatImageUrl } from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
@@ -14,6 +15,14 @@ import { bullIdOf, notesOf, withBullId } from '@/lib/breeding';
 import { BcsTrendCard } from '@/components/BcsPicker';
 import { CallButton } from '@/components/EmergencyContacts';
 import SireAnalysisCard, { SireDatalist } from '@/components/SireAnalysisCard';
+import { HealthHeart, healthInfo } from '@/components/HealthHeart';
+
+/** Milking / reproductive status as one icon; the label shows on hover. */
+const STATUS_ICON: Record<string, { icon: React.ElementType; label: string; cls: string }> = {
+  LACTATING: { icon: Milk,    label: 'Lactating', cls: 'border-sky-200 bg-sky-50 text-sky-600' },
+  DRY:       { icon: MilkOff, label: 'Dry',       cls: 'border-amber-200 bg-amber-50 text-amber-600' },
+  PREGNANT:  { icon: Baby,    label: 'Pregnant',  cls: 'border-pink-200 bg-pink-50 text-pink-600' },
+};
 
 /* ─── Types ─────────────────────────────────────── */
 export type WorkspaceTab = 'overview'|'breeding'|'health'|'history'|'details'|'weight';
@@ -25,6 +34,8 @@ interface Herd {
   onboardingDay?: number | null; quarantineDays?: number | null;
   /** Parity from the server: calvings before her records plus those recorded. */
   lactationNumber?: number;
+  /** Latest body condition score, 1-5 in half points. */
+  bcs?: number | null;
 }
 interface HerdEvent {
   id: number; herdId: number; eventDate: string; eventType: string;
@@ -769,8 +780,7 @@ function AnimalInfoPanel({ herd, events, reproStats, onEdit }: {
   const lastCalving = events.filter(e => e.eventType === 'CALF_DELIVERED').sort((a,b) => b.eventDate.localeCompare(a.eventDate))[0];
   const dim = lastCalving ? Math.ceil((Date.now() - new Date(lastCalving.eventDate).getTime()) / 86400000) : null;
 
-  // Milk yield from herd data or a reasonable estimate
-  const milkYield = (herd as any).milkYield || (herd as any).avgMilkYield || null;
+  const { showToast } = useNotification();
   const bodyWeight = (herd as any).bodyWeight || (herd as any).weight || null;
 
   const parityN = herd.lactationNumber ?? reproStats.calvingCount;
@@ -781,7 +791,15 @@ function AnimalInfoPanel({ herd, events, reproStats, onEdit }: {
     { label: 'Age', value: herd.calculatedAge || herd.age || '—', icon: '📅' },
     { label: 'Parity', value: parity, icon: '🔢' },
     { label: 'Last Calving', value: lastCalving ? fmtDate(lastCalving.eventDate) : '—', icon: '🐣' },
-    { label: 'Milk Yield', value: milkYield ? `${milkYield} L/day` : '—', icon: '🥛' },
+    { label: 'Tag ID', icon: '🏷️', value: (
+      <button onClick={() => { navigator.clipboard.writeText(herd.tagNumber); showToast('Tag number copied!'); }}
+        className="inline-flex items-center gap-1 font-mono hover:text-brand" title="Copy tag ID">
+        {herd.tagNumber}
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-text3">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+      </button>
+    ) as React.ReactNode },
     { label: 'Body Weight', value: bodyWeight ? `${bodyWeight} Kg` : '—', icon: '⚖️' },
   ];
 
@@ -1129,6 +1147,7 @@ export default function AnimalWorkspace({
   const { showToast, confirm } = useNotification();
 
   const [showGallery, setShowGallery] = useState(false);
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [activeMedia, setActiveMedia] = useState<number>(0);
 
   const [showCompare, setShowCompare] = useState(false);
@@ -1312,6 +1331,20 @@ export default function AnimalWorkspace({
 
   const nextAction = reminders[0];
 
+  // Latest weighing against her healthy minimum: underweight = below it with a BCS under 3.
+  const [weightCheck, setWeightCheck] = useState<{ weightKg: number; targetKg: number; bcs: number | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    setWeightCheck(null);
+    api.get(`/reports/herd-weights/${herd.id}/history`).then(res => {
+      const last = (res.data?.readings ?? []).filter((r: any) => r.weightKg != null && r.targetKg != null).pop();
+      if (live && last) setWeightCheck({ weightKg: last.weightKg, targetKg: last.targetKg, bcs: last.bcs ?? null });
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [herd.id]);
+  const bcsNow = herd.bcs ?? weightCheck?.bcs ?? null;
+  const health = healthInfo(herd.healthStatus, bcsNow, weightCheck?.weightKg, weightCheck?.targetKg);
+
   const dynamicStatus = useMemo(() => {
     if (reproStats.isPregnant) {
       return 'PREGNANT';
@@ -1342,6 +1375,49 @@ export default function AnimalWorkspace({
     }
     return herd.animalStatus;
   }, [events, herd.animalStatus, reproStats.isPregnant]);
+
+  /** Lactating/dry/pregnant and health as icons, with gestation, call and quarantine beside them. */
+  const statusBadges = (className: string) => (
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+      {(() => {
+        const st = STATUS_ICON[dynamicStatus];
+        return st ? (
+          <span title={st.label} aria-label={st.label}
+            className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border shadow-sm ${st.cls}`}>
+            <st.icon size={15} strokeWidth={2.25}/>
+          </span>
+        ) : (
+          <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm">{dynamicStatus}</span>
+        );
+      })()}
+      {(() => {
+        const cls = `inline-flex items-center justify-center w-7 h-7 rounded-lg border shadow-sm ${health.box}`;
+        const heart = <HealthHeart level={health.level}/>;
+        if (herd.healthStatus === 'HEALTHY' && health.level > 0 && weightCheck) {
+          return (
+            <button onClick={() => setActiveTab('weight')} aria-label={health.label}
+              title={`${health.label}: ${Math.round(weightCheck.weightKg)} of ${Math.round(weightCheck.targetKg)} kg, BCS ${bcsNow}`}
+              className={`${cls} hover:brightness-95`}>{heart}</button>
+          );
+        }
+        return <span title={health.label} aria-label={health.label} className={cls}>{heart}</span>;
+      })()}
+      {herd.healthStatus!=='HEALTHY' && <CallButton label="Call" tone="alert" sheetTitle={`Call for ${herd.animalName || herd.tagNumber}`} />}
+      {quarantineChip}
+    </div>
+  );
+  const gestationChip = reproStats.isPregnant && reproStats.gestationPct > 0 && (
+    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm whitespace-nowrap">
+      {reproStats.gestationPct}% gestation · EDD {reproStats.expectedDelivery ? fmtDate(reproStats.expectedDelivery) : '—'}
+    </span>
+  );
+  const quarantineChip = herd.onboardingDay != null && (
+    <a href={`/activities/onboarding?herdId=${herd.id}`}
+      className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-800 shadow-sm hover:bg-amber-100"
+      title="Open the onboarding checklist">
+      In quarantine · day {Math.max(0, herd.onboardingDay)} of {herd.quarantineDays ?? 14}
+    </a>
+  );
 
   const openAction = (type: string) => { setPrefillType(type); setShowAddEvent(true); };
   const deleteEvent = (id:number)=>confirm('Delete this event?',async()=>{
@@ -1489,56 +1565,27 @@ export default function AnimalWorkspace({
               )}
             </div>
 
-            {/* Tag number */}
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[12px] text-slate-500 font-mono font-medium">ID: {herd.tagNumber}</span>
-              <button
-                onClick={() => { navigator.clipboard.writeText(herd.tagNumber); showToast('Tag number copied!'); }}
-                className="text-slate-400 hover:text-emerald-600 transition-colors"
-                title="Copy ID"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-                </svg>
-              </button>
-            </div>
-
-            {/* Status badges - clean & neutral */}
-            <div className="flex flex-wrap items-center gap-2 mt-2.5">
-              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm">
-                {dynamicStatus}
-              </span>
-              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm">
-                {herd.healthStatus==='HEALTHY'?'Healthy':'Requires Attention'}
-              </span>
-              {herd.healthStatus!=='HEALTHY' && <CallButton label="Call" tone="alert" sheetTitle={`Call for ${herd.animalName || herd.tagNumber}`} />}
-              {herd.onboardingDay != null && (
-                <a href={`/activities/onboarding?herdId=${herd.id}`}
-                  className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-800 shadow-sm hover:bg-amber-100"
-                  title="Open the onboarding checklist">
-                  In quarantine · day {Math.max(0, herd.onboardingDay)} of {herd.quarantineDays ?? 14}
-                </a>
-              )}
-              {reproStats.isPregnant && reproStats.gestationPct > 0 && (
-                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm">
-                  {reproStats.gestationPct}% gestation · EDD {reproStats.expectedDelivery ? fmtDate(reproStats.expectedDelivery) : '—'}
-                </span>
-              )}
-            </div>
-
-            {/* Pending actions badge */}
-            {urgentTasks.length > 0 && (
-              <button
-                onClick={() => setActiveTab('health')}
-                className="mt-2.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 px-2.5 py-0.5 rounded-md hover:bg-slate-50 transition-colors shadow-sm"
-              >
-                <AlertTriangle size={12}/> {urgentTasks.length} Pending Action{urgentTasks.length > 1 ? 's' : ''}
-              </button>
+            {/* Pending actions and gestation under the name on every tab */}
+            {(urgentTasks.length > 0 || gestationChip) && (
+              <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                {urgentTasks.length > 0 && (
+                  <button
+                    onClick={() => setActiveTab('health')}
+                    className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 px-2.5 py-0.5 rounded-md hover:bg-slate-50 transition-colors shadow-sm"
+                    title={`${urgentTasks.length} pending action${urgentTasks.length > 1 ? 's' : ''}`}
+                  >
+                    <AlertTriangle size={12}/> {urgentTasks.length} Pending Action{urgentTasks.length > 1 ? 's' : ''}
+                  </button>
+                )}
+                {gestationChip}
+                {activeTab === 'breeding' && quarantineChip}
+              </div>
             )}
           </div>
 
           {/* Actions & Gallery outside */}
           <div className="flex items-center gap-1.5">
+            {activeTab === 'breeding' ? (<>
             {/* Sire analysis: try a bull, or open the semen recommendations */}
             <div className="relative">
               <button
@@ -1580,6 +1627,7 @@ export default function AnimalWorkspace({
             >
               <Star size={13} className="fill-amber-950"/><span className="hidden sm:inline">Recommendation</span>
             </button>
+            </>) : statusBadges('justify-end')}
             <button
               onClick={() => setShowGallery(true)}
               className="flex items-center justify-center w-8 h-8 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
@@ -1603,7 +1651,7 @@ export default function AnimalWorkspace({
         <div className="flex w-full">
           {([
             { id: 'overview',  label: 'Home',       icon: <Home size={18} /> },
-            { id: 'breeding',  label: 'AI Service', icon: <Syringe size={18} /> },
+            { id: 'breeding',  label: 'AI', icon: <Syringe size={18} /> },
             { id: 'health',    label: 'Health',     icon: <Heart size={18} /> },
             { id: 'history',   label: 'History',    icon: <Clock size={18} /> },
             { id: 'weight',    label: 'Weight',     icon: <Activity size={18} /> },
@@ -1642,7 +1690,7 @@ export default function AnimalWorkspace({
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                     <h2 className="text-[12px] font-bold text-slate-600 uppercase tracking-wide mb-4">Quick Services</h2>
                     <div className="grid grid-cols-4 gap-2">
-                      <ServiceBtn icon={Syringe}     label="AI Service"  sub="Book"         color="text-slate-600" bg="bg-slate-50"  onClick={() => setActiveTab('breeding')}/>
+                      <ServiceBtn icon={Syringe}     label="AI"  sub="Book"         color="text-slate-600" bg="bg-slate-50"  onClick={() => setActiveTab('breeding')}/>
                       <ServiceBtn icon={Pill}        label="Treatment"   sub="Record"        color="text-slate-600" bg="bg-slate-50"  onClick={() => openAction('TREATMENT')}/>
                       <ServiceBtn icon={Baby}        label="Calving"     sub="Record"        color="text-slate-600" bg="bg-slate-50"  onClick={() => openAction('CALF_DELIVERED')}/>
                       <ServiceBtn icon={ShieldCheck} label="Vaccine"     sub="Record"        color="text-slate-600" bg="bg-slate-50"  onClick={() => openAction('VACCINATION_DONE')}/>
@@ -1893,8 +1941,15 @@ export default function AnimalWorkspace({
           <div className="p-4 space-y-5 max-w-2xl mx-auto animate-in fade-in duration-200">
             {reminders.length > 0 && (
               <section>
-                <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-3">Scheduled Tasks</h2>
-                <div className="space-y-3">
+                <button onClick={() => setTasksOpen(o => !o)} aria-expanded={tasksOpen}
+                  className="w-full flex items-center gap-2 text-left">
+                  <ChevronRight size={14} className={`text-slate-400 transition-transform ${tasksOpen ? 'rotate-90' : ''}`}/>
+                  <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Scheduled Tasks</h2>
+                  <span className="text-[10px] font-bold px-1.5 rounded-full bg-slate-100 text-slate-600">{reminders.length}</span>
+                  {(() => { const late = reminders.filter(r => daysFromNow(r.eventDate) < 0).length;
+                    return late > 0 && <span className="text-[10px] font-bold px-1.5 rounded-full bg-red-100 text-red-700" title={`${late} overdue`}>⚠ {late}</span>; })()}
+                </button>
+                {tasksOpen && <div className="space-y-3 mt-3">
                   {reminders.map(r => {
                     const cfg=EV[r.eventType]||DEF_EV; const Icon=cfg.icon; const days=daysFromNow(r.eventDate);
                     const overdue=days<0; const urgent=days>=0&&days<=7;
@@ -1925,31 +1980,40 @@ export default function AnimalWorkspace({
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </section>
             )}
 
             <section>
               <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-3">Record Health Event</h2>
-              <div className="grid grid-cols-2 gap-3">
+              {/* Row 1 records what was done; row 2 schedules reminders */}
+              <div className="space-y-3">
                 {[
-                  {type:'VACCINATION_DONE',label:'Vaccination Done',sub:'Mark completed',icon:ShieldCheck,color:'text-teal-700',bg:'bg-teal-50'},
-                  {type:'DEWORMING_DONE',label:'Deworming Done',sub:'Mark completed',icon:Bug,color:'text-orange-700',bg:'bg-orange-50'},
-                  {type:'TREATMENT',label:'Treatment',sub:'Record medication',icon:Pill,color:'text-red-700',bg:'bg-red-50'},
-                  {type:'VACCINATION_DUE',label:'Schedule Vaccine',sub:'Set reminder date',icon:Clock,color:'text-teal-600',bg:'bg-teal-50'},
-                  {type:'DEWORMING_DUE',label:'Schedule Deworm',sub:'Set reminder date',icon:Clock,color:'text-orange-600',bg:'bg-orange-50'},
-                  {type:'PREGNANCY_CHECK_DUE',label:'Schedule PD Check',sub:'Set reminder date',icon:Microscope,color:'text-indigo-700',bg:'bg-indigo-50'},
-                ].map(a=>(
-                  <button key={a.type} onClick={()=>openAction(a.type)}
-                    className={`flex items-start gap-3 p-4 rounded-2xl ${a.bg} border-2 border-transparent active:scale-[0.97] transition-all text-left`}>
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${a.color.replace('text-','bg-').replace('-700','-100').replace('-600','-100')}`}>
-                      <a.icon size={18} className={a.color}/>
-                    </div>
-                    <div>
-                      <div className={`text-[12px] font-bold ${a.color}`}>{a.label}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{a.sub}</div>
-                    </div>
-                  </button>
+                  [
+                    {type:'VACCINATION_DONE',label:'Vaccination Done',sub:'Mark completed',icon:ShieldCheck,color:'text-teal-700',bg:'bg-teal-50'},
+                    {type:'DEWORMING_DONE',label:'Deworming Done',sub:'Mark completed',icon:Bug,color:'text-orange-700',bg:'bg-orange-50'},
+                    {type:'TREATMENT',label:'Treatment',sub:'Record medication',icon:Pill,color:'text-red-700',bg:'bg-red-50'},
+                  ],
+                  [
+                    {type:'VACCINATION_DUE',label:'Schedule Vaccine',sub:'Set reminder date',icon:Clock,color:'text-teal-600',bg:'bg-teal-50'},
+                    {type:'DEWORMING_DUE',label:'Schedule Deworm',sub:'Set reminder date',icon:Clock,color:'text-orange-600',bg:'bg-orange-50'},
+                    {type:'PREGNANCY_CHECK_DUE',label:'Schedule PD Check',sub:'Set reminder date',icon:Microscope,color:'text-indigo-700',bg:'bg-indigo-50'},
+                  ],
+                ].map((group, gi) => (
+                  <div key={gi} className="grid grid-cols-3 gap-2 sm:gap-3">
+                    {group.map(a=>(
+                      <button key={a.type} onClick={()=>openAction(a.type)}
+                        className={`flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl ${a.bg} border-2 border-transparent active:scale-[0.97] transition-all text-center sm:text-left`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${a.color.replace('text-','bg-').replace('-700','-100').replace('-600','-100')}`}>
+                          <a.icon size={18} className={a.color}/>
+                        </div>
+                        <div>
+                          <div className={`text-[12px] font-bold ${a.color}`}>{a.label}</div>
+                          <div className="hidden sm:block text-[10px] text-slate-400 mt-0.5">{a.sub}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 ))}
               </div>
             </section>

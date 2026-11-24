@@ -18,14 +18,17 @@ import java.util.Set;
  * Applies role_permissions (the Roles tab under Staff Management) to every API route, by the
  * module table in ModuleAccessRules. Runs after sign-in, before the controller.
  *
- * ADMIN is never limited. CUSTOMER is not checked here: customers use the shop and their own
- * orders, which have their own rules. Every other role - STAFF, PARTNER, FINANCE and any added
- * later - gets exactly what is ticked for it.
+ * ADMIN is never limited. CUSTOMER has no modules: customers get the shop, their own orders and
+ * their own milk (/api/my/...), and none of the farm's routes. Every other role - STAFF, PARTNER,
+ * FINANCE and any added later - gets exactly what is ticked for it.
  */
 @Component
 public class ModulePermissionInterceptor implements HandlerInterceptor {
 
-    private static final Set<String> UNCHECKED_ROLES = Set.of("ADMIN", "CUSTOMER");
+    private static final Set<String> UNCHECKED_ROLES = Set.of("ADMIN");
+
+    /** Module-checked routes a customer may still use; their controllers keep them to the customer's own data. */
+    private static final Set<String> CUSTOMER_ROUTES = Set.of("/api/orders", "/api/products", "/api/subscription-plans");
 
     @Autowired private SecurityService securityService;
     @Autowired private UserRepository userRepository;
@@ -41,6 +44,12 @@ public class ModulePermissionInterceptor implements HandlerInterceptor {
         if (role.isEmpty() || role.equals("ANONYMOUS") || UNCHECKED_ROLES.contains(role)) return true;
 
         String path = request.getRequestURI();
+        if (role.equals("CUSTOMER")) {
+            ModuleAccessRules.Rule rule = ModuleAccessRules.ruleFor(path);
+            if (rule == null || CUSTOMER_ROUTES.contains(rule.prefix())) return true;
+            return deny(response);
+        }
+
         Set<String> modules = ModuleAccessRules.modulesFor(request.getMethod(), path);
         if (modules.isEmpty()) return true;
 
@@ -50,7 +59,10 @@ public class ModulePermissionInterceptor implements HandlerInterceptor {
         }
         if (isOwnStaffRecord(request.getMethod(), path, auth.getName())) return true;
         if (isOwnSalaryBreakdown(request.getMethod(), path)) return true;
+        return deny(response);
+    }
 
+    private static boolean deny(HttpServletResponse response) throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json");
         response.getWriter().write("{\"message\":\"Access Denied\"}");

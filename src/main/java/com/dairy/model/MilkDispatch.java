@@ -44,6 +44,20 @@ public class MilkDispatch {
     @Column(nullable = false)
     private Double totalAmount; // quantity * ratePerLitre
 
+    /** Delivery charge per litre included in ratePerLitre (the rest is the milk price); null on older rows. */
+    @Column(name = "delivery_rate")
+    private Double deliveryRate;
+
+    public Double getDeliveryRate() { return deliveryRate; }
+    public void setDeliveryRate(Double deliveryRate) { this.deliveryRate = deliveryRate; }
+
+    /** Where the milk was delivered (e.g. "Avalahalli"); shown on the customer's bill. Null = collected/unspecified. */
+    @Column(name = "delivery_location", length = 120)
+    private String deliveryLocation;
+
+    public String getDeliveryLocation() { return deliveryLocation; }
+    public void setDeliveryLocation(String deliveryLocation) { this.deliveryLocation = deliveryLocation; }
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

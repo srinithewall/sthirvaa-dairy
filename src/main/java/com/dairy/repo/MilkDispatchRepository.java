@@ -11,6 +11,8 @@ public interface MilkDispatchRepository extends JpaRepository<MilkDispatch, Long
     List<MilkDispatch> findByDate(LocalDate date);
     List<MilkDispatch> findByDateAndShift(LocalDate date, String shift);
     List<MilkDispatch> findByDateBetween(LocalDate start, LocalDate end);
+    boolean existsByCustomer_Id(Long customerId);
+    List<MilkDispatch> findByCustomer_IdAndDispatchTypeAndDateBetweenOrderByDateAscShiftDesc(Long customerId, String dispatchType, LocalDate start, LocalDate end);
     void deleteByDateAndShift(LocalDate date, String shift);
     void deleteByDate(LocalDate date);
 

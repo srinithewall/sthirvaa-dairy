@@ -23,6 +23,14 @@ public class Customer {
 
     private LocalDateTime createdAt;
 
+    /** Where the milk is delivered, e.g. "Avalahali". */
+    @Column(name = "delivery_location")
+    private String deliveryLocation;
+
+    /** Round-trip distance for one delivery, in km. */
+    @Column(name = "delivery_km")
+    private Double deliveryKm;
+
     public Customer() {}
 
     @PrePersist
@@ -45,6 +53,12 @@ public class Customer {
 
     public Double getDefaultRate() { return defaultRate; }
     public void setDefaultRate(Double defaultRate) { this.defaultRate = defaultRate; }
+
+    public String getDeliveryLocation() { return deliveryLocation; }
+    public void setDeliveryLocation(String deliveryLocation) { this.deliveryLocation = deliveryLocation; }
+
+    public Double getDeliveryKm() { return deliveryKm; }
+    public void setDeliveryKm(Double deliveryKm) { this.deliveryKm = deliveryKm; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

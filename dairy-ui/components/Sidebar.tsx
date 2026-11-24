@@ -48,6 +48,14 @@ const sidebarItems: SidebarSection[] = [
   ]}
 ];
 
+/** A customer login sees only its own milk and the shop. */
+const customerItems = (hasMilk: boolean): SidebarSection[] => [
+  { group: 'My Account', items: [
+    ...(hasMilk ? [{ name: 'My Milk', icon: Droplets, path: '/my-milk' }] : []),
+    { name: 'Shop', icon: ShoppingCart, path: '/shop' }
+  ]}
+];
+
 export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const [user, setUser] = React.useState({ username: 'Loading...', email: '', role: 'STAFF', staffId: null, customerId: null });
@@ -311,7 +319,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         </div>
       )}
 
-      {sidebarItems.map((section, idx) => (
+      {(user.role === 'CUSTOMER' ? customerItems(!!user.customerId) : sidebarItems).map((section, idx) => (
         <React.Fragment key={idx}>
           <div className="px-4 pt-4 pb-1 text-[10px] font-bold text-text3 uppercase tracking-widest">
             {section.group}

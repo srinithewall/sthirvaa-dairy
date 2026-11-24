@@ -8,6 +8,8 @@ import api from '@/lib/api';
 import ChoreBanner from './ChoreBanner';
 
 const BUSINESS_PATHS = ['/store', '/inventory', '/ledger', '/bank', '/sales'];
+/** The only screens a customer login uses; farm screens send them to their own milk page. */
+const CUSTOMER_PATHS = ['/my-milk', '/shop', '/checkout', '/orders', '/invoices'];
 
 export default function AppLayout({ children, headerAction, noPadding }: { children: React.ReactNode, headerAction?: React.ReactNode, noPadding?: boolean }) {
   const router = useRouter();
@@ -15,6 +17,16 @@ export default function AppLayout({ children, headerAction, noPadding }: { child
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   // Farm chore reminders aren't shown on the Business screens (shop, inventory, ledger, bank, sales).
   const isBusinessScreen = BUSINESS_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+
+  // Customer logins stay on their own screens.
+  useEffect(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.role === 'CUSTOMER' && !CUSTOMER_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+        router.replace(user.customerId ? '/my-milk' : '/shop');
+      }
+    } catch { /* no saved user */ }
+  }, [router, pathname]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');

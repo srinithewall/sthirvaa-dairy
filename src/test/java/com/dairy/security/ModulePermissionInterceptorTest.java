@@ -131,6 +131,23 @@ class ModulePermissionInterceptorTest {
     }
 
     @Test
+    void customersGetTheShopAndTheirOwnMilkButNoFarmData() throws Exception {
+        signIn("CUSTOMER");
+        assertEquals(200, call("GET", "/api/my/milk"));
+        assertEquals(200, call("GET", "/api/products"));
+        assertEquals(200, call("GET", "/api/orders/invoices"));
+        assertEquals(200, call("GET", "/api/subscription-plans"));
+        assertEquals(200, call("GET", "/api/users/me"));
+        assertEquals(403, call("GET", "/api/milk-dispatch/by-date"));
+        assertEquals(403, call("GET", "/api/customers"));
+        assertEquals(403, call("GET", "/api/sales"));
+        assertEquals(403, call("GET", "/api/herds"));
+        assertEquals(403, call("GET", "/api/bank/transactions"));
+        assertEquals(403, call("GET", "/api/activities/today"));
+        verifyNoInteractions(securityService);
+    }
+
+    @Test
     void routesOutsideTheModulesAreLeftAlone() throws Exception {
         signIn("FINANCE");
         assertEquals(200, call("GET", "/api/users/me"));

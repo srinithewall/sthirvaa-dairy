@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Gauge, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Gauge, AlertTriangle, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 import { EffReport, litres, monthsDays, rupees, summarise, toneOf } from '@/lib/efficiency';
@@ -28,6 +28,7 @@ type TabKey = typeof TABS[number]['key'];
 function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTotal: number | null; go: (t: TabKey) => void }) {
   const s = summarise(report);
   const flagged = report.cows.filter(c => c.flags.length > 0);
+  const low = report.cows.filter(c => c.yieldCheck).sort((a, b) => a.yieldCheck!.pct - b.yieldCheck!.pct);
   const rows: { tab: TabKey; title: string; line: string }[] = [
     { tab: 'reproduction', title: 'Reproduction', line: s.repro.cows
         ? `${monthsDays(s.repro.avgDaysOpen)} open on average (target ${monthsDays(report.rules.targetDaysOpen)}) · ${litres(s.repro.milkLost)} of milk a year lost to late calving`
@@ -62,6 +63,32 @@ function Overview({ report, expenseTotal, go }: { report: EffReport; expenseTota
           </button>
         ))}
       </Card>
+
+      {low.length > 0 && (
+        <Card className="p-4">
+          <div className="text-[13px] font-black text-text flex items-center gap-2 mb-3">
+            <TrendingDown size={16} className="text-warn" /> Under target · last 7 days
+          </div>
+          <div className="space-y-2.5">
+            {low.map(c => {
+              const y = c.yieldCheck!;
+              return (
+                <div key={c.id} className="flex items-center gap-3 text-[12px]">
+                  <div className="w-24 font-bold text-text truncate">{c.name}</div>
+                  <div className="flex-1 h-2 rounded-full bg-surface2 overflow-hidden">
+                    <div className={`h-full rounded-full ${y.rising ? 'bg-brand' : 'bg-warn'}`} style={{ width: `${Math.min(100, y.pct)}%` }} />
+                  </div>
+                  <div className="w-28 text-right font-bold text-text2 tabular-nums">{litres(y.last7, 1)} / {litres(y.target)}</div>
+                  <div className={`w-20 text-right font-black tabular-nums flex items-center justify-end gap-0.5 ${y.change == null ? 'text-text3' : y.change > 0 ? 'text-brand' : y.change < 0 ? 'text-danger' : 'text-text3'}`}
+                    title={y.before != null ? `${litres(y.before, 1)} a day two weeks ago` : undefined}>
+                    {y.change == null ? '—' : <>{y.change > 0 ? <TrendingUp size={13} /> : y.change < 0 ? <TrendingDown size={13} /> : null}{y.change > 0 ? '+' : ''}{y.change.toFixed(1)} L</>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {flagged.length > 0 && (
         <Card className="p-4">

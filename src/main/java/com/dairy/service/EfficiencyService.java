@@ -185,7 +185,9 @@ public class EfficiencyService {
                 : cycleAverage(events, daily, today, ((Number) lact.get("projected")).doubleValue(), interval,
                         dry, farm.dryDays()));
         row.put("history", history(events, daily, today, h.getPreviousLactations() != null ? h.getPreviousLactations() : 0));
-        row.put("flags", flags(events, cycle, daily, target != null ? (int) Math.round(target) : null, today));
+        row.put("flags", flags(events, cycle, today));
+        // Today's target, as on the Milk target tab: her set potential carried along her lactation curve.
+        row.put("yieldCheck", mt == null ? null : yieldCheck(daily, ((Number) mt.get("targetPerDay")).doubleValue(), today));
         return row;
     }
 
@@ -532,8 +534,7 @@ public class EfficiencyService {
     }
 
     /** Record problems that skew the figures, worded for the farm. */
-    private List<String> flags(List<HerdEvent> events, BreedingCycle cycle, TreeMap<LocalDate, Double> daily,
-                               Integer target, LocalDate today) {
+    private List<String> flags(List<HerdEvent> events, BreedingCycle cycle, LocalDate today) {
         List<String> out = new ArrayList<>();
         Map<LocalDate, Integer> calvingsByDate = new TreeMap<>();
         for (HerdEvent e : events) {
@@ -550,13 +551,31 @@ public class EfficiencyService {
         if (cycle.pregnant() && ChronoUnit.DAYS.between(cycle.conception(), today) > GESTATION_DAYS + 15) {
             out.add("Over " + (GESTATION_DAYS + 15) + " days since the insemination; record the calving or a new insemination");
         }
-        if (target != null && daily.size() >= 30) {
-            double best = daily.values().stream().mapToDouble(Double::doubleValue).max().orElse(0);
-            if (best < 0.7 * target) {
-                out.add("Best day so far is " + round(best, 1) + " L against a target of " + target + " L; the breed may be set too high");
-            }
-        }
         return out;
+    }
+
+    /**
+     * A cow giving well under today's target (her lactation-curve target, the one the Milk target tab
+     * shows): her last 7 days against it, and the change from the 7 days two weeks earlier, so a
+     * cow climbing back reads as recovering. Read
+     * fresh from the milk records every time; old lows before the farm knew her do not count.
+     * Null when she is near target or has no recent records.
+     */
+    static Map<String, Object> yieldCheck(TreeMap<LocalDate, Double> daily, Double target, LocalDate today) {
+        if (target == null || target <= 0) return null;
+        int recentDays = daily.subMap(today.minusDays(AVG_DAYS - 1L), today.plusDays(1)).size();
+        if (recentDays < 3) return null;
+        double last7 = lastDays(daily, today, AVG_DAYS);
+        if (last7 >= 0.7 * target) return null;
+        double before = lastDays(daily, today.minusDays(14), AVG_DAYS);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("last7", round(last7, 1));
+        m.put("before", before > 0 ? round(before, 1) : null);
+        m.put("change", before > 0 ? round(last7 - before, 1) : null);
+        m.put("target", round(target, 1));
+        m.put("pct", round(100.0 * last7 / target, 0));
+        m.put("rising", before > 0 && last7 - before >= 0.5);
+        return m;
     }
 
     private Map<String, Object> milkPerDay(LocalDate today) {

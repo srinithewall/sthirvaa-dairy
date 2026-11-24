@@ -64,7 +64,7 @@ export interface EffCow {
   cycleAverage: { perDay: number; completedCycles: number } | null;
   history: LactationHistory[];
   flags: string[];
-  /** Well under target right now: last 7 days vs target, and the change from two weeks earlier. */
+  /** Last 7 complete days vs today's target, and the change from two weeks earlier. */
   yieldCheck: { last7: number; before: number | null; change: number | null; target: number; pct: number; rising: boolean } | null;
 }
 

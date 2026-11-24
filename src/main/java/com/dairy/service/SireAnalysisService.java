@@ -100,6 +100,16 @@ public class SireAnalysisService {
 
     /* ─── Analysis ──────────────────────────────────────────────── */
 
+    /** Sire catalogue category for a farm animal type: COW → CATTLE, BUFFALO → BUFFALO, else null. */
+    public static String catalogueCategory(String animalType) {
+        if (animalType == null) return null;
+        return switch (animalType.toUpperCase(Locale.ROOT)) {
+            case "COW", "CALF", "HEIFER" -> "CATTLE";
+            case "BUFFALO" -> "BUFFALO";
+            default -> null;
+        };
+    }
+
     public Map<String, Object> analyse(Long herdId, String bullOverride) {
         Herd herd = herdRepo.findById(herdId).orElseThrow(() -> new NoSuchElementException("Animal not found"));
         List<SireBull> sires = sireRepo.findAll();
@@ -145,6 +155,17 @@ public class SireAnalysisService {
             if (chosenAi != null) out.put("aiDate", chosenAi.getEventDate());
             return out;
         }
+        // A cow can't carry a buffalo bull's calf (and vice versa): refuse the analysis, and keep the
+        // other species out of every breed mean below.
+        String species = catalogueCategory(herd.getAnimalType());
+        if (species != null && chosen.getCategory() != null && !species.equalsIgnoreCase(chosen.getCategory())) {
+            out.put("matched", false);
+            out.put("wrongSpecies", chosen.getCategory());
+            if (chosenAi != null) out.put("aiDate", chosenAi.getEventDate());
+            return out;
+        }
+        if (species != null) sires = sires.stream()
+                .filter(s -> s.getCategory() == null || species.equalsIgnoreCase(s.getCategory())).toList();
         final SireBull bull = chosen;
         out.put("matched", true);
         out.put("sire", bull);
@@ -262,6 +283,8 @@ public class SireAnalysisService {
         pred.put("damEffectL", res.damEffectL());
         pred.put("sireEffectL", res.sireEffectL());
         pred.put("breedEffectL", res.breedEffectL());
+        pred.put("heterosisL", res.heterosisL());
+        pred.put("heterosisPct", res.heterosisPct());
         pred.put("sireMeritPct", res.sireMeritPct());
         pred.put("pedigreeKg", pedigree == null ? null : Math.round(pedigree));
         pred.put("breedMeanKg", breedMean == null ? null : Math.round(breedMean));
@@ -285,6 +308,7 @@ public class SireAnalysisService {
             b.put("damEffectL", best.damEffectL());
             b.put("sireEffectL", best.sireEffectL());
             b.put("breedEffectL", best.breedEffectL());
+            b.put("heterosisL", best.heterosisL());
             pred.put("best", b);
         }
         out.put("prediction", pred);

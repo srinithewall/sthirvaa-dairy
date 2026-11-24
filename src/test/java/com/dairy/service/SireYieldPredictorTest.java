@@ -51,6 +51,39 @@ class SireYieldPredictorTest {
     }
 
     @Test
+    void zebuBullOnPureHfCowGetsFullHybridVigour() {
+        // HF dam (100% exotic) × Gir bull (0%): F1 calf, zebu/taurine heterozygosity 1 → 12%.
+        var r = SireYieldPredictor.predict(new SireYieldPredictor.Inputs(10.0, null, null, 0, null,
+                null, null, 3864.0, 9466.0, 100.0, 0.0));
+        assertEquals(-3.0, r.breedEffectL(), 0.05);   // −29.6%
+        assertEquals(12.0, r.heterosisPct(), 0.01);
+        assertEquals(0.8, r.heterosisL(), 0.01);      // (10 − 2.96) × 0.12
+        assertEquals(7.9, r.avgDailyL(), 0.01);       // 10 − 2.96 + 0.84
+    }
+
+    @Test
+    void crossbredCowGetsHalfAndSameGroupCrossGetsFloor() {
+        // HF-cross dam (50%) × Sahiwal: heterozygosity 0.5 → 6%.
+        var cb = SireYieldPredictor.predict(new SireYieldPredictor.Inputs(10.0, null, null, 0, null,
+                null, null, 3978.0, 9466.0, 50.0, 0.0));
+        assertEquals(6.0, cb.heterosisPct(), 0.01);
+        // HF × Jersey: both taurine → 5% floor.
+        var hj = SireYieldPredictor.predict(new SireYieldPredictor.Inputs(10.0, null, null, 0, null,
+                null, null, 6193.0, 9466.0, 100.0, 100.0));
+        assertEquals(5.0, hj.heterosisPct(), 0.01);
+        // Same breed family: no breed effect, no heterosis.
+        var same = SireYieldPredictor.predict(in(8.0, 120, 10000.0, 10000.0));
+        assertEquals(0.0, same.heterosisL(), 0.001);
+    }
+
+    @Test
+    void catalogueCategoryKeepsBuffaloBullsAwayFromCows() {
+        assertEquals("CATTLE", SireAnalysisService.catalogueCategory("COW"));
+        assertEquals("BUFFALO", SireAnalysisService.catalogueCategory("buffalo"));
+        assertNull(SireAnalysisService.catalogueCategory("GOAT"));
+    }
+
+    @Test
     void bestCaseUsesTargetCapacityWithSameGenetics() {
         // Yashoda x Kevin: today 8.5 L farm / 7.8 L dam; at target 16.5 L farm / 18.9 L dam.
         var today = SireYieldPredictor.predict(new SireYieldPredictor.Inputs(8.5, 7.8, 10.1, 186, 1.3,
@@ -64,8 +97,9 @@ class SireYieldPredictorTest {
                 14704.0, 10277.0, null, null, 65.0, 100.0), today,
                 new SireYieldPredictor.Inputs(16.5, 18.9, null, 30, 1.3, 14704.0, 10277.0, null, null, 65.0, 100.0),
                 best, "Kevin", "Premium", "Yashoda", 15843.0, "DE 14 058 46011");
-        assertTrue(notes.stream().anyMatch(n -> n.startsWith("Best case:") && n.contains("17.9 L/day")));
-        assertTrue(notes.stream().anyMatch(n -> n.contains("Kevin's mother (Germany) gave 15,843 kg")));
+        assertTrue(notes.contains("Feeding the herd to BCS 3–3.5 adds 9.0 L/day to the daughter"), notes.toString());
+        assertTrue(notes.stream().anyMatch(n -> n.contains("elite-farm record (Germany)")));
+        assertTrue(notes.stream().noneMatch(n -> n.contains("43%") || n.contains("15,843")), "insights must not repeat card figures");
     }
 
     @Test

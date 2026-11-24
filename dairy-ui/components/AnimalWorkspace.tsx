@@ -1452,7 +1452,7 @@ export default function AnimalWorkspace({
     /* ─── RENDER ───────────────────────────────────── */
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <SireDatalist />
+      <SireDatalist animalType={herd.animalType} />
 
       {/* ══ WHITE HEADER ══ */}
       <div className="bg-white border-b border-slate-200 shadow-sm relative z-30">
@@ -1671,7 +1671,7 @@ export default function AnimalWorkspace({
         {activeTab==='breeding' && (
           <div className="animate-in fade-in duration-200 pb-8">
             {/* Bull pedigree + this cow + farm records → expected daughter. Re-runs whenever an AI/PD record changes. */}
-            <div className="p-4 max-w-6xl mx-auto">
+            <div className="p-4 md:p-6 max-w-6xl mx-auto">
               <SireAnalysisCard herdId={herd.id} refreshKey={aiRefreshKey} preview={sirePreview}
                 onPreview={b => { setSirePreview(b); setAnalyseQuery(b); }}
                 onClearPreview={() => { setSirePreview(''); setAnalyseQuery(''); }} />

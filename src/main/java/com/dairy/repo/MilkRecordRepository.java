@@ -40,6 +40,10 @@ public interface MilkRecordRepository extends JpaRepository<MilkRecord, Long> {
     @Query("SELECT m.herd.id, m.date, m.shift, SUM(m.quantity) FROM MilkRecord m GROUP BY m.herd.id, m.date, m.shift")
     List<Object[]> sumShiftByHerd();
 
+    /** The latest day before {@code before} with any evening milking entered; null with none. */
+    @Query("SELECT MAX(m.date) FROM MilkRecord m WHERE m.shift = 'EVENING' AND m.date < :before")
+    LocalDate lastEveningBefore(@Param("before") LocalDate before);
+
     /** Same as findByDate, but with the animal already joined - avoids a lazy load per record. */
     @Query("SELECT m FROM MilkRecord m LEFT JOIN FETCH m.herd WHERE m.date = :date")
     List<MilkRecord> findByDateWithHerd(@Param("date") LocalDate date);

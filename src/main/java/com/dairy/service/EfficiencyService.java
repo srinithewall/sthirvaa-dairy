@@ -92,6 +92,7 @@ public class EfficiencyService {
 
     public Map<String, Object> report() {
         LocalDate today = LocalDate.now();
+        LocalDate lastFull = lastFullDay(today);
 
         List<Herd> herds = herdService.getAllHerds().stream()
                 .filter(h -> "ACTIVE".equals(h.getStatus()))
@@ -106,9 +107,9 @@ public class EfficiencyService {
                 eventsByHerd.computeIfAbsent(e.getHerdId(), k -> new ArrayList<>()).add(e);
             }
             for (Object[] row : milkRecordRepository.sumDailyByHerdIdsSince(ids, LocalDate.of(2000, 1, 1))) {
-                // Complete days only: today is usually half entered (or not yet), so every figure
-                // below - averages, lactation totals, projections - runs to yesterday.
-                if (!((LocalDate) row[1]).isBefore(today)) continue;
+                // Complete days only: every figure below - averages, lactation totals,
+                // projections - runs to the last day with both milkings entered.
+                if (((LocalDate) row[1]).isAfter(lastFull)) continue;
                 double litres = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
                 dailyByHerd.computeIfAbsent((Long) row[0], k -> new TreeMap<>()).merge((LocalDate) row[1], litres, Double::sum);
             }
@@ -127,24 +128,26 @@ public class EfficiencyService {
             BreedingCycle cycle = BreedingCycle.of(events, today);
             boolean inMilkOrDry = "LACTATING".equals(h.getAnimalStatus()) || "DRY".equals(h.getAnimalStatus());
             if (cycle.lastCalving() == null && !inMilkOrDry) continue; // calves and heifers
-            cows.add(cowRow(h, events, cycle, dailyByHerd.getOrDefault(h.getId(), new TreeMap<>()), today, breeds, farm));
+            cows.add(cowRow(h, events, cycle, dailyByHerd.getOrDefault(h.getId(), new TreeMap<>()), today, lastFull, breeds, farm));
         }
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("asOf", today);
+        out.put("completeTo", lastFull);
         out.put("milkRate", round(amcsRate != null ? amcsRate : DEFAULT_MILK_RATE, 2));
         out.put("milkRateSource", amcsRate != null ? "AMCS" : "DEFAULT");
         out.put("rules", Map.of("targetDaysOpen", TARGET_DAYS_OPEN, "gestationDays", GESTATION_DAYS,
                 "calvingInterval", CALVING_INTERVAL, "lactationDays", LACTATION_DAYS,
                 "farmDaysOpen", farm.daysOpen(), "farmDryDays", farm.dryDays(),
                 "farmCycleDays", farm.daysOpen() + GESTATION_DAYS));
-        out.put("milkPerDay", milkPerDay(today));
+        out.put("milkPerDay", milkPerDay(today, lastFull));
         out.put("cows", cows);
         return out;
     }
 
     private Map<String, Object> cowRow(Herd h, List<HerdEvent> events, BreedingCycle cycle,
-                                       TreeMap<LocalDate, Double> daily, LocalDate today, Map<String, Breed> breeds,
+                                       TreeMap<LocalDate, Double> daily, LocalDate today, LocalDate lastFull,
+                                       Map<String, Breed> breeds,
                                        FarmCycle farm) {
         boolean dry = "DRY".equals(h.getAnimalStatus());
         LocalDate calving = cycle.lastCalving();
@@ -176,7 +179,7 @@ public class EfficiencyService {
                 : lactation(calving, dim, dry, target, avg30, current, recordedDays, recordedLitres, recordedAvg);
         row.put("reproduction", repro);
         Map<String, Object> mt = dry || target == null ? null
-                : milkTarget(lastDays(daily, today.minusDays(1), AVG_DAYS), target, dim, h.getPregnancyDaysPregnant());
+                : milkTarget(lastDays(daily, lastFull, AVG_DAYS), target, dim, h.getPregnancyDaysPregnant());
         if (mt != null) mt.put("targetSet", targetSet);
         row.put("milkTarget", mt);
         if (lact != null) lact.put("possible", possible(h, breeds, ((Number) lact.get("projected")).doubleValue()));
@@ -190,7 +193,7 @@ public class EfficiencyService {
         row.put("history", history(events, daily, today, h.getPreviousLactations() != null ? h.getPreviousLactations() : 0));
         row.put("flags", flags(events, cycle, today));
         // Today's target, as on the Milk target tab: her set potential carried along her lactation curve.
-        row.put("yieldCheck", mt == null ? null : yieldCheck(daily, ((Number) mt.get("targetPerDay")).doubleValue(), today));
+        row.put("yieldCheck", mt == null ? null : yieldCheck(daily, ((Number) mt.get("targetPerDay")).doubleValue(), lastFull));
         return row;
     }
 
@@ -561,12 +564,11 @@ public class EfficiencyService {
      * A milking cow against today's target (her lactation-curve target, the one the Milk target tab
      * shows): her last 7 complete days against it, and the change from the 7 days two weeks earlier,
      * so a cow climbing back reads as recovering. Read fresh from the milk records every time.
-     * Null when she has no target or too few recent records.
+     * The window ends on {@code end}, the last complete day. Null when she has no target or too
+     * few recent records.
      */
-    static Map<String, Object> yieldCheck(TreeMap<LocalDate, Double> daily, Double target, LocalDate today) {
+    static Map<String, Object> yieldCheck(TreeMap<LocalDate, Double> daily, Double target, LocalDate end) {
         if (target == null || target <= 0) return null;
-        // Complete days only: the window ends yesterday.
-        LocalDate end = today.minusDays(1);
         int recentDays = daily.subMap(end.minusDays(AVG_DAYS - 1L), end.plusDays(1)).size();
         if (recentDays < 3) return null;
         double last7 = lastDays(daily, end, AVG_DAYS);
@@ -581,14 +583,25 @@ public class EfficiencyService {
         return m;
     }
 
-    private Map<String, Object> milkPerDay(LocalDate today) {
+    /**
+     * The last day whose milk is fully entered: the latest day before today with an evening
+     * milking recorded. Today is still being entered, and so is yesterday until its evening
+     * milking goes in. Yesterday when no evening milking was entered in the last week (a farm
+     * milking once a day).
+     */
+    private LocalDate lastFullDay(LocalDate today) {
+        LocalDate evening = milkRecordRepository.lastEveningBefore(today);
+        return evening != null && !evening.isBefore(today.minusDays(7)) ? evening : today.minusDays(1);
+    }
+
+    private Map<String, Object> milkPerDay(LocalDate today, LocalDate lastFull) {
         Map<LocalDate, Double> totals = new TreeMap<>();
-        for (MilkRecord r : milkRecordRepository.findByDateBetween(today.minusDays(7), today)) {
+        for (MilkRecord r : milkRecordRepository.findByDateBetween(lastFull.minusDays(AVG_DAYS - 1L), today)) {
             if (r.getQuantity() != null) totals.merge(r.getDate(), r.getQuantity(), Double::sum);
         }
         Map<String, Object> m = new LinkedHashMap<>();
-        // Last 7 complete days; today is still being recorded.
-        List<Double> week = totals.entrySet().stream().filter(e -> e.getKey().isBefore(today)).map(Map.Entry::getValue).toList();
+        // Last 7 complete days; later days are still being entered.
+        List<Double> week = totals.entrySet().stream().filter(e -> !e.getKey().isAfter(lastFull)).map(Map.Entry::getValue).toList();
         m.put("last7Avg", week.isEmpty() ? null : round(week.stream().mapToDouble(Double::doubleValue).average().orElse(0), 1));
         m.put("days", week.size());
         Map.Entry<LocalDate, Double> latest = ((TreeMap<LocalDate, Double>) totals).lastEntry();

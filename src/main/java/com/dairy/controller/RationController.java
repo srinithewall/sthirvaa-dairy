@@ -12,7 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Ration plan: feeding batches, the animals in each, and the plan period used for the purchase list.
+ * Ration plan: feeding batches, the animals in each (placed by the batch rules from herd data, or
+ * pinned by hand), and the plan period used for the purchase list.
  * Everyone signed in can read it (staff feed from it); only ADMIN and PARTNER change it.
  */
 @RestController
@@ -25,7 +26,7 @@ public class RationController {
 
     @GetMapping
     public Map<String, Object> get() {
-        return Map.of("plan", rationService.getPlan(), "groups", rationService.listGroups());
+        return rationService.view();
     }
 
     @PreAuthorize(MANAGE)
@@ -47,11 +48,19 @@ public class RationController {
         return ResponseEntity.noContent().build();
     }
 
-    /** Body: { herdId, groupId } - groupId null takes the animal out of its batch. */
+    /** Body: { herdId, groupId } - pins the animal to that batch; groupId null hands it back to the batch rules. */
     @PreAuthorize(MANAGE)
     @PutMapping("/members")
     public ResponseEntity<Void> setMember(@RequestBody Map<String, Long> body) {
         rationService.setMember(body.get("herdId"), body.get("groupId"));
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Body: { herdIds: [...] } - hands these animals back to the batch rules. */
+    @PreAuthorize(MANAGE)
+    @PostMapping("/members/unpin")
+    public ResponseEntity<Void> unpin(@RequestBody Map<String, List<Long>> body) {
+        rationService.unpin(body.getOrDefault("herdIds", List.of()));
         return ResponseEntity.noContent().build();
     }
 

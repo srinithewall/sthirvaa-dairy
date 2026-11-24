@@ -30,6 +30,45 @@ public class RationGroup {
     @Column(length = 1000)
     private String notes;
 
+    /*
+     * Rule that puts animals in this batch automatically, from their herd data. Every part that is
+     * set must hold; a batch with no rule at all only holds the animals put in it by hand. An
+     * animal goes to the first batch (in sort order) whose rule it meets.
+     */
+
+    /** Comma list of Herd.animalStatus values, e.g. "LACTATING" or "CALF,HEIFER". */
+    @Column(name = "rule_statuses", length = 100)
+    private String ruleStatuses;
+
+    /** Milk per day, litres: the recent average (see RationService). */
+    @Column(name = "rule_min_milk")
+    private Double ruleMinMilk;
+
+    @Column(name = "rule_max_milk")
+    private Double ruleMaxMilk;
+
+    /** Days in milk. */
+    @Column(name = "rule_min_dim")
+    private Integer ruleMinDim;
+
+    @Column(name = "rule_max_dim")
+    private Integer ruleMaxDim;
+
+    /** Age in whole months, from the birth date. */
+    @Column(name = "rule_min_age_months")
+    private Integer ruleMinAgeMonths;
+
+    @Column(name = "rule_max_age_months")
+    private Integer ruleMaxAgeMonths;
+
+    /**
+     * Milk per day the ration lines are written for. When set, lines marked scaleWithMilk are
+     * adjusted for each cow by her own yield (1 kg concentrate per 2.5 L for cows, per 2 L for
+     * buffaloes); null leaves every line as typed.
+     */
+    @Column(name = "ref_milk")
+    private Double refMilk;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

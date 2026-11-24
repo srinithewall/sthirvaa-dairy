@@ -54,4 +54,8 @@ public class RationItem {
 
     @Column(name = "sort_order")
     private Integer sortOrder = 0;
+
+    /** Adjust this line to each cow's own milk yield (needs the batch's refMilk). */
+    @Column(name = "scale_with_milk")
+    private Boolean scaleWithMilk = false;
 }

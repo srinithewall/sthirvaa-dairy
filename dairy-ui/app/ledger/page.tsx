@@ -4,9 +4,10 @@ import React, { useEffect, useState, Suspense } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
-import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown, Layers, Bell, BarChart3, StickyNote } from 'lucide-react';
+import { Plus, History, X, FolderPlus, Edit2, Trash2, ChevronDown, Layers, Bell, BarChart3, StickyNote, Paperclip } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import Link from 'next/link';
+import ExpenseAttachmentsModal, { ATTACHMENT_ACCEPT, checkFiles, uploadExpenseAttachment } from '@/components/ExpenseAttachments';
 
 interface Category {
   id: number;
@@ -31,6 +32,8 @@ interface Transaction {
   settledAt?: string | null;
   settledBy?: string | null;
   segment?: string | null;
+  /** Bills and receipts kept with an expense. */
+  attachmentCount?: number;
   // Set on the one row a month's daily MILK_SALES entries are folded into.
   milkMonth?: { month: string; estimated: number; days: number; received: number; pending: number };
 }
@@ -87,6 +90,10 @@ function LedgerPage() {
   // Off: the regular entries. On: only the unaccounted expenses (they never count in totals).
   const [showUnaccounted, setShowUnaccounted] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Bills picked while adding a new expense, uploaded once it is saved.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  // The expense whose attachments pop-up is open.
+  const [attachmentsFor, setAttachmentsFor] = useState<Transaction | null>(null);
 
   // New Category State
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -348,9 +355,20 @@ function LedgerPage() {
         payload.paidBy = paidBy;
       }
       if (type === 'EXPENSE') payload.unaccounted = unaccounted;
-      await api.post(endpoint, payload);
-      
-      showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} added successfully!`);
+      const res = await api.post(endpoint, payload);
+
+      let uploadFailed = 0;
+      if (type === 'EXPENSE' && pendingFiles.length > 0 && res.data?.id) {
+        for (const f of pendingFiles) {
+          try { await uploadExpenseAttachment(res.data.id, f); } catch { uploadFailed++; }
+        }
+      }
+      if (uploadFailed > 0) {
+        showToast(`Expense saved, but ${uploadFailed} attachment${uploadFailed === 1 ? '' : 's'} failed to upload. Use the paperclip to try again.`, 'error');
+      } else {
+        showToast(`${type.charAt(0) + type.slice(1).toLowerCase()} added successfully!`);
+      }
+      setPendingFiles([]);
       setSelectedCategory(null);
       setAmount('');
       setDescription('');
@@ -877,7 +895,7 @@ function LedgerPage() {
           <div className="bg-white w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl">
             <div className={`p-6 text-center text-white flex flex-col items-center gap-2 ${ (selectedCategory?.type || editingTransaction?.type) === 'EXPENSE' ? 'bg-danger' : 'bg-brand'}`}>
               <div className="w-full flex justify-end mb-[-24px]">
-                <button onClick={() => { setSelectedCategory(null); setEditingTransaction(null); setUnaccounted(false); }} className="text-white/80 hover:text-white"><X size={24}/></button>
+                <button onClick={() => { setSelectedCategory(null); setEditingTransaction(null); setUnaccounted(false); setPendingFiles([]); }} className="text-white/80 hover:text-white"><X size={24}/></button>
               </div>
               <div className="text-xl font-extrabold uppercase tracking-widest">
                 {editingTransaction ? 'Edit Record' : selectedCategory?.name}
@@ -965,6 +983,42 @@ function LedgerPage() {
                 </label>
               )}
 
+              {((selectedCategory?.type || editingTransaction?.type) === 'EXPENSE') && (
+                <div className="mb-6">
+                  <label className="block text-[11px] font-bold text-text3 uppercase mb-2">Bills / Receipts (Optional)</label>
+                  {editingTransaction ? (
+                    <button type="button" onClick={() => setAttachmentsFor(editingTransaction)}
+                      className="w-full py-2 rounded-lg border border-dashed border-border-custom text-[12px] font-bold text-text2 hover:text-danger flex items-center justify-center gap-2">
+                      <Paperclip size={14} />
+                      {(editingTransaction.attachmentCount ?? 0) > 0 ? `View / add (${editingTransaction.attachmentCount} attached)` : 'Add attachments'}
+                    </button>
+                  ) : (
+                    <>
+                      <label className="w-full py-2 rounded-lg border border-dashed border-border-custom text-[12px] font-bold text-text2 hover:text-danger flex items-center justify-center gap-2 cursor-pointer">
+                        <Paperclip size={14} /> Attach files
+                        <input type="file" multiple accept={ATTACHMENT_ACCEPT} className="hidden"
+                          onChange={e => {
+                            const picked = checkFiles(Array.from(e.target.files ?? []), showToast);
+                            setPendingFiles(prev => [...prev, ...picked]);
+                            e.target.value = '';
+                          }} />
+                      </label>
+                      {pendingFiles.length > 0 && (
+                        <ul className="mt-2 space-y-1">
+                          {pendingFiles.map((f, i) => (
+                            <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-[12px] text-text2">
+                              <span className="flex-1 truncate">{f.name}</span>
+                              <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}
+                                className="text-text3 hover:text-danger"><X size={14} /></button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="mb-8">
                 <label className="block text-[11px] font-bold text-text3 uppercase mb-2">Note (Optional)</label>
                 <input 
@@ -1026,6 +1080,18 @@ function LedgerPage() {
         </div>
       )}
 
+
+      {attachmentsFor && (
+        <ExpenseAttachmentsModal
+          expenseId={attachmentsFor.id}
+          title={`${attachmentsFor.category} · ${attachmentsFor.date} · ${rupees(attachmentsFor.amount)}`}
+          onClose={() => setAttachmentsFor(null)}
+          onChanged={count => {
+            setHistory(prev => prev.map(h => (h.type === 'EXPENSE' && h.id === attachmentsFor.id ? { ...h, attachmentCount: count } : h)));
+            setEditingTransaction(prev => (prev && prev.type === 'EXPENSE' && prev.id === attachmentsFor.id ? { ...prev, attachmentCount: count } : prev));
+          }}
+        />
+      )}
 
       {/* New Category Modal */}
       {showCategoryModal && (

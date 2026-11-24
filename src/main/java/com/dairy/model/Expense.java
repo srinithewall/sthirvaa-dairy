@@ -38,6 +38,12 @@ public class Expense {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean unaccounted = false;
 
+    /** Bills and receipts kept with this expense (read only; see ExpenseAttachment). */
+    @org.hibernate.annotations.Formula("(select count(*) from expense_attachments a where a.expense_id = id)")
+    private Integer attachmentCount;
+
+    public Integer getAttachmentCount() { return attachmentCount == null ? 0 : attachmentCount; }
+
     @Column(name = "settled_at")
     private LocalDateTime settledAt;
 

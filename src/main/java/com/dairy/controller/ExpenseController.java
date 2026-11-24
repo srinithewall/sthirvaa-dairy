@@ -1,6 +1,11 @@
 package com.dairy.controller;
 
 import com.dairy.model.Expense;
+import com.dairy.model.ExpenseAttachment;
+import com.dairy.repo.ExpenseAttachmentRepository;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 import com.dairy.service.ExpenseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -51,6 +56,35 @@ public class ExpenseController {
     public ResponseEntity<Void> deleteExpense(@PathVariable Long id) {
         expenseService.deleteExpense(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ── Bills and receipts kept with an expense ──
+
+    @GetMapping("/{id}/attachments")
+    public List<ExpenseAttachmentRepository.Info> getAttachments(@PathVariable Long id) {
+        return expenseService.getAttachments(id);
+    }
+
+    @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@ss.can('LEDGER', 'CREATE') or @ss.can('LEDGER', 'EDIT')")
+    public List<ExpenseAttachmentRepository.Info> addAttachment(@PathVariable Long id,
+                                                                @RequestParam("file") MultipartFile file) throws IOException {
+        return expenseService.addAttachment(id, file.getBytes(), file.getOriginalFilename(), file.getContentType());
+    }
+
+    @GetMapping("/{id}/attachments/{attachmentId}/file")
+    public ResponseEntity<byte[]> attachmentFile(@PathVariable Long id, @PathVariable Long attachmentId) {
+        ExpenseAttachment a = expenseService.getAttachment(id, attachmentId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(a.getContentType()))
+                .header("Content-Disposition", "inline; filename=\"" + a.getFileName().replace("\"", "") + "\"")
+                .body(a.getContent());
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    @PreAuthorize("@ss.can('LEDGER', 'EDIT') or @ss.can('LEDGER', 'DELETE')")
+    public List<ExpenseAttachmentRepository.Info> deleteAttachment(@PathVariable Long id, @PathVariable Long attachmentId) {
+        return expenseService.deleteAttachment(id, attachmentId);
     }
 
     @GetMapping("/range")

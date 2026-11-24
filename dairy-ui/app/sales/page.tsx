@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { Plus, IndianRupee, Printer, Pencil, Trash2, Search, Filter } from 'lucide-react';
 import { useNotification } from '@/components/NotificationContext';
 import SaleModal from '@/components/SaleModal';
+import CustomersPanel from '@/components/CustomersPanel';
 
 interface Sale {
   id: number;
@@ -26,6 +27,7 @@ export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [tab, setTab] = useState<'sales' | 'customers'>('sales');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -74,8 +76,16 @@ export default function SalesPage() {
         <div>
           <h1 className="text-2xl font-bold text-text tracking-tight">Sales & Distribution</h1>
           <p className="text-[13px] text-text3 mt-1">Tracking revenue from Milk, Dung, and other products</p>
+          <div className="inline-flex bg-white border border-border-custom rounded-lg p-0.5 mt-3 shadow-sm">
+            {(['sales', 'customers'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className={`px-4 py-1.5 rounded-md text-[12px] font-bold capitalize transition-colors ${tab === t ? 'bg-brand text-white' : 'text-text3 hover:text-brand'}`}>
+                {t === 'customers' ? 'Customers & Prices' : 'Sales'}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
+        {tab === 'sales' && <div className="flex gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text3" size={16} />
             <input
@@ -96,8 +106,10 @@ export default function SalesPage() {
             <Plus size={16} />
             <span>New Sale</span>
           </button>
-        </div>
+        </div>}
       </div>
+
+      {tab === 'customers' ? <CustomersPanel /> : <>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-brand-dark text-white p-5 rounded-radius-custom-lg shadow-lg relative overflow-hidden group">
@@ -184,6 +196,8 @@ export default function SalesPage() {
           </table>
         </div>
       </div>
+
+      </>}
 
       <SaleModal 
         isOpen={isModalOpen} 

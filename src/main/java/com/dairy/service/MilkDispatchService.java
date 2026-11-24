@@ -24,6 +24,7 @@ public class MilkDispatchService {
     @Autowired private CustomerRepository customerRepository;
     @Autowired private IncomeRepository incomeRepository;
     @Autowired private SaleRepository saleRepository;
+    @Autowired private CustomerPricingService pricingService;
 
     public List<MilkDispatch> getByDate(LocalDate date) {
         return dispatchRepository.findByDate(date);
@@ -51,6 +52,15 @@ public class MilkDispatchService {
             dispatchRepository.deleteByDateAndShift(date, shift);
         }
 
+        // The sales this session made last time it was saved, per customer, oldest first. Saving the
+        // session again updates them row for row instead of adding a second set.
+        String item = "Milk (" + shift + ")";
+        Map<Long, java.util.Deque<Sale>> previousSales = new java.util.HashMap<>();
+        for (Sale s : saleRepository.findByDateAndItemNameOrderByIdAsc(date, item)) {
+            if (s.getCustomer() == null) continue;
+            previousSales.computeIfAbsent(s.getCustomer().getId(), k -> new java.util.ArrayDeque<>()).add(s);
+        }
+
         // Save new dispatches
         for (Map<String, Object> e : entries) {
             Double qty = Double.parseDouble(e.get("quantity").toString());
@@ -74,7 +84,17 @@ public class MilkDispatchService {
                 Customer customer = customerRepository.findById(customerId)
                         .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
                 d.setCustomer(customer);
-                rate = Double.parseDouble(e.get("ratePerLitre").toString());
+                // The customer's own price for this volume, unless the rate was set by hand.
+                CustomerPricingService.Quote quote = pricingService.quote(customerId, qty);
+                Object rateObj = e.get("ratePerLitre");
+                rate = rateObj == null || rateObj.toString().isBlank()
+                    ? quote.rate() : Double.parseDouble(rateObj.toString());
+                Object deliveryObj = e.get("deliveryRate");
+                double delivery = deliveryObj == null || deliveryObj.toString().isBlank()
+                    ? quote.deliveryRate() : Double.parseDouble(deliveryObj.toString());
+                d.setDeliveryRate(Math.max(0, Math.min(delivery, rate)));
+                Object spot = e.get("deliveryLocation");
+                if (spot != null && !spot.toString().isBlank()) d.setDeliveryLocation(spot.toString().trim());
             }
             if ("CALF".equals(type)) {
                 Object herdIdObj = e.get("herdId");
@@ -87,17 +107,26 @@ public class MilkDispatchService {
             d.setTotalAmount(qty * rate);
             dispatchRepository.save(d);
 
-            // Also create a Sale record for the Sales module if it's a customer dispatch
+            // The Sales module's record of a customer dispatch: last save's sale for this customer
+            // updated in place (its payment status kept), else a new pending one.
             if ("CUSTOMER".equals(type)) {
-                Sale sale = new Sale();
+                java.util.Deque<Sale> mine = previousSales.get(d.getCustomer().getId());
+                Sale sale = mine != null && !mine.isEmpty() ? mine.poll() : new Sale();
                 sale.setDate(d.getDate());
-                sale.setItemName("Milk (" + d.getShift() + ")");
+                sale.setItemName(item);
                 sale.setQuantity(d.getQuantity());
                 sale.setPrice(d.getRatePerLitre());
                 sale.setTotalAmount(d.getTotalAmount());
                 sale.setCustomer(d.getCustomer());
-                sale.setPaymentStatus("PENDING"); // Default to pending for distribution
+                if (sale.getPaymentStatus() == null) sale.setPaymentStatus("PENDING"); // Default to pending for distribution
                 saleRepository.save(sale);
+            }
+        }
+
+        // Sales for deliveries no longer in the session go too - unless already paid.
+        for (java.util.Deque<Sale> left : previousSales.values()) {
+            for (Sale s : left) {
+                if (!"PAID".equalsIgnoreCase(s.getPaymentStatus())) saleRepository.delete(s);
             }
         }
 

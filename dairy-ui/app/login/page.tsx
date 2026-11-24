@@ -30,8 +30,8 @@ export default function LoginPage() {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify({ username, email: userEmail, role, staffId, customerId }));
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Customers land on their own milk (or the shop); everyone else on the dashboard.
+      router.push(role === 'CUSTOMER' ? (customerId ? '/my-milk' : '/shop') : '/dashboard');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.response?.data?.message || 'Invalid username/email or password. Please try again.');

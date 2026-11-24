@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { X, Trash2, ChevronDown, Check, Plus } from 'lucide-react';
 import api from '@/lib/api';
 import { useNotification } from '@/components/NotificationContext';
+import { PriceSlab, quote } from '@/lib/customerPricing';
 
 interface Customer { id: number; name: string; defaultRate: number; }
 interface Calf { id: number; animalName?: string; tagNumber?: string; }
@@ -16,6 +17,12 @@ interface DispatchRow {
   herdId: number | null;
   quantity: string;
   ratePerLitre: string;
+  /** Delivery charge per litre inside ratePerLitre. */
+  deliveryRate: string;
+  /** Where it was delivered, shown on the customer's bill. */
+  deliveryLocation?: string;
+  /** Rate typed by hand: litres no longer re-price it. null = a saved row not yet compared with the price list. */
+  rateManual: boolean | null;
 }
 
 interface DistributeModalProps {
@@ -87,6 +94,7 @@ function StepperInput({
 
 export default function DistributeModal({ date, shift, totalProduced, onClose, onSave }: DistributeModalProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [slabs, setSlabs] = useState<Record<number, PriceSlab[]> | null>(null);
   const [calves, setCalves] = useState<Calf[]>([]);
   const [rows, setRows] = useState<DispatchRow[]>([]);
   const [saving, setSaving] = useState(false);
@@ -100,12 +108,38 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
       if (list.length > 0) {
         setRows(prev => prev.map(row =>
           row.dispatchType === 'CUSTOMER' && row.customerId === null
-            ? { ...row, customerId: list[0].id, ratePerLitre: String(list[0].defaultRate ?? 45) }
+            ? { ...row, customerId: list[0].id, ratePerLitre: String(list[0].defaultRate ?? 45), rateManual: false }
             : row
         ));
       }
     }).catch(() => {});
+    api.get('/customers/price-slabs').then(r => setSlabs(r.data || {})).catch(() => setSlabs({}));
   }, []);
+
+  /** The customer's own price for this many litres. */
+  const priceFor = (customerId: number | null, litres: number) =>
+    quote(customers.find(c => c.id === customerId), customerId != null ? slabs?.[customerId] : undefined, litres);
+
+  // Keep auto-priced customer rows on the customer's price for their litres; a saved row whose rate
+  // matches the price list counts as auto-priced, one that doesn't keeps its hand-set rate.
+  useEffect(() => {
+    if (!slabs || !customers.length) return;
+    setRows(prev => {
+      let changed = false;
+      const next = prev.map(r => {
+        if (r.dispatchType !== 'CUSTOMER' || r.customerId == null || r.rateManual === true) return r;
+        const q = priceFor(r.customerId, parseFloat(r.quantity) || 0);
+        if (r.rateManual === null) {
+          changed = true;
+          return { ...r, rateManual: Math.abs((parseFloat(r.ratePerLitre) || 0) - q.rate) > 0.01 };
+        }
+        if (parseFloat(r.ratePerLitre) === q.rate && parseFloat(r.deliveryRate) === q.deliveryRate) return r;
+        changed = true;
+        return { ...r, ratePerLitre: String(q.rate), deliveryRate: String(q.deliveryRate) };
+      });
+      return changed ? next : prev;
+    });
+  }, [slabs, customers, rows]);
 
   // Calves still on milk: animals on the farm born less than 100 days ago.
   useEffect(() => {
@@ -133,17 +167,20 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
           quantity: String(d.quantity),
           // Saved rates can carry long decimals (a synced shift's amount / litres); show paise
           ratePerLitre: String(Math.round((d.ratePerLitre ?? 0) * 100) / 100),
+          deliveryRate: String(d.deliveryRate ?? 0),
+          deliveryLocation: d.deliveryLocation ?? '',
+          rateManual: d.dispatchType === 'CUSTOMER' ? null : true,
         })));
       } else {
         // Default to first customer — will be patched by customers useEffect if not yet loaded
         setRows(prev => {
           const firstCust = customers[0];
-          return [{ key: nk(), dispatchType: 'CUSTOMER', customerId: firstCust?.id ?? null, herdId: null, quantity: '', ratePerLitre: String(firstCust?.defaultRate ?? 45) }];
+          return [{ key: nk(), dispatchType: 'CUSTOMER', customerId: firstCust?.id ?? null, herdId: null, quantity: '', ratePerLitre: String(firstCust?.defaultRate ?? 45), deliveryRate: '0', rateManual: false }];
         });
       }
     }).catch(() => {
       const firstCust = customers[0];
-      setRows([{ key: nk(), dispatchType: 'CUSTOMER', customerId: firstCust?.id ?? null, herdId: null, quantity: '', ratePerLitre: String(firstCust?.defaultRate ?? 45) }]);
+      setRows([{ key: nk(), dispatchType: 'CUSTOMER', customerId: firstCust?.id ?? null, herdId: null, quantity: '', ratePerLitre: String(firstCust?.defaultRate ?? 45), deliveryRate: '0', rateManual: false }]);
     });
   }, [date, shift]);
 
@@ -165,8 +202,9 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
     setRows(p => p.map(r => r.key === key ? { ...r, ...patch } : r));
 
   const onCustomer = (key: number, id: number) => {
-    const c = customers.find(x => x.id === id);
-    setRow(key, { customerId: id, ratePerLitre: String(c?.defaultRate ?? 45) });
+    const row = rows.find(r => r.key === key);
+    const q = priceFor(id, parseFloat(row?.quantity ?? '') || 0);
+    setRow(key, { customerId: id, ratePerLitre: String(q.rate), deliveryRate: String(q.deliveryRate), rateManual: false });
   };
 
   const addCust = () => {
@@ -178,17 +216,19 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
       herdId: null,
       quantity: '',
       ratePerLitre: String(firstCust?.defaultRate ?? 45),
+      deliveryRate: '0',
+      rateManual: false,
     }]);
   };
   const addSpecial = (type: 'WASTE' | 'OWN_USE') => {
     if (!rows.some(r => r.dispatchType === type))
-      setRows(p => [...p, { key: nk(), dispatchType: type, customerId: null, herdId: null, quantity: '', ratePerLitre: '0' }]);
+      setRows(p => [...p, { key: nk(), dispatchType: type, customerId: null, herdId: null, quantity: '', ratePerLitre: '0', deliveryRate: '0', rateManual: true }]);
   };
   // One row per calf, so several calves can be fed in the same session.
   const addCalf = () => {
     const used = new Set(rows.filter(r => r.dispatchType === 'CALF').map(r => r.herdId));
     const next = calves.find(c => !used.has(c.id));
-    setRows(p => [...p, { key: nk(), dispatchType: 'CALF', customerId: null, herdId: next?.id ?? null, quantity: '', ratePerLitre: '0' }]);
+    setRows(p => [...p, { key: nk(), dispatchType: 'CALF', customerId: null, herdId: next?.id ?? null, quantity: '', ratePerLitre: '0', deliveryRate: '0', rateManual: true }]);
   };
   const del = (key: number) => setRows(p => p.filter(r => r.key !== key));
 
@@ -215,6 +255,9 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
         herdId: r.dispatchType === 'CALF' ? (r.herdId ?? undefined) : undefined,
         quantity: parseFloat(r.quantity),
         ratePerLitre: parseFloat(r.ratePerLitre) || 0,
+        // The delivery part of the customer's price for these litres (the backend caps it at the rate).
+        deliveryRate: r.dispatchType === 'CUSTOMER' ? priceFor(r.customerId, parseFloat(r.quantity)).deliveryRate : undefined,
+        deliveryLocation: r.dispatchType === 'CUSTOMER' && r.deliveryLocation?.trim() ? r.deliveryLocation.trim() : undefined,
       }));
     if (!payload.length) { showToast('Enter at least one quantity.', 'warning'); return; }
     if (overAllocated) { showToast('Over-allocated! Please fix quantities.', 'error'); return; }
@@ -381,12 +424,42 @@ export default function DistributeModal({ date, shift, totalProduced, onClose, o
                     <StepperInput
                       label="Rate / Litre"
                       value={row.ratePerLitre}
-                      onChange={v => setRow(row.key, { ratePerLitre: v })}
+                      onChange={v => setRow(row.key, { ratePerLitre: v, rateManual: true })}
                       prefix="₹"
-                      step={5}
+                      step={1}
                     />
                   )}
                 </div>
+
+                {/* Where the rate comes from: the customer's price for these litres, or typed by hand */}
+                {isCust && row.customerId != null && (() => {
+                  const q = priceFor(row.customerId, qty);
+                  return row.rateManual ? (
+                    <div className="mt-2 text-[11px] text-amber-600 flex items-center justify-between gap-2">
+                      <span>Rate set by hand · customer price ₹{Math.round(q.rate)}</span>
+                      <button type="button" className="font-bold text-brand hover:underline"
+                        onClick={() => setRow(row.key, { ratePerLitre: String(q.rate), deliveryRate: String(q.deliveryRate), rateManual: false })}>
+                        Use ₹{Math.round(q.rate)}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-[11px] text-text3">
+                      Customer price: ₹{Math.round(q.milkRate)} milk{q.deliveryRate > 0 ? ` + ₹${Math.round(q.deliveryRate)} delivery` : ''} / L
+                    </div>
+                  );
+                })()}
+
+                {/* Where a delivered order went - only when this volume is delivered (has a delivery charge) */}
+                {isCust && row.customerId != null && priceFor(row.customerId, qty).deliveryRate > 0 && (
+                  <input
+                    type="text"
+                    value={row.deliveryLocation ?? ''}
+                    onChange={e => setRow(row.key, { deliveryLocation: e.target.value })}
+                    placeholder="Delivery spot (e.g. Avalahalli)"
+                    aria-label="Delivery spot"
+                    className="mt-2 w-full px-3 py-1.5 text-[13px] border border-border-custom rounded-lg"
+                  />
+                )}
 
                 {/* Total row for customer */}
                 {isCust && (
